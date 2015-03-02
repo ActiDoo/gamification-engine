@@ -1,8 +1,8 @@
-:title: gamification-engine roadmap
+:title: roadmap
 :description: features in future versions
 
-Gamification-Engine Roadmap
----------------------------
+Roadmap
+-------
 
 Anyone is invited to work on new features, even if they are not listed here.
 Features which might influence the overall performance or cause greater changes should be discussed in a feature request before.

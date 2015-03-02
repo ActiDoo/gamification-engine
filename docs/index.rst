@@ -16,8 +16,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
    
-   tutorial/index
    installing/index
+   concepts/index
    roadmap
 
 
@@ -27,4 +27,5 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
 
