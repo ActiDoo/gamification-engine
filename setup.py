@@ -22,7 +22,6 @@ requires = [
     'pyramid_dogpile_cache',
     'flask',
     'flask-admin',
-    'pylibmc',
     'psycopg2',
     'pymemcache',
     'mock'
