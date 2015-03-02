@@ -27,9 +27,9 @@ requires = [
     'pymemcache'
     ]
 
-setup(name='gengine',
+setup(name='gamification-engine',
       version='0.1',
-      description='gengine',
+      description='gamification-engin',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
         "Programming Language :: Python",
