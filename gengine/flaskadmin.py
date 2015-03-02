@@ -1,0 +1,135 @@
+from flask import Flask
+from flask.ext.admin import Admin
+from flask.ext.admin.contrib.sqla import ModelView
+
+from gengine.models import DBSession, Variable, Goal, Achievement, Property, AchievementProperty, AchievementReward, Reward, User, GoalEvaluationCache, Value, AchievementUser,\
+    TranslationVariable, Language, Translation
+from flask_admin.contrib.sqla.filters import BooleanEqualFilter, IntEqualFilter
+from flask_admin.base import AdminIndexView, BaseView, expose
+from wtforms import BooleanField
+from flask.globals import request
+from wtforms.form import Form
+
+
+def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV"):
+    global flaskadminapp, admin
+    flaskadminapp = Flask(__name__)
+    flaskadminapp.debug=True
+    flaskadminapp.secret_key = secret
+    flaskadminapp.config.update(dict(
+      PREFERRED_URL_SCHEME = 'https'
+    ))
+    
+    admin = Admin(flaskadminapp,
+                  name="Gamification Engine - Admin Control Panel",
+                  base_template='admin_layout.html',
+                  url=urlprefix+"/admin"
+                  )
+    
+    admin.add_view(ModelViewAchievement(DBSession, category="Rules"))
+    admin.add_view(ModelViewGoal(DBSession, category="Rules"))
+    admin.add_view(ModelView(AchievementProperty, DBSession, category="Rules"))
+    admin.add_view(ModelView(AchievementReward, DBSession, category="Rules"))
+    admin.add_view(ModelView(TranslationVariable, DBSession, category="Rules"))
+    admin.add_view(ModelView(Translation, DBSession, category="Rules"))
+    
+    admin.add_view(ModelView(Variable, DBSession, category="Settings"))
+    admin.add_view(ModelViewProperty(DBSession, category="Settings"))
+    admin.add_view(ModelViewReward(DBSession, category="Settings"))
+    admin.add_view(ModelView(Language, DBSession, category="Settings"))
+    admin.add_view(MaintenanceView(name="Maintenance", category="Settings", url="maintenance"))
+    
+    admin.add_view(ModelViewValue(DBSession, category="Debug"))
+    admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
+    admin.add_view(ModelViewUser(DBSession, category="Debug"))
+    admin.add_view(ModelView(AchievementUser, DBSession, category="Debug"))
+
+class ModelViewAchievement(ModelView):
+    column_list = ('name','valid_start','valid_end','relevance')
+    column_searchable_list = ('name',)
+    form_excluded_columns =('rewards','users','goals','properties','updated_at')
+    
+    def __init__(self, session, **kwargs):
+        # You can pass name and other parameters if you want to
+        super(ModelViewAchievement, self).__init__(Achievement, session, **kwargs)
+
+class ModelViewGoal(ModelView):
+    column_list = ('condition','evaluation','operator','goal','timespan','achievement','updated_at')
+    #column_searchable_list = ('name',)
+    column_filters = (Achievement.id,)
+    
+    def __init__(self, session, **kwargs):
+        # You can pass name and other parameters if you want to
+        super(ModelViewGoal, self).__init__(Goal, session, **kwargs)
+
+class ModelViewValue(ModelView):
+    # Disable model creation
+    can_create = False
+    can_edit = False
+    can_delete = False
+    
+    # Override displayed fields
+    column_list = ('user','variable','datetime','key','value')
+
+    def __init__(self, session, **kwargs):
+        # You can pass name and other parameters if you want to
+        super(ModelViewValue, self).__init__(Value, session, **kwargs)
+        
+class ModelViewGoalEvaluationCache(ModelView):
+    # Disable model creation
+    can_create = False
+    can_edit = False
+    can_delete = False
+    
+    # Override displayed fields
+    column_list = ('goal','user','achieved','value','updated_at')
+    
+    column_filters = (IntEqualFilter(User.id, 'UserID'),
+                      Goal.id)
+
+    def __init__(self, session, **kwargs):
+        # You can pass name and other parameters if you want to
+        super(ModelViewGoalEvaluationCache, self).__init__(GoalEvaluationCache, session, **kwargs)
+
+class ModelViewProperty(ModelView):
+    column_list = ('id','name')
+    form_excluded_columns = ('achievements',)
+    
+    def __init__(self, session, **kwargs):
+        # You can pass name and other parameters if you want to
+        super(ModelViewProperty, self).__init__(Property, session, **kwargs)
+        
+class ModelViewReward(ModelView):
+    column_list = ('id','name')
+    form_excluded_columns = ('achievements',)
+    
+    def __init__(self, session, **kwargs):
+        # You can pass name and other parameters if you want to
+        super(ModelViewReward, self).__init__(Reward, session, **kwargs)
+        
+class ModelViewUser(ModelView):
+    column_list = ('id','lat','lng','timezone','country','region','city','created_at')
+    
+    def __init__(self, session, **kwargs):
+        # You can pass name and other parameters if you want to
+        super(ModelViewUser, self).__init__(User, session, **kwargs)
+
+class ClearCacheForm(Form):
+    clear_check = BooleanField(label="Delete all caches?")
+
+class MaintenanceView(BaseView):
+
+    @expose('/',methods=('GET','POST',))
+    def index(self):
+        self._template_args['msgs'] = []
+        self._template_args['clear_caches_form'] = self.clear_caches_form = ClearCacheForm(request.form)
+        
+        if request.method == 'POST':
+            from models import clear_all_caches
+            if self.clear_caches_form.clear_check.data:
+                clear_all_caches()
+                self._template_args['msgs'].append("All caches cleared!")    
+        return self.render(template="admin_maintenance.html")
+    
+# Add administrative views here
+

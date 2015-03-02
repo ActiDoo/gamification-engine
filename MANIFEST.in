@@ -1,0 +1,3 @@
+include *.txt *.ini *.cfg *.rst
+recursive-include gengine *.ico *.png *.css *.gif *.jpg *.pt *.txt *.mak *.mako *.js *.html *.xml
+recursive-include quickstart_template *.ini
