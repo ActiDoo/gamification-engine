@@ -20,7 +20,7 @@ gamification-engine (gengine) is an open source software (AGPL) for integrating 
 * administrative fronted
 
 ## Roadmap
-see xxx
+see http://gamification-engine.readthedocs.org/en/latest/
 
 ## Who are you ?
 We developed the gamification engine for ActiDoo (www.actidoo.com) and extracted the component to release it to the open source community.
