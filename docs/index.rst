@@ -6,6 +6,9 @@
 :title: gamification-engine is an open source software for integrating any kinds of gamification features into your product
 :description:  Welcome to gamification-engine, a flexible open source gamification solution
 
+
+
+
 Welcome to gamification-engine's documentation!
 ===============================================
 
@@ -18,6 +21,7 @@ Contents:
    
    installing/index
    concepts/index
+   internals/index
    roadmap
 
 

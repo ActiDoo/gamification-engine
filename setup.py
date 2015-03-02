@@ -24,7 +24,8 @@ requires = [
     'flask-admin',
     'pylibmc',
     'psycopg2',
-    'pymemcache'
+    'pymemcache',
+    'mock'
     ]
 
 setup(name='gamification-engine',
