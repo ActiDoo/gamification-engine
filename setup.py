@@ -28,7 +28,7 @@ requires = [
     ]
 
 setup(name='gengine',
-      version='1.0',
+      version='0.1',
       description='gengine',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
