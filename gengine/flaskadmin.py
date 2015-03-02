@@ -10,6 +10,7 @@ from wtforms import BooleanField
 from flask.globals import request
 from wtforms.form import Form
 
+flaskadminapp=None
 
 def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV"):
     global flaskadminapp, admin
@@ -50,7 +51,6 @@ class ModelViewAchievement(ModelView):
     form_excluded_columns =('rewards','users','goals','properties','updated_at')
     
     def __init__(self, session, **kwargs):
-        # You can pass name and other parameters if you want to
         super(ModelViewAchievement, self).__init__(Achievement, session, **kwargs)
 
 class ModelViewGoal(ModelView):
@@ -59,7 +59,6 @@ class ModelViewGoal(ModelView):
     column_filters = (Achievement.id,)
     
     def __init__(self, session, **kwargs):
-        # You can pass name and other parameters if you want to
         super(ModelViewGoal, self).__init__(Goal, session, **kwargs)
 
 class ModelViewValue(ModelView):
@@ -72,7 +71,6 @@ class ModelViewValue(ModelView):
     column_list = ('user','variable','datetime','key','value')
 
     def __init__(self, session, **kwargs):
-        # You can pass name and other parameters if you want to
         super(ModelViewValue, self).__init__(Value, session, **kwargs)
         
 class ModelViewGoalEvaluationCache(ModelView):
@@ -88,7 +86,6 @@ class ModelViewGoalEvaluationCache(ModelView):
                       Goal.id)
 
     def __init__(self, session, **kwargs):
-        # You can pass name and other parameters if you want to
         super(ModelViewGoalEvaluationCache, self).__init__(GoalEvaluationCache, session, **kwargs)
 
 class ModelViewProperty(ModelView):
@@ -96,7 +93,6 @@ class ModelViewProperty(ModelView):
     form_excluded_columns = ('achievements',)
     
     def __init__(self, session, **kwargs):
-        # You can pass name and other parameters if you want to
         super(ModelViewProperty, self).__init__(Property, session, **kwargs)
         
 class ModelViewReward(ModelView):
@@ -104,14 +100,12 @@ class ModelViewReward(ModelView):
     form_excluded_columns = ('achievements',)
     
     def __init__(self, session, **kwargs):
-        # You can pass name and other parameters if you want to
         super(ModelViewReward, self).__init__(Reward, session, **kwargs)
         
 class ModelViewUser(ModelView):
     column_list = ('id','lat','lng','timezone','country','region','city','created_at')
     
     def __init__(self, session, **kwargs):
-        # You can pass name and other parameters if you want to
         super(ModelViewUser, self).__init__(User, session, **kwargs)
 
 class ClearCacheForm(Form):
@@ -131,5 +125,3 @@ class MaintenanceView(BaseView):
                 self._template_args['msgs'].append("All caches cleared!")    
         return self.render(template="admin_maintenance.html")
     
-# Add administrative views here
-

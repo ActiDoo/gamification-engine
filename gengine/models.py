@@ -1,3 +1,5 @@
+"""models including business logic"""
+
 import pytz
 import datetime
 import sqlalchemy.types as ty
@@ -31,6 +33,7 @@ import transaction
 from _collections import defaultdict
 from pytz import timezone
 import hashlib
+import warnings
 
 
 class MySession(Session):
@@ -44,18 +47,24 @@ class MySession(Session):
 DBSession = scoped_session(sessionmaker(extension=ZopeTransactionExtension(), class_=MySession))
 Base = declarative_base()
 
-cache_general = get_region('general')
-cache_achievement_eval = get_region('achievement_eval')
-cache_achievements_by_user_for_today = get_region('achievements_by_user_for_today')
-cache_translations = get_region('translations')
+try:
+    cache_general = get_region('general')
+    cache_achievement_eval = get_region('achievement_eval')
+    cache_achievements_by_user_for_today = get_region('achievements_by_user_for_today')
+    cache_translations = get_region('translations')
+except:
+    from dogpile.cache import make_region
+
+    cache_general = make_region().configure('dogpile.cache.memory')
+    cache_achievement_eval = make_region().configure('dogpile.cache.memory')
+    cache_achievements_by_user_for_today = make_region().configure('dogpile.cache.memory')
+    cache_translations = make_region().configure('dogpile.cache.memory')
+    
+    warnings.warn("Warning: cache objects are in memory, are you creating docs?")
 
 def init_db(engine):
     DBSession.configure(bind=engine)
     Base.metadata.bind = engine
-
-#Base = declarative_base()
-#DBSession = sqlahelper.get_session()
-
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
@@ -85,12 +94,10 @@ t_achievements = Table('achievements', Base.metadata,
     Column("max_distance", ty.Integer, nullable=True),
     Column('priority', ty.Integer, index=True, default=0),
     Column('relevance',ty.Enum("friends","city","own", name="relevance_types"), default="own"),
-    #Column('updated_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow,onupdate=datetime.datetime.utcnow),
 )
 
 t_goals = Table("goals", Base.metadata,
     Column('id', ty.Integer, primary_key = True),
-    #Column('name', ty.String(255), nullable = False),
     Column('name_translation_id', ty.Integer, ForeignKey("translationvariables.id"), nullable = False),
     Column('condition', ty.String(255), nullable=True),
     Column('evaluation',ty.Enum("immediately","daily","weekly","monthly","yearly","end", name="evaluation_types")),
@@ -102,7 +109,6 @@ t_goals = Table("goals", Base.metadata,
     Column('maxmin', ty.Enum("max","min", name="goal_maxmin"), nullable=True, default="max"),
     Column('achievement_id', ty.Integer, ForeignKey("achievements.id")),
     Column('priority', ty.Integer, index=True, default=0),
-    #Column('updated_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow,onupdate=datetime.datetime.utcnow)
 ) 
 
 t_goal_evaluation_cache = Table("goal_evaluation_cache", Base.metadata,
@@ -110,7 +116,6 @@ t_goal_evaluation_cache = Table("goal_evaluation_cache", Base.metadata,
     Column("user_id", ty.BigInteger, ForeignKey("users.id"), primary_key=True),
     Column("achieved", ty.Boolean),
     Column("value", ty.Float),
-    #Column('updated_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow,onupdate=datetime.datetime.utcnow)
 )
 
 t_variables = Table('variables', Base.metadata,
@@ -190,14 +195,30 @@ t_translations = Table('translations', Base.metadata,
 )
 
 class ABase(object):
+    """abstract base class which introduces a nice constructor for the model classes."""
+    
     def __init__(self,*args,**kw):
+        """ create a model object.
+        
+        pass attributes by using named parameters, e.g. name="foo", value=123
+        """
+        
         for k,v in kw.items():
             setattr(self, k, v)
 
 class User(ABase):
+    """A user participates in the gamification, i.e. can get achievements, rewards, participate in leaderbaord etc."""
     
     def __str__(self, *args, **kwargs):
         return "User %s" % (self.id,)
+    
+    def __init__(self, *args, **kw):
+        """ create a user object
+        
+        Each user has a timezone and a location to support time- and geo-aware gamification.
+        There is also a friends-relation for leaderboards in groups.  
+        """
+        ABase.__init__(self, *args, **kw)
     
     #TODO:Cache
     @classmethod
@@ -206,6 +227,10 @@ class User(ABase):
     
     @classmethod
     def get_cache_expiration_time_for_today(cls,user):
+        """return the seconds until the day of the user ends (timezone of the user).
+        
+        This is needed as achievements may be limited to a specific time (e.g. only during holidays)."""
+        
         tzobj = pytz.timezone(user["timezone"])
         now = datetime.datetime.now(tzobj)
         today = now.replace(hour=0,minute=0,second=0,microsecond=0)
@@ -214,6 +239,9 @@ class User(ABase):
 
     @classmethod
     def set_infos(cls,user_id,lat,lng,timezone,country,region,city,friends):
+        """set the user's metadata like friends,location and timezone"""
+        
+        
         new_friends_set = set(friends)
         existing_users_set = {x["id"] for x in DBSession.execute(select([t_users.c.id]).where(t_users.c.id.in_([user_id,]+friends))).fetchall()}
         existing_friends = {x["to_id"] for x in DBSession.execute(select([t_users_users.c.to_id]).where(t_users_users.c.from_id==user_id)).fetchall()}
@@ -252,6 +280,7 @@ class User(ABase):
         
     @classmethod
     def delete_user(cls,user_id):
+        """delete a user including all dependencies."""
         update_connection().execute(t_achievements_users.delete().where(t_achievements_users.c.user_id==user_id))
         update_connection().execute(t_goal_evaluation_cache.delete().where(t_goal_evaluation_cache.c.user_id==user_id))
         update_connection().execute(t_users_users.delete().where(t_users_users.c.to_id==user_id))
@@ -261,6 +290,11 @@ class User(ABase):
         
 
 class Variable(ABase):
+    """A Variable is anything that should be meassured in your application and be used in :class:`.Goal`.
+       
+       To save database rows, variables may be grouped by time:
+       group needs to be set to "year","month","week","day","timeslot" or "none" (default)
+    """
     
     def __str__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
@@ -272,6 +306,11 @@ class Variable(ABase):
     
     @classmethod
     def get_datetime_for_tz_and_group(cls,tz,group):
+        """get the datetime of the current row, needed for grouping
+        
+        when "timezone" is used as a group name, the values are grouped to the nearest time in (09:00, 12:00, 15:00, 18:00, 21:00)
+        (timezone to use is given as parameter)
+        """
         tzobj = pytz.timezone(tz)
         now = datetime.datetime.now(tzobj)
         #now = now.replace(tzinfo=pytz.utc)
@@ -310,7 +349,10 @@ class Variable(ABase):
     @classmethod
     @cache_general.cache_on_arguments()
     def map_variables_to_rules(cls):
-        #TODO: Cache
+        """return a map from variable_ids to {"goal":goal_obj,"achievement":achievement_obj} dictionaries.
+        
+        Used to know which goals need to be reevaluated after a value for the variable changes.
+        """
         q = select([t_goals,t_variables.c.id.label("variable_id")])\
             .where(or_(t_goals.c.condition.ilike(func.concat('%"',t_variables.c.name,'"%')),
                        t_goals.c.condition.ilike(func.concat("%'",t_variables.c.name,"'%"))))
@@ -325,7 +367,7 @@ class Variable(ABase):
     
     @classmethod
     def invalidate_caches_for_variable_and_user(cls,variable_id,user_id):
-        """ invalidates the relevant caches for this user and all relevant users with concerned leaderboards"""
+        """ invalidate the relevant caches for this user and all relevant users with concerned leaderboards"""
         goalsandachievements = cls.map_variables_to_rules().get(variable_id,[])
 
         Goal.clear_goal_caches(user_id, [entry["goal"]["id"] for entry in goalsandachievements])
@@ -334,9 +376,17 @@ class Variable(ABase):
              
     
 class Value(ABase):
+    """A Value describes the relation of the user to a variable.
+    
+    (e.g. it counts the occurences of the "events" which the variable represents) """
     
     @classmethod
     def increase_value(cls, variable_name, user, value, key):
+        """increase the value of the variable for the user.
+        
+        In addition to the variable_name there may be an application-specific key which can be used in your :class:`.Goal` definitions
+        """
+        
         user_id = user["id"]
         tz = user["timezone"]
         
@@ -364,6 +414,7 @@ class Value(ABase):
 
 
 class Achievement(ABase):
+    """A collection of goals which has multiple :class:`Property` and :class:`Reward`."""
     
     def __str__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
@@ -375,6 +426,10 @@ class Achievement(ABase):
     
     @classmethod
     def get_achievements_by_user_for_today(cls,user):
+        """Returns all achievements that are relevant for the user today.
+        
+        This is needed as achievements may be limited to a specific time (e.g. only during holidays)
+        """ 
         
         def generate_achievements_by_user_for_today():
             today = datetime.date.today()
@@ -397,7 +452,8 @@ class Achievement(ABase):
     @classmethod
     @cache_general.cache_on_arguments()
     def get_achievements_by_location(cls,latlng):
-        #TODO: cache, invalidate when user's location is set; or achievement in user's range is modified
+        """return achievements which are valid in that location.""" 
+        #TODO: invalidate automatically when achievement in user's range is modified
         distance = calc_distance(latlng, (t_achievements.c.lat, t_achievements.c.lng)).label("distance")
         
         q = select([t_achievements.c.id,
@@ -409,7 +465,7 @@ class Achievement(ABase):
     @classmethod
     @cache_general.cache_on_arguments()
     def get_achievements_by_date(cls,date):
-        #TODO: cache... round date to x
+        """return achievements which are valid at that date"""
         q = t_achievements.select().where(and_(or_(t_achievements.c.valid_start==None,
                                                           t_achievements.c.valid_start<=date),
                                                or_(t_achievements.c.valid_end==None,
@@ -420,6 +476,10 @@ class Achievement(ABase):
     #TODO:CACHE
     @classmethod
     def get_relevant_users_by_achievement_and_user(cls,achievement,user_id):
+        """return all relevant other users for the leaderboard. 
+        
+        dependes on the "relevance" attribute of the achivement, can be "friends" or "city" (city is still a todo)
+        """
         # this is needed to compute the leaderboards
         users=[user_id,] 
         if achievement["relevance"]=="city":
@@ -432,7 +492,9 @@ class Achievement(ABase):
     #TODO:CACHE
     @classmethod
     def get_relevant_users_by_achievement_and_user_reverse(cls,achievement,user_id):
-        # the reversed version is needed to know in whose contact list the user is. when the user's value is updated, all the leaderboards of these users need to be regenerated
+        """return all users which have this user as friends and are relevant for this achievement.
+        
+        the reversed version is needed to know in whose contact list the user is. when the user's value is updated, all the leaderboards of these users need to be regenerated"""
         users=[user_id,] 
         if achievement["relevance"]=="city":
             #TODO
@@ -444,6 +506,8 @@ class Achievement(ABase):
     #TODO:CACHE
     @classmethod
     def get_level(cls, user_id, achievement_id):
+        """get the current level of the user for this achievement."""
+        
         q = select([t_achievements_users.c.level,
                     t_achievements_users.c.updated_at],
                        and_(t_achievements_users.c.user_id==user_id,
@@ -452,7 +516,9 @@ class Achievement(ABase):
     
     @classmethod
     def get_level_int(cls,user_id,achievement_id):
+        """get the current level of the user for this achievement as int (0 if the user does not have this achievement)"""
         lvls = Achievement.get_level(user_id, achievement_id)
+        
         if not lvls:
             return 0
         else:
@@ -461,6 +527,8 @@ class Achievement(ABase):
     @classmethod
     def basic_output(cls,achievement,goals,include_levels=True,
                      max_level_included=None):
+        """construct the basic output structure for the achievement."""
+        
         out = {
             "id" : achievement["id"],
             "internal_name" : achievement["name"],
@@ -503,6 +571,10 @@ class Achievement(ABase):
     
     @classmethod
     def evaluate(cls, user, achievement_id):
+        """evaluate the achievement including all its subgoals for the user.
+        
+           return the basic_output for the achievement plus information about the new achieved levels
+        """
         
         def generate():
             user_id = user["id"]
@@ -564,11 +636,6 @@ class Achievement(ABase):
                     if prop["is_variable"]:
                         Value.increase_value(prop["name"], user, prop["value"], achievement_id)
                 
-                #if user_has_level!=0:
-                #    update_connection().execute(t_achievements_users.update().values({
-                #        t_achievements_users.c.level : user_wants_level
-                #    }))
-                #else:
                 update_connection().execute(t_achievements_users.insert().values({
                     "user_id" : user_id,
                     "achievement_id" : achievement["id"],
@@ -607,6 +674,8 @@ class Achievement(ABase):
     
     @classmethod
     def invalidate_evaluate_cache(cls,user_id,achievement):
+        """invalidate the evaluation cache for all goals of this achievement for the user."""
+        
         #We neeed to invalidate for all relevant users because of the leaderboards
         for uid in Achievement.get_relevant_users_by_achievement_and_user_reverse(achievement, user_id):
             cache_achievement_eval.delete("%s_%s" % (uid,achievement["id"]))
@@ -615,6 +684,8 @@ class Achievement(ABase):
     @classmethod
     @cache_general.cache_on_arguments()
     def get_rewards(cls,achievement_id,level):
+        """return the new rewards which are given for the achievement level."""
+        
         this_level = DBSession.execute(select([t_rewards.c.id.label("reward_id"),
                                                t_achievements_rewards.c.id,
                                                t_rewards.c.name,
@@ -650,6 +721,8 @@ class Achievement(ABase):
     @classmethod
     @cache_general.cache_on_arguments()
     def get_properties(cls,achievement_id,level):
+        """return all properties which are associated to the achievement level."""
+        
         return DBSession.execute(select([t_properties.c.id.label("property_id"),
                                          t_properties.c.name,
                                          t_properties.c.is_variable,
@@ -665,29 +738,47 @@ class Achievement(ABase):
        
     
 class Property(ABase):
+    """A property describes the :class:`Achievement`s of our system.
+    
+    Examples: name, image, description, xp
+    
+    Additionally Properties can be used as variables.
+    This is useful to model goals like "reach 1000xp"  
+    
+    """
     def __str__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
 
 class AchievementProperty(ABase):
+    """A poperty value for an :class:`Achievement`"""
     pass
     
 class Reward(ABase):
+    """Rewards are given when reaching :class:`Achievement`s.
+    
+    Examples: badge, item
+    """
     def __str__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
 
 class AchievementReward(ABase):
+    """A Reward value for an :class:`Achievement` """
     
     @classmethod
     def get_achievement_reward(cls, achievement_reward_id):
         return DBSession.execute(t_achievements_rewards.select(t_achievements_rewards.c.id==achievement_reward_id)).fetchone()
 
 class AchievementUser(ABase):
+    """Relation between users and achievements, contains level and updated_at date"""
     pass
     
 class GoalEvaluationCache(ABase):
+    """Cache for the evaluation of goals for users"""
     pass
 
 class Goal(ABase):
+    """A Goal defines a rule on variables that needs to be reached to get achievements"""
+    
     def __str__(self, *args, **kwargs):
         return str(self.name_translation) + " (ID: %s)" % (self.id,)
     
@@ -698,7 +789,19 @@ class Goal(ABase):
     
     @classmethod
     def compute_progress(cls,goal,user_ids):
+        """computes the progress of the goal for the given user_ids
         
+        goal attributes:
+            - condition:           the rule as python code
+            - group_by_dateformat: passed as a parameter to to_char ( http://www.postgresql.org/docs/9.3/static/functions-formatting.html )
+                                   e.g. you can select and group by the weekday by using "ID" for ISO 8601 day of the week (1-7) which can afterwards be used in the condition
+                                   
+            - group_by_key:        group by the key of the values table
+            - timespan:            number of days which are considered (uses utc, i.e. days*24hours)
+            - maxmin:              "max" or "min" - select min or max value after grouping
+            - evaluation:          "daily", "weekly", "monthly", "yearly" evaluation (users timezone)
+            
+        """
         condition = eval_formular(goal["condition"],{"var" : t_variables.c.name.label("variable_name"),
                                                      "key" : t_values.c.key})
         group_by_dateformat = goal["group_by_dateformat"]
@@ -769,8 +872,7 @@ class Goal(ABase):
 
     @classmethod
     def evaluate(cls, goal, user_ids, level):
-        
-        #TODO This must only be started on value modification!
+        """evaluate the goal for the user_ids and the level"""
         
         operator = goal["operator"]
         
@@ -808,6 +910,7 @@ class Goal(ABase):
             
     @classmethod
     def get_goal_eval_cache(cls,goal_id,user_id):
+        """lookup and return cache entry, else return None"""
         j = t_goal_evaluation_cache.join(t_goals)
         q = select([t_goal_evaluation_cache.c.goal_id,
                     t_goal_evaluation_cache.c.value,
@@ -844,6 +947,8 @@ class Goal(ABase):
         
     @classmethod
     def set_goal_eval_cache(cls,goal_id,user_id,value,achieved):
+        """set cache entry after evaluation"""
+        
         cache = Goal.get_goal_eval_cache(goal_id, user_id)
         
         if not cache:
@@ -864,10 +969,13 @@ class Goal(ABase):
     
     @classmethod
     def clear_goal_caches(cls, user_id, goal_ids):
+        """clear the evaluation cache for the user and gaols"""
+        
         update_connection().execute(t_goal_evaluation_cache.delete().where(and_(t_goal_evaluation_cache.c.user_id==user_id,
                                                                       t_goal_evaluation_cache.c.goal_id.in_(goal_ids))))
     @classmethod
     def get_leaderboard(cls, goal_id, user_ids):
+        """get the leaderboard for the goal and userids"""
         items = DBSession.execute(select([t_goal_evaluation_cache.c.user_id,
                                           t_goal_evaluation_cache.c.value])\
                                   .where(and_(t_goal_evaluation_cache.c.user_id.in_(user_ids),
@@ -985,6 +1093,7 @@ mapper(Translation, t_translations, properties={
 @event.listens_for(Property, "after_insert")
 @event.listens_for(Property, 'after_update')
 def insert_variable_for_property(mapper,connection,target):
+    """when setting is_variable on a :class:`Property` a variable is automatically created"""
     if target.is_variable and not exists_by_expr(t_variables, t_variables.c.name==target.name):
             variable = Variable()
             variable.name = target.name
@@ -1026,6 +1135,16 @@ safe_dict['abs'] = abs
 
 #TODO: Cache
 def eval_formular(s,params={}):
+    """evaluates the formular.
+    
+    parameters are available as p.name,
+    
+    available math functions:
+    'math','acos', 'asin', 'atan', 'atan2', 'ceil',
+    'cos', 'cosh', 'degrees', 'e', 'exp', 'fabs', 'floor',
+    'fmod', 'frexp', 'hypot', 'ldexp', 'log', 'log10', 'modf',
+    'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh'
+    """
     if s is None:
         return None
     else:
@@ -1060,7 +1179,7 @@ def get_insert_ids_by_result(r):
     return r.last_inserted_ids()
 
 def exists_by_expr(t, expr):
-    #TODO: use exists instead of count!!!
+    #TODO: use exists instead of count
     q = select([func.count("*").label("c")], from_obj=t).where(expr)
     r = DBSession.execute(q).fetchone()
     if r.c > 0:

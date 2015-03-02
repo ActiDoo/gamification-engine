@@ -9,7 +9,7 @@ from .models import (
 from urlcache import get_or_set
 from pyramid.renderers import render, JSON
 
-from flaskadmin import flaskadminapp
+from .flaskadmin import flaskadminapp
 from pyramid.wsgi import wsgiapp2, wsgiapp
 from _collections import defaultdict
 from gengine.models import Variable, valid_timezone, Goal, AchievementReward
@@ -21,6 +21,8 @@ from gengine.wsgiutil import HTTPSProxied
 
 @view_config(route_name='add_or_update_user', renderer='string')
 def add_or_update_user(request):
+    """add a user and set its metadata"""
+    
     user_id = long(request.matchdict["user_id"])
     
     lat = float(request.POST["lat"])
@@ -48,12 +50,15 @@ def add_or_update_user(request):
 
 @view_config(route_name='delete_user', renderer='string', request_method="DELETE")
 def delete_user(request):
+    """delete a user completely"""
+    
     user_id = long(request.matchdict["user_id"])
     User.delete_user(user_id)
     return {"status" : "OK"}
 
 @view_config(route_name='get_progress', renderer='string')
 def get_progress(request, return_object=False):
+    """get all relevant data concerning the user's progress"""
     user_id = long(request.matchdict["user_id"])
     
     user = User.get_user(user_id)
@@ -96,6 +101,7 @@ def get_progress(request, return_object=False):
 @view_config(route_name='increase_value', renderer='json', request_method="POST")
 @view_config(route_name='increase_value_with_key', renderer='json', request_method="POST")
 def increase_value(request):
+    """increase a value for the user"""
     
     user_id = int(request.matchdict["user_id"])
     try:
@@ -129,7 +135,7 @@ def increase_value(request):
 
 @view_config(route_name='get_achievement_level', renderer='string', request_method="GET")
 def get_achievement_level(request):
-     
+    """get all information about an achievement for a specific level""" 
     try:
         achievement_id = int(request.matchdict.get("achievement_id",None))
         level = int(request.matchdict.get("level",None))

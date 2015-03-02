@@ -1,7 +1,7 @@
 :title: concepts
 :description: introduction to the basic concepts 
 
-Tutorial
+Concepts
 --------
 
 Assumption: You installed the gamification-engine and can open the admin interface at /admin/
