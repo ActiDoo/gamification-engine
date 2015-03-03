@@ -56,6 +56,7 @@ The constraint that a user may not attend multiple times to one seminar is cover
 In the gamification-engine we create a Goal with the following formular:
 
 .. code:: python
+
    and_(p.var=="participate", p.key.in_(["5","7","9"]))
    
 Whenever a value for "participate" is set, this Goal is evaluated. 
@@ -67,6 +68,7 @@ After inviting 30 other users to the application, the user should get an achieve
 We create a variable "invite_users" and set the condition as follows:
 
 .. code:: python
+
    p.var=="invite_users"
    
 Furthermore we set the Goal's goal to 30 and the operator to "geq".
