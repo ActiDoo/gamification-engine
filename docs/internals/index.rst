@@ -4,6 +4,9 @@
 Modules
 -------
 
+.. image:: /_static/erm.svg
+   :width: 1000
+
 gengine.models
 ==============
 
