@@ -21,6 +21,7 @@ Contents:
    
    installing/index
    concepts/index
+   rest/index
    internals/index
    roadmap
 
