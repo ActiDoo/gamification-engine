@@ -28,7 +28,7 @@ requires = [
     ]
 
 setup(name='gamification-engine',
-      version='0.1',
+      version='0.1.1',
       description='gamification-engin',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
@@ -44,7 +44,7 @@ setup(name='gamification-engine',
       author_email='marcel@gamification-software.com',
       url='https://www.gamification-software.com',
       keywords='web wsgi bfg pylons pyramid gamification',
-      packages=find_packages()+["quickstart_template",],
+      packages=find_packages()+["gengine_quickstart_template",],
       include_package_data=True,
       zip_safe=False,
       test_suite='gengine',
