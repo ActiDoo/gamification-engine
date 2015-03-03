@@ -8,9 +8,9 @@ Add or update user data
 =======================
 
    - POST to "/add_or_update_user/{userId}" 
-      - Get fields:
+      - URL parameters:
          - userId (the Id of a user in your system)
-      - Body fields:
+      - POST parameters:
          - lat (float latitude)
          - lon (float longitude)
          - country (String country)
@@ -32,11 +32,11 @@ Increase Value
 ==============
    
    - GET to "/increase_value/{variable_name}/{userId}"
-      - Get fields:
+      - URL parameters:
          - variable_name (the name of the variable to increase or decrease)
          - userId (the Id of the user)
 
-   - if the userId is not registered a empty record with only the user Id will be created
+   - if the userId is not registered a empty record with only the userId will be created
    - directly evaluates all goals associated with this variable_name
    - directly returns new reached achievements
 
