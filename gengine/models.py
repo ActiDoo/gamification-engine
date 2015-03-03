@@ -792,6 +792,8 @@ class Goal(ABase):
         """computes the progress of the goal for the given user_ids
         
         goal attributes:
+            - goal:                the value that is used for comparison
+            - operator:            "geq" or "leq"; used for comparison
             - condition:           the rule as python code
             - group_by_dateformat: passed as a parameter to to_char ( http://www.postgresql.org/docs/9.3/static/functions-formatting.html )
                                    e.g. you can select and group by the weekday by using "ID" for ISO 8601 day of the week (1-7) which can afterwards be used in the condition
