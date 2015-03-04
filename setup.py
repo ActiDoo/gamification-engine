@@ -20,7 +20,7 @@ requires = [
     'pytz',
     'dogpile.cache',
     'pyramid_dogpile_cache',
-    'flask',
+    'Flask',
     'flask-admin',
     'psycopg2',
     'pymemcache',
