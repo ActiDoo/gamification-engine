@@ -28,8 +28,8 @@ requires = [
     ]
 
 setup(name='gamification-engine',
-      version='0.1.1',
-      description='gamification-engin',
+      version='0.1.2',
+      description='gamification-engine',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
         "Programming Language :: Python",
