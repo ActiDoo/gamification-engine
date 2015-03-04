@@ -1,4 +1,6 @@
 # gamification-engine
+[![Build Status](https://travis-ci.org/ActiDoo/gamification-engine.svg?branch=master)](https://travis-ci.org/ActiDoo/gamification-engine)
+[![Documentation Status](https://readthedocs.org/projects/gamification-engine/badge/?version=latest)](https://readthedocs.org/projects/gamification-engine/?badge=latest)
 
 gamification-engine (gengine) is an open source software (AGPL) for integrating any kinds of gamification features into your product.
 
