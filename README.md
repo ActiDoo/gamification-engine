@@ -1,4 +1,10 @@
 # gamification-engine
+[![Build Status](https://travis-ci.org/ActiDoo/gamification-engine.svg?branch=master)](https://travis-ci.org/ActiDoo/gamification-engine)
+[![Documentation Status](https://readthedocs.org/projects/gamification-engine/badge/?version=latest)](https://readthedocs.org/projects/gamification-engine/?badge=latest)
+[![Latest Version](https://pypip.in/version/gamification-engine/badge.svg)](https://pypi.python.org/pypi/gamification-engine/)
+[![Downloads](https://pypip.in/download/gamification-engine/badge.svg?period=month)](https://pypi.python.org/pypi/gamification-engine/)
+[![License](https://pypip.in/license/gamification-engine/badge.svg)](https://pypi.python.org/pypi/gamification-engine/)
+
 
 gamification-engine (gengine) is an open source software (AGPL) for integrating any kinds of gamification features into your product.
 

@@ -8,3 +8,11 @@ install:
   
 # command to run tests
 script: nosetests
+
+# deploy to pypi
+deploy:
+  provider: pypi
+  user: $PYPI_USER
+  password: $PYPI_PASSWORD
+  on:
+    tags: true
