@@ -13,6 +13,7 @@ from pyramid.paster import (
 from pyramid.scripts.common import parse_vars
 import pyramid_dogpile_cache
 from pyramid.config import Configurator
+from gengine.models import AchievementProperty, AchievementReward
 
 
 
@@ -53,7 +54,9 @@ def main(argv=sys.argv):
         User,
         Language,
         TranslationVariable,
-        Translation
+        Translation,
+        Property,
+        Reward
     )
     
     DBSession.configure(bind=engine)
@@ -122,6 +125,42 @@ def main(argv=sys.argv):
                                              )
             DBSession.add(achievement_fittest_goal1)
 
+            property_name = Property(name='name')
+            DBSession.add(property_name)
+            
+            property_xp = Property(name='xp')
+            DBSession.add(property_xp)
+            
+            property_icon = Property(name='icon')
+            DBSession.add(property_icon)
+            
+            property_description = Property(name='description')
+            DBSession.add(property_description)
+
+            reward_badge = Reward(name='badge')
+            DBSession.add(reward_badge)
+            
+            reward_image = Reward(name='backgroud_image')
+            DBSession.add(reward_image)
+
+            DBSession.add(AchievementProperty(achievement=achievement_invite, property=property_name, value_translation=transvar_invite))
+            DBSession.add(AchievementProperty(achievement=achievement_invite, property=property_xp, value='100 * p.level'))
+            DBSession.add(AchievementProperty(achievement=achievement_invite, property=property_icon, value='https://www.gamification-software.com/img/running.png'))
+            DBSession.add(AchievementProperty(achievement=achievement_invite, property=property_description, value_translation=transvar_invite))
+            
+            DBSession.add(AchievementReward(achievement=achievement_invite, reward=reward_badge, value='https://www.gamification-software.com/img/trophy.png', from_level=5))
+            DBSession.add(AchievementReward(achievement=achievement_invite, reward=reward_image, value='https://www.gamification-software.com/img/video-controller-336657_1920.jpg', from_level=5))
+            
+            
+            DBSession.add(AchievementProperty(achievement=achievement_fittest, property=property_name, value_translation=transvar_fittest))
+            DBSession.add(AchievementProperty(achievement=achievement_fittest, property=property_xp, value='50 + (200 * p.level)'))
+            DBSession.add(AchievementProperty(achievement=achievement_fittest, property=property_icon, value='https://www.gamification-software.com/img/colorwheel.png'))
+            DBSession.add(AchievementProperty(achievement=achievement_fittest, property=property_description, value_translation=transvar_fittest))
+            
+            DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_badge, value='https://www.gamification-software.com/img/easel.png', from_level=1))
+            DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_image, value='https://www.gamification-software.com/img/game-characters-622654.jpg', from_level=1))
+            
+            
             user1 = User(id=1,lat=10,lng=50,timezone="Europe/Berlin")
             user2 = User(id=2,lat=10,lng=50,timezone="US/Eastern")
             user3 = User(id=3,lat=10,lng=50)
