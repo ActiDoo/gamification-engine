@@ -131,7 +131,7 @@ jQuery().ready(function($) {
 		});
 		
 		request.fail(function( jqXHR, textStatus ) {
-		  alert( "Request failed: " + textStatus );
+			api_result.html("<pre> Error: "+jqXHR.status+"</pre>");
 		});
 		
 		return false;
