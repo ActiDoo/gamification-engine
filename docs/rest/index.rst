@@ -31,11 +31,13 @@ Delete a user
 Increase Value
 ==============
    
-   - GET to "/increase_value/{variable_name}/{userId}"
+   - POST to "/increase_value/{variable_name}/{userId}"
       - URL parameters:
          - variable_name (the name of the variable to increase or decrease)
          - userId (the Id of the user)
-
+	  - POST parameters:
+		 - value (the increase/decrease value in Double)
+	
    - if the userId is not registered a empty record with only the userId will be created
    - directly evaluates all goals associated with this variable_name
    - directly returns new reached achievements
