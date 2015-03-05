@@ -28,7 +28,7 @@ requires = [
     ]
 
 setup(name='gamification-engine',
-      version='0.1.2',
+      version='0.1.3',
       description='gamification-engine',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
