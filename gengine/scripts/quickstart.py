@@ -26,7 +26,7 @@ def main(argv=sys.argv):
     if not os.path.exists(directory):
         
         #copy files
-        quickstart_template_path = os.path.join(os.path.dirname(gengine.__path__[0]), "quickstart_template")
+        quickstart_template_path = os.path.join(os.path.dirname(gengine.__path__[0]), "gengine_quickstart_template")
                 
         copyDirectory(quickstart_template_path, directory)
         
