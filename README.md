@@ -26,11 +26,20 @@ gamification-engine (gengine) is an open source software (AGPL) for integrating 
 - high performance / scalable
 - administrative fronted
 
-## Rest-Interface
+## Rest Interface
 
 simple rest-interface to communicate with arbitrary Systems
 
 see http://gamification-engine.readthedocs.org/en/latest/rest/index.html
+
+## Demo Installation
+
+A demo installation is available at https://gamification-engine.herokuapp.com/
+
+## Usage
+1. A ready-to-use buildpack for Heroku and dokku is available at https://github.com/ActiDoo/gamification-engine-dokku Follow the instructions there.
+2. The current stable version is available as phyton package at https://pypi.python.org/pypi/gamification-engine
+3. Checkout the source code and configure the PostgreSQL database in `development.ini`. Then run `python setup.py develop` to configure the application and `pserve development.ini` to start it. The front end is available at http://localhost:6543
 
 ## Roadmap
 
