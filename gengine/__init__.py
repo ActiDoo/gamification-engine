@@ -38,8 +38,8 @@ def main(global_config, **settings):
     init_reverse_proxy(force_https,urlprefix)
     
     urlcache_url = settings.get("urlcache_url","127.0.0.1:11211")
-    urlcache_active = asbool(settings.get("urlcache_active",True))
-    
+    urlcache_active = asbool(os.environ.get("URLCACHE_ACTIVE", settings.get("urlcache_active",True)))
+	
     #routes
     config.add_route('get_progress', urlprefix+'/progress/{user_id}')
     config.add_route('increase_value', urlprefix+'/increase_value/{variable_name}/{user_id}')
