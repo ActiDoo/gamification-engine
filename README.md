@@ -1,9 +1,12 @@
 # gamification-engine
 [![Build Status](https://travis-ci.org/ActiDoo/gamification-engine.svg?branch=master)](https://travis-ci.org/ActiDoo/gamification-engine)
+[![Requirements Status](https://requires.io/github/ActiDoo/gamification-engine/requirements.svg?branch=master)](https://requires.io/github/ActiDoo/gamification-engine/requirements/?branch=master)
+[![Heroku](https://heroku-badge.herokuapp.com/?app=gamification-engine&root=admin)](https://gamification-engine.herokuapp.com)
+
 [![Documentation Status](https://readthedocs.org/projects/gamification-engine/badge/?version=latest)](https://readthedocs.org/projects/gamification-engine/?badge=latest)
 [![Latest Version](https://pypip.in/version/gamification-engine/badge.svg)](https://pypi.python.org/pypi/gamification-engine/)
 [![Downloads](https://pypip.in/download/gamification-engine/badge.svg?period=month)](https://pypi.python.org/pypi/gamification-engine/)
-[![Heroku](https://heroku-badge.herokuapp.com/?app=gamification-engine&root=admin)](https://gamification-engine.herokuapp.com)
+
 [![License](https://pypip.in/license/gamification-engine/badge.svg)](https://pypi.python.org/pypi/gamification-engine/)
 
 
