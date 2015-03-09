@@ -9,7 +9,7 @@ from flask_admin.base import AdminIndexView, BaseView, expose
 from wtforms import BooleanField
 from flask.globals import request
 from wtforms.form import Form
-
+import pkg_resources
 flaskadminapp=None
 
 def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV"):
@@ -20,6 +20,10 @@ def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV"):
     flaskadminapp.config.update(dict(
       PREFERRED_URL_SCHEME = 'https'
     ))
+    
+    @flaskadminapp.context_processor
+    def inject_version():
+        return { "gamification_engine_version" : pkg_resources.get_distribution("gamification-engine").version }
     
     admin = Admin(flaskadminapp,
                   name="Gamification Engine - Admin Control Panel",
