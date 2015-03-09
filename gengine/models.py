@@ -1135,6 +1135,9 @@ safe_dict['and_'] = and_
 safe_dict['or_'] = or_
 safe_dict['abs'] = abs
 
+class FormularEvaluationException(Exception):
+    pass
+
 #TODO: Cache
 def eval_formular(s,params={}):
     """evaluates the formular.
@@ -1147,19 +1150,22 @@ def eval_formular(s,params={}):
     'fmod', 'frexp', 'hypot', 'ldexp', 'log', 'log10', 'modf',
     'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh'
     """
-    if s is None:
-        return None
-    else:
-        p = DictObjectProxy(params)
-        
-        #add any needed builtins back in.
-        safe_dict['p'] = p
-        
-        result = eval(s,{"__builtins__":None},safe_dict)
-        if type(result)==str or type(result)==unicode:
-            return result % params
+    try:
+        if s is None:
+            return None
         else:
-            return result
+            p = DictObjectProxy(params)
+            
+            #add any needed builtins back in.
+            safe_dict['p'] = p
+            
+            result = eval(s,{"__builtins__":None},safe_dict)
+            if type(result)==str or type(result)==unicode:
+                return result % params
+            else:
+                return result
+    except:
+        raise FormularEvaluationException(s)
     
 class DictObjectProxy():
     obj = None

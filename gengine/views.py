@@ -12,12 +12,14 @@ from pyramid.renderers import render, JSON
 from .flaskadmin import flaskadminapp
 from pyramid.wsgi import wsgiapp2, wsgiapp
 from _collections import defaultdict
-from gengine.models import Variable, valid_timezone, Goal, AchievementReward
+from gengine.models import Variable, valid_timezone, Goal, AchievementReward, FormularEvaluationException
 from werkzeug.exceptions import BadRequest
 from gengine.urlcache import set_value
 from pyramid.exceptions import NotFound
 from werkzeug import DebuggedApplication
 from gengine.wsgiutil import HTTPSProxied
+
+import traceback
 
 @view_config(route_name='add_or_update_user', renderer='string')
 def add_or_update_user(request):
@@ -71,15 +73,24 @@ def get_progress(request, return_object=False):
         
         def ea(achievement):
             try:
+                #print "evaluating "+`achievement["id"]`
                 return Achievement.evaluate(user, achievement["id"])
-            except:
-                return None
+            except FormularEvaluationException as e:
+                return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
+            except Exception as e:
+                tb = traceback.format_exc()
+                return { "error": tb, "id" : achievement["id"] }
             
-        check = lambda x : x!=None and (x["hidden"]==False or x["level"]>0)
+        check = lambda x : x!=None and not x.has_key("error") and (x["hidden"]==False or x["level"]>0)
+        
+        evaluatelist = [ea(achievement) for achievement in achievements]
         
         ret = {
             "achievements" : {
-              x["id"] : x for x in [ea(achievement) for achievement in achievements] if check(x) 
+                x["id"] : x for x in evaluatelist if check(x) 
+            },
+            "achievement_errors" : {
+                x["id"] : x for x in evaluatelist if x!=None and x.has_key("error") 
             }
         }
         
