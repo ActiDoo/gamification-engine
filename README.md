@@ -18,11 +18,11 @@ The Gamification-Engine (gengine) is an open source software (AGPL) for integrat
 - multi goal achievements
 - progress and single goals 
 - leader boards / ladder
-- achievements can be reached directly, daily, weekly, monthly or yearly
+- achievements can be reached directly or by evaluating leaderboards daily, weekly, monthly or yearly
 - time zone independent (correct daily, weekly.. evaluations among time zones)
-- social dependencies (e.g. each the highest score among your friends)
-- localized achievements (e.g. reach the highest score among all users in Germany)
-- custom definable rules and strings
+- social-awareness (e.g. reach the highest score among your friends)
+- geo-awareness (e.g. reach the highest score among all users in your city)
+- rules can be defined in python using given variables (e.g. the current level)
 - custom definable achievement properties and rewards
 - custom definable languages and translations
 - dependencies between achievements (prerequisites & postconditions)
