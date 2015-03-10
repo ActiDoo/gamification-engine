@@ -63,3 +63,5 @@ We offer commercial support at www.gamification-software.com
 ## AGPL ?
 
 You may use the engine in commercial products, but you need to contribute all your modifications and improvements back to the community.
+
+We also offer a commercial license at https://www.gamification-software.com
