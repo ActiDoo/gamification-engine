@@ -419,6 +419,12 @@ class Value(ABase):
         
 class AchievementCategory(ABase):
     """A category for grouping achievement types"""
+    
+    @classmethod
+    @cache_general.cache_on_arguments()
+    def get_achievementcategory(cls,achievementcategory_id):
+        return DBSession.execute(t_achievementcategory.select().where(t_achievementcategory.c.id==achievementcategory_id)).fetchone()
+    
     def __str__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
     
@@ -538,12 +544,17 @@ class Achievement(ABase):
                      max_level_included=None):
         """construct the basic output structure for the achievement."""
         
+        achievementcategory = None
+        if achievement["achievementcategory_id"]!=None:
+            achievementcategory = AchievementCategory.get_achievementcategory(achievement["achievementcategory_id"])
+        
         out = {
             "id" : achievement["id"],
             "internal_name" : achievement["name"],
             "maxlevel" : achievement["maxlevel"],
             "priority" : achievement["priority"],
             "hidden" : achievement["hidden"],
+            "achievementcategory" : achievementcategory["name"] if achievementcategory!=None else ""
             #"updated_at" : combine_updated_at([achievement["updated_at"],]),
         }
         
