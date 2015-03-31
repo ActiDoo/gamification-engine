@@ -17,6 +17,7 @@ Add or update user data
          - city (String city)
          - region (String city)
          - friends (comma separated list of user Ids)
+         - groups (comma separated list of group Ids)
          
    - add or updates a user with Id {userId} and Post parameters into the engines database
    - if friends Ids are not registered a empty record with only the user Id will be created

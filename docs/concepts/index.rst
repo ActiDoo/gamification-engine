@@ -18,6 +18,7 @@ As the gamification-engine include location-based, time-based and social feature
  - city
  - region
  - friends
+ - groups
 
 Variables / Values / Events
 ===========================
