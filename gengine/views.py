@@ -30,6 +30,7 @@ def add_or_update_user(request):
     lat = float(request.POST["lat"])
     lon = float(request.POST["lon"])
     friends = [long(x) for x in request.POST["friends"].split(",")]
+    groups = [long(x) for x in request.POST["groups"].split(",")]
     timezone = request.POST["timezone"]
     
     if not valid_timezone(timezone):
@@ -46,7 +47,8 @@ def add_or_update_user(request):
                    country=country,
                    region=region,
                    city=city,
-                   friends=friends)
+                   friends=friends,
+                   groups=groups)
     
     return {"status" : "OK"}
 

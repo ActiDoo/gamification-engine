@@ -82,6 +82,15 @@ t_users_users = Table("users_users", Base.metadata,
     Column('to_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True)
 )
 
+t_groups = Table("groups", Base.metadata,
+    Column('id', ty.BigInteger, primary_key = True),
+)
+
+t_users_groups = Table("users_groups", Base.metadata,
+    Column('user_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True),
+    Column('group_id', ty.BigInteger, ForeignKey("groups.id"), primary_key = True)
+)
+
 t_achievementcategories = Table('achievementcategories', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('name', ty.String(255), nullable = False),
@@ -222,7 +231,7 @@ class User(ABase):
         """ create a user object
         
         Each user has a timezone and a location to support time- and geo-aware gamification.
-        There is also a friends-relation for leaderboards in groups.  
+        There is also a friends-relation for leaderboards and a groups-relation.  
         """
         ABase.__init__(self, *args, **kw)
     
@@ -244,7 +253,7 @@ class User(ABase):
         return int((tomorrow-today).total_seconds())
 
     @classmethod
-    def set_infos(cls,user_id,lat,lng,timezone,country,region,city,friends):
+    def set_infos(cls,user_id,lat,lng,timezone,country,region,city,friends, groups):
         """set the user's metadata like friends,location and timezone"""
         
         
@@ -255,6 +264,14 @@ class User(ABase):
         friends_to_append = (new_friends_set-existing_friends)
         friends_to_delete = (existing_friends-new_friends_set)
         
+        new_groups_set = set(groups)
+        existing_groups_set = {x["id"] for x in DBSession.execute(select([t_groups.c.id]).where(t_groups.c.id.in_(groups))).fetchall()}
+        existing_groups_of_user = {x["group_id"] for x in DBSession.execute(select([t_users_groups.c.group_id]).where(t_users_groups.c.user_id==user_id)).fetchall()}
+        groups_to_create = (new_groups_set-existing_groups_set)
+        groups_to_append = (new_groups_set-existing_groups_of_user)
+        groups_to_delete = (existing_groups_of_user-new_groups_set)
+        
+        #add or select user
         if user_id in existing_users_set:
             user = DBSession.query(User).filter_by(id=user_id).first()
         else:
@@ -271,6 +288,8 @@ class User(ABase):
         DBSession.add(user)
         DBSession.flush()
         
+        #FRIENDS
+        
         #insert missing friends in user table
         if len(friends_to_create)>0:
             update_connection().execute(t_users.insert(), [{"id":f} for f in friends_to_create])
@@ -283,6 +302,21 @@ class User(ABase):
         #insert missing friends
         if len(friends_to_append)>0:
             update_connection().execute(t_users_users.insert(),[{"from_id":user_id,"to_id":f} for f in friends_to_append])
+            
+        #GROUPS
+            
+        #insert missing groups in group table
+        if len(groups_to_create)>0:
+            update_connection().execute(t_groups.insert(), [{"id":f} for f in groups_to_create])
+                
+        #delete old groups of user
+        if len(groups_to_delete)>0:
+            update_connection().execute(t_users_groups.delete().where(and_(t_users_groups.c.user_id==user_id,
+                                                                          t_users_groups.c.group_id.in_(groups_to_delete))))
+        
+        #insert missing groups of user
+        if len(groups_to_append)>0:
+            update_connection().execute(t_users_groups.insert(),[{"user_id":user_id,"group_id":f} for f in groups_to_append])
         
     @classmethod
     def delete_user(cls,user_id):
@@ -291,9 +325,13 @@ class User(ABase):
         update_connection().execute(t_goal_evaluation_cache.delete().where(t_goal_evaluation_cache.c.user_id==user_id))
         update_connection().execute(t_users_users.delete().where(t_users_users.c.to_id==user_id))
         update_connection().execute(t_users_users.delete().where(t_users_users.c.from_id==user_id))
+        update_connection().execute(t_users_groups.delete().where(t_users_groups.c.user_id==user_id))
         update_connection().execute(t_values.delete().where(t_values.c.user_id==user_id))
         update_connection().execute(t_users.delete().where(t_users.c.id==user_id))
         
+class Group(ABase):
+    def __str__(self, *args, **kwargs):
+        return "(ID: %s)" % (self.id,)
 
 class Variable(ABase):
     """A Variable is anything that should be meassured in your application and be used in :class:`.Goal`.
@@ -1062,6 +1100,10 @@ mapper(User, t_users, properties={
     'friends': relationship(User, secondary=t_users_users, 
                                  primaryjoin=t_users.c.id==t_users_users.c.from_id,
                                  secondaryjoin=t_users.c.id==t_users_users.c.to_id)
+})
+
+mapper(Group, t_groups, properties={
+    'users' : relationship(User, secondary=t_users_groups, backref="groups"), 
 })
 
 mapper(Variable, t_variables, properties={

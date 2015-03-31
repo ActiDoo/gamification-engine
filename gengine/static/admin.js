@@ -2,7 +2,7 @@ jQuery().ready(function($) {
 	
 	var defaultcall = "progress";
 	var fields=["userid","variable","value","key","achievementid","level",
-	            "lat","lon","friends","timezone","country","region","city"];
+	            "lat","lon","friends","groups","timezone","country","region","city"];
 	var container_fields = {};
 	
 	for(var i=0; i<fields.length; i++) {
@@ -58,10 +58,10 @@ jQuery().ready(function($) {
 			setURL("/increase_value/{variable}/{userid}{/key}","POST",["value"]);
 		},
 		"add_or_update_user" : function() {
-			setActiveFields(["userid","lat","lon","friends","timezone","country","region","city"]);
+			setActiveFields(["userid","lat","lon","friends","groups","timezone","country","region","city"]);
 			setURL("/add_or_update_user/{userid}",
 					"POST",
-					["lat","lon","friends","timezone","country","region","city"]);
+					["lat","lon","friends","groups","timezone","country","region","city"]);
 		},
 		"delete_user" : function() {
 			setActiveFields(["userid"]);
