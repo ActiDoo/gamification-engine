@@ -2,8 +2,8 @@ from flask import Flask
 from flask.ext.admin import Admin
 from flask.ext.admin.contrib.sqla import ModelView
 
-from gengine.models import DBSession, Variable, Goal, Achievement, Property, AchievementProperty, AchievementReward, Reward, User, GoalEvaluationCache, Value, AchievementUser,\
-    TranslationVariable, Language, Translation
+from gengine.models import DBSession, Variable, Goal, AchievementCategory, Achievement, Property, AchievementProperty, AchievementReward,\
+                           Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation
 from flask_admin.contrib.sqla.filters import BooleanEqualFilter, IntEqualFilter
 from flask_admin.base import AdminIndexView, BaseView, expose
 from wtforms import BooleanField
@@ -38,6 +38,7 @@ def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV"):
     admin.add_view(ModelView(TranslationVariable, DBSession, category="Rules"))
     admin.add_view(ModelView(Translation, DBSession, category="Rules"))
     
+    admin.add_view(ModelViewAchievementCategory(DBSession, category="Settings"))
     admin.add_view(ModelView(Variable, DBSession, category="Settings"))
     admin.add_view(ModelViewProperty(DBSession, category="Settings"))
     admin.add_view(ModelViewReward(DBSession, category="Settings"))
@@ -48,6 +49,14 @@ def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV"):
     admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
     admin.add_view(ModelViewUser(DBSession, category="Debug"))
     admin.add_view(ModelView(AchievementUser, DBSession, category="Debug"))
+
+class ModelViewAchievementCategory(ModelView):
+    column_list = ('name',)
+    column_searchable_list = ('name',)
+    form_excluded_columns =('achievements',)
+    
+    def __init__(self, session, **kwargs):
+        super(ModelViewAchievementCategory, self).__init__(AchievementCategory, session, **kwargs)
 
 class ModelViewAchievement(ModelView):
     column_list = ('name','valid_start','valid_end','relevance')

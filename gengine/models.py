@@ -417,8 +417,11 @@ class Value(ABase):
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
         
-
-
+class AchievementCategory(ABase):
+    """A category for grouping achievement types"""
+    def __str__(self, *args, **kwargs):
+        return self.name + " (ID: %s)" % (self.id,)
+    
 class Achievement(ABase):
     """A collection of goals which has multiple :class:`Property` and :class:`Reward`."""
     
@@ -1057,6 +1060,7 @@ mapper(Value, t_values,properties={
    'user' : relationship(User),
    'variable' : relationship(Variable)
 })
+mapper(AchievementCategory, t_achievementcategory)
 mapper(Achievement, t_achievements, properties={
    'requirements': relationship(Achievement, secondary=t_requirements, 
                                 primaryjoin=t_achievements.c.id==t_requirements.c.from_id,
@@ -1070,7 +1074,7 @@ mapper(Achievement, t_achievements, properties={
    'properties' : relationship(AchievementProperty, backref='achievement'),
    'rewards' : relationship(AchievementReward, backref='achievement'),
    'goals': relationship(Goal, backref='achievement'),
-   'achievementcategory' : relationship(Variable, backref='achievements')
+   'achievementcategory' : relationship(AchievementCategory, backref='achievements')
 })
 mapper(Property, t_properties)
 mapper(AchievementProperty, t_achievements_properties, properties={
