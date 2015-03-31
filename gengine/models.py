@@ -82,8 +82,14 @@ t_users_users = Table("users_users", Base.metadata,
     Column('to_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True)
 )
 
+t_achievementcategory = Table('achievementcategories', Base.metadata,
+    Column('id', ty.Integer, primary_key = True),
+    Column('name', ty.String(255), nullable = False),
+)
+
 t_achievements = Table('achievements', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
+    Column("achievementcategory_id", ty.Integer, ForeignKey("achievementcategories.id"), index=True, nullable=True),
     Column('name', ty.String(255), nullable = False), #internal use
     Column('maxlevel',ty.Integer, nullable=False, default=1),
     Column('hidden',ty.Boolean, nullable=False, default=False), 
@@ -1064,6 +1070,7 @@ mapper(Achievement, t_achievements, properties={
    'properties' : relationship(AchievementProperty, backref='achievement'),
    'rewards' : relationship(AchievementReward, backref='achievement'),
    'goals': relationship(Goal, backref='achievement'),
+   'achievementcategory' : relationship(Variable, backref='achievements')
 })
 mapper(Property, t_properties)
 mapper(AchievementProperty, t_achievements_properties, properties={
