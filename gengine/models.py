@@ -82,7 +82,7 @@ t_users_users = Table("users_users", Base.metadata,
     Column('to_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True)
 )
 
-t_achievementcategory = Table('achievementcategories', Base.metadata,
+t_achievementcategories = Table('achievementcategories', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('name', ty.String(255), nullable = False),
 )
@@ -423,7 +423,7 @@ class AchievementCategory(ABase):
     @classmethod
     @cache_general.cache_on_arguments()
     def get_achievementcategory(cls,achievementcategory_id):
-        return DBSession.execute(t_achievementcategory.select().where(t_achievementcategory.c.id==achievementcategory_id)).fetchone()
+        return DBSession.execute(t_achievementcategories.select().where(t_achievementcategories.c.id==achievementcategory_id)).fetchone()
     
     def __str__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
@@ -1071,7 +1071,7 @@ mapper(Value, t_values,properties={
    'user' : relationship(User),
    'variable' : relationship(Variable)
 })
-mapper(AchievementCategory, t_achievementcategory)
+mapper(AchievementCategory, t_achievementcategories)
 mapper(Achievement, t_achievements, properties={
    'requirements': relationship(Achievement, secondary=t_requirements, 
                                 primaryjoin=t_achievements.c.id==t_requirements.c.from_id,
