@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """models including business logic"""
 
 import pytz
@@ -224,7 +225,7 @@ class ABase(object):
 class User(ABase):
     """A user participates in the gamification, i.e. can get achievements, rewards, participate in leaderbaord etc."""
     
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return "User %s" % (self.id,)
     
     def __init__(self, *args, **kw):
@@ -330,7 +331,7 @@ class User(ABase):
         update_connection().execute(t_users.delete().where(t_users.c.id==user_id))
         
 class Group(ABase):
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return "(ID: %s)" % (self.id,)
 
 class Variable(ABase):
@@ -340,7 +341,7 @@ class Variable(ABase):
        group needs to be set to "year","month","week","day","timeslot" or "none" (default)
     """
     
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
     
     @classmethod
@@ -463,13 +464,13 @@ class AchievementCategory(ABase):
     def get_achievementcategory(cls,achievementcategory_id):
         return DBSession.execute(t_achievementcategories.select().where(t_achievementcategories.c.id==achievementcategory_id)).fetchone()
     
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
     
 class Achievement(ABase):
     """A collection of goals which has multiple :class:`Property` and :class:`Reward`."""
     
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
     
     @classmethod
@@ -804,7 +805,7 @@ class Property(ABase):
     This is useful to model goals like "reach 1000xp"  
     
     """
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
 
 class AchievementProperty(ABase):
@@ -816,7 +817,7 @@ class Reward(ABase):
     
     Examples: badge, item
     """
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
 
 class AchievementReward(ABase):
@@ -837,7 +838,7 @@ class GoalEvaluationCache(ABase):
 class Goal(ABase):
     """A Goal defines a rule on variables that needs to be reached to get achievements"""
     
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return str(self.name_translation) + " (ID: %s)" % (self.id,)
     
     @classmethod
@@ -1050,16 +1051,16 @@ class Goal(ABase):
         return positions
 
 class Language(ABase):
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return "%s" % (self.name,)
 
 class TranslationVariable(ABase):
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return "%s" % (self.name,)
 
 _fallback_language="en"
 class Translation(ABase):
-    def __str__(self, *args, **kwargs):
+    def __unicode__(self, *args, **kwargs):
         return "%s" % (self.text,)
     
     @classmethod

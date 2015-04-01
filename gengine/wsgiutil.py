@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 force_https = False
 
 def init_reverse_proxy(settings_force_https,settings_prefix):

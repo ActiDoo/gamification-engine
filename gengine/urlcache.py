@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from pymemcache.client import Client
 
 host = "localhost"
