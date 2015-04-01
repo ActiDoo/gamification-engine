@@ -11,27 +11,66 @@ from wtforms import BooleanField
 from flask.globals import request
 from wtforms.form import Form
 import pkg_resources
-flaskadminapp=None
+from flask.helpers import send_from_directory
+import jinja2
 
-def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV"):
+flaskadminapp=None
+admin=None
+
+def get_package_folder(uri):
+    from pyramid.path import AssetResolver
+    project,folder = uri.split(":",1)
+    a = AssetResolver(project)
+    resolver = a.resolve(folder)
+    folder = resolver.abspath()
+    return folder
+
+def get_static_view(folder,flaskadminapp):
+    folder=get_package_folder(folder)
+    
+    def send_static_file(filename):
+        cache_timeout = flaskadminapp.get_send_file_max_age(filename)
+        return send_from_directory(folder, filename, cache_timeout=cache_timeout)
+    
+    return send_static_file
+    
+def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,override_flaskadminapp=None):
     global flaskadminapp, admin
-    flaskadminapp = Flask(__name__)
-    flaskadminapp.debug=True
-    flaskadminapp.secret_key = secret
-    flaskadminapp.config.update(dict(
-      PREFERRED_URL_SCHEME = 'https'
-    ))
+    
+    if not override_flaskadminapp:
+        flaskadminapp = Flask(__name__)
+        flaskadminapp.debug=True
+        flaskadminapp.secret_key = secret
+        flaskadminapp.config.update(dict(
+            PREFERRED_URL_SCHEME = 'https'
+        ))
+    else:
+        flaskadminapp = override_flaskadminapp
+
+        # lets add our template directory
+        my_loader = jinja2.ChoiceLoader([
+            flaskadminapp.jinja_loader,
+            jinja2.FileSystemLoader(get_package_folder("gengine:templates")),
+        ])
+        flaskadminapp.jinja_loader = my_loader
+        
+    flaskadminapp.add_url_rule('/static_gengine/<path:filename>',
+                               endpoint='static_gengine',
+                               view_func=get_static_view('gengine:flask_static',flaskadminapp))
     
     @flaskadminapp.context_processor
     def inject_version():
         return { "gamification_engine_version" : pkg_resources.get_distribution("gamification-engine").version }
     
-    admin = Admin(flaskadminapp,
-                  name="Gamification Engine - Admin Control Panel",
-                  base_template='admin_layout.html',
-                  url=urlprefix+"/admin"
-                  )
-    
+    if not override_admin:
+        admin = Admin(flaskadminapp,
+                      name="Gamification Engine - Admin Control Panel",
+                      base_template='admin_layout.html',
+                      url=urlprefix+"/admin"
+                     )
+    else:
+        admin = override_admin
+            
     admin.add_view(ModelViewAchievement(DBSession, category="Rules"))
     admin.add_view(ModelViewGoal(DBSession, category="Rules"))
     admin.add_view(ModelView(AchievementProperty, DBSession, category="Rules"))
@@ -136,7 +175,6 @@ class ClearCacheForm(Form):
     clear_check = BooleanField(label="Delete all caches?")
 
 class MaintenanceView(BaseView):
-
     @expose('/',methods=('GET','POST',))
     def index(self):
         self._template_args['msgs'] = []

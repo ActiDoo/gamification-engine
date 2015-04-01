@@ -36,17 +36,7 @@ from pytz import timezone
 import hashlib
 import warnings
 
-
-class MySession(Session):
-    """This allow us to use the flask-admin sqla extension, which uses DBSession.commit() rather than transaction.commit()"""
-    def commit(self,*args,**kw):
-        transaction.commit(*args,**kw)
-        
-    def rollback(self,*args,**kw):
-        transaction.abort(*args,**kw)
-
-DBSession = scoped_session(sessionmaker(extension=ZopeTransactionExtension(), class_=MySession))
-Base = declarative_base()
+from gengine.metadata import Base, DBSession
 
 try:
     cache_general = get_region('general')
@@ -62,10 +52,6 @@ except:
     cache_translations = make_region().configure('dogpile.cache.memory')
     
     warnings.warn("Warning: cache objects are in memory, are you creating docs?")
-
-def init_db(engine):
-    DBSession.configure(bind=engine)
-    Base.metadata.bind = engine
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
@@ -1166,7 +1152,6 @@ def insert_variable_for_property(mapper,connection,target):
             variable.name = target.name
             variable.group = "day"
             DBSession.add(variable)
-
 
 #some query helpers
  

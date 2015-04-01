@@ -13,9 +13,6 @@ from pyramid.paster import (
 from pyramid.scripts.common import parse_vars
 import pyramid_dogpile_cache
 from pyramid.config import Configurator
-from gengine.models import AchievementProperty, AchievementReward
-
-
 
 
 def usage(argv):
@@ -45,9 +42,19 @@ def main(argv=sys.argv):
     config = Configurator(settings=settings)
     pyramid_dogpile_cache.includeme(config)
     
-    from ..models import (
-        DBSession,
+    from ..metadata import (
+        init_session,
+        init_declarative_base
+    )
+    init_session()
+    init_declarative_base()
+    
+    from ..metadata import (
         Base,
+        DBSession
+    )
+    
+    from ..models import (
         Achievement,
         Goal,
         Variable,
@@ -56,7 +63,9 @@ def main(argv=sys.argv):
         TranslationVariable,
         Translation,
         Property,
-        Reward
+        Reward,
+        AchievementProperty, 
+        AchievementReward
     )
     
     DBSession.configure(bind=engine)

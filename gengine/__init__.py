@@ -29,7 +29,9 @@ def main(global_config, **settings):
     
     config.include("pyramid_tm")
     
-    from gengine.models import init_db
+    from gengine.metadata import init_session, init_declarative_base, init_db
+    init_session()
+    init_declarative_base()
     init_db(engine)
     
     config.include('pyramid_chameleon')

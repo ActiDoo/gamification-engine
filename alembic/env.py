@@ -22,7 +22,11 @@ if durl:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from gengine.models import Base
+from gengine.metadata import init_session,init_declarative_base
+init_session()
+init_declarative_base()
+
+from gengine.metadata import Base
 target_metadata = Base.metadata
 # target_metadata = None
 

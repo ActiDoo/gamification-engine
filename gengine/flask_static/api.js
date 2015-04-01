@@ -1,8 +1,5 @@
-jQuery().ready(function($) {
+var setupAPIForm = function($, defaultcall, fields, api_funcs) { 
 	
-	var defaultcall = "progress";
-	var fields=["userid","variable","value","key","achievementid","level",
-	            "lat","lon","friends","groups","timezone","country","region","city"];
 	var container_fields = {};
 	
 	for(var i=0; i<fields.length; i++) {
@@ -48,30 +45,13 @@ jQuery().ready(function($) {
 		api_settings_postparams = postparams;
 	};
 	
-	var activationfuncs = {
-		"progress" : function() {
-			setActiveFields(["userid"]);
-			setURL("/progress/{userid}","GET");
-		},
-		"increase_value" : function() {
-			setActiveFields(["variable","userid","value","key"]);
-			setURL("/increase_value/{variable}/{userid}{/key}","POST",["value"]);
-		},
-		"add_or_update_user" : function() {
-			setActiveFields(["userid","lat","lon","friends","groups","timezone","country","region","city"]);
-			setURL("/add_or_update_user/{userid}",
-					"POST",
-					["lat","lon","friends","groups","timezone","country","region","city"]);
-		},
-		"delete_user" : function() {
-			setActiveFields(["userid"]);
-			setURL("/delete_user/{userid}","DELETE",[]);
-		},
-		"achievement_level" : function() {
-			setActiveFields(["achievementid","level"]);
-			setURL("/achievement/{achievementid}/level/{level}","GET");
-		},
-	};
+	var activationfuncs = {};
+	$.each(api_funcs,function(k,f) {
+	   activationfuncs[k] = function() {
+	       setActiveFields(f["fields"]);
+           setURL(f["url"],f["method"],f["postparams"]);
+	   };
+	});
 	
 	//from http://stackoverflow.com/questions/4810841/how-can-i-pretty-print-json-using-javascript
 	var syntaxHighlight = function(json) {
@@ -140,6 +120,4 @@ jQuery().ready(function($) {
 	//activate default api call
 	call_select.val(defaultcall);
 	activationfuncs[defaultcall]();
-	
-	
-});
+};
