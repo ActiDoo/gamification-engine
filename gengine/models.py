@@ -78,8 +78,8 @@ t_users = Table("users", Base.metadata,
 )
 
 t_users_users = Table("users_users", Base.metadata,
-    Column('from_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True),
-    Column('to_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True)
+    Column('from_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('to_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False)
 )
 
 t_groups = Table("groups", Base.metadata,
@@ -87,8 +87,8 @@ t_groups = Table("groups", Base.metadata,
 )
 
 t_users_groups = Table("users_groups", Base.metadata,
-    Column('user_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True),
-    Column('group_id', ty.BigInteger, ForeignKey("groups.id"), primary_key = True)
+    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('group_id', ty.BigInteger, ForeignKey("groups.id", ondelete="CASCADE"), primary_key = True, nullable=False)
 )
 
 t_achievementcategories = Table('achievementcategories', Base.metadata,
@@ -98,7 +98,7 @@ t_achievementcategories = Table('achievementcategories', Base.metadata,
 
 t_achievements = Table('achievements', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
-    Column("achievementcategory_id", ty.Integer, ForeignKey("achievementcategories.id"), index=True, nullable=True),
+    Column("achievementcategory_id", ty.Integer, ForeignKey("achievementcategories.id", ondelete="SET NULL"), index=True, nullable=True),
     Column('name', ty.String(255), nullable = False), #internal use
     Column('maxlevel',ty.Integer, nullable=False, default=1),
     Column('hidden',ty.Boolean, nullable=False, default=False), 
@@ -113,7 +113,7 @@ t_achievements = Table('achievements', Base.metadata,
 
 t_goals = Table("goals", Base.metadata,
     Column('id', ty.Integer, primary_key = True),
-    Column('name_translation_id', ty.Integer, ForeignKey("translationvariables.id"), nullable = False),
+    Column('name_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = False),
     Column('condition', ty.String(255), nullable=True),
     Column('evaluation',ty.Enum("immediately","daily","weekly","monthly","yearly","end", name="evaluation_types")),
     Column('timespan',ty.Integer, nullable=True),
@@ -122,13 +122,13 @@ t_goals = Table("goals", Base.metadata,
     Column('goal', ty.String(255), nullable=True),
     Column('operator', ty.Enum("geq","leq", name="goal_operators"), nullable=True),
     Column('maxmin', ty.Enum("max","min", name="goal_maxmin"), nullable=True, default="max"),
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id")),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False),
     Column('priority', ty.Integer, index=True, default=0),
 ) 
 
 t_goal_evaluation_cache = Table("goal_evaluation_cache", Base.metadata,
-    Column("goal_id", ty.Integer, ForeignKey("goals.id"), primary_key=True),
-    Column("user_id", ty.BigInteger, ForeignKey("users.id"), primary_key=True),
+    Column("goal_id", ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("user_id", ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, nullable=False),
     Column("achieved", ty.Boolean),
     Column("value", ty.Float),
 )
@@ -140,9 +140,9 @@ t_variables = Table('variables', Base.metadata,
 )
 
 t_values = Table('values', Base.metadata,
-    Column('user_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
     Column('datetime', TIMESTAMP(timezone=True), primary_key = True, default=datetime.datetime.utcnow),
-    Column('variable_id', ty.Integer, ForeignKey("variables.id"), primary_key = True),
+    Column('variable_id', ty.Integer, ForeignKey("variables.id", ondelete="CASCADE"), primary_key = True, nullable=False),
     Column('value', ty.Integer, nullable = False),
     Column('key', ty.String(100), primary_key=True, default=""),
 )
@@ -154,10 +154,10 @@ t_properties = Table('properties', Base.metadata,
 )
 
 t_achievements_properties = Table('achievements_properties', Base.metadata,
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id"), primary_key = True),
-    Column('property_id', ty.Integer, ForeignKey("properties.id"), primary_key = True),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('property_id', ty.Integer, ForeignKey("properties.id", ondelete="CASCADE"), primary_key = True, nullable=False),
     Column('value', ty.String(255), nullable = True),
-    Column('value_translation_id', ty.Integer, ForeignKey("translationvariables.id"), nullable = True),
+    Column('value_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = True),
     Column('from_level', ty.Integer, nullable = False, default=0, primary_key = True),
 )
 
@@ -168,28 +168,28 @@ t_rewards = Table('rewards', Base.metadata,
 
 t_achievements_rewards = Table('achievements_rewards', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id"), index = True),
-    Column('reward_id', ty.Integer, ForeignKey("rewards.id"), index = True),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index = True, nullable=False),
+    Column('reward_id', ty.Integer, ForeignKey("rewards.id", ondelete="CASCADE"), index = True, nullable=False),
     Column('value', ty.String(255), nullable = True),
     Column('value_translation_id', ty.Integer, ForeignKey("translationvariables.id"), nullable = True),
     Column('from_level', ty.Integer, nullable = False, default=1, index = True)
 )
 
 t_achievements_users = Table('achievements_users', Base.metadata,
-    Column('user_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True, index=True),
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id"), primary_key = True),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True, index=True, nullable=False),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
     Column('level', ty.Integer, primary_key = True, default=1),
     Column('updated_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow),
 )
 
 t_requirements = Table('requirements', Base.metadata,
-    Column('from_id', ty.Integer, ForeignKey("achievements.id"), primary_key = True),
-    Column('to_id', ty.Integer, ForeignKey("achievements.id"), primary_key = True),
+    Column('from_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('to_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
 )
 
 t_denials = Table('denials', Base.metadata,
-    Column('from_id', ty.Integer, ForeignKey("achievements.id"), primary_key = True),
-    Column('to_id', ty.Integer, ForeignKey("achievements.id"), primary_key = True),
+    Column('from_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('to_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
 )
 
 t_languages = Table('languages', Base.metadata,
@@ -204,8 +204,8 @@ t_translationvariables = Table('translationvariables', Base.metadata,
 
 t_translations = Table('translations', Base.metadata,
    Column('id', ty.Integer, primary_key = True),
-   Column('translationvariable_id', ty.Integer, ForeignKey("translationvariables.id"), nullable = False),
-   Column('language_id', ty.Integer, ForeignKey("languages.id"), nullable = False),
+   Column('translationvariable_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="CASCADE"), nullable = False),
+   Column('language_id', ty.Integer, ForeignKey("languages.id", ondelete="CASCADE"), nullable = False),
    Column('text', ty.String(255), nullable = False),
 )
 

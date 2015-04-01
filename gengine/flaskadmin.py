@@ -54,6 +54,7 @@ class ModelViewAchievementCategory(ModelView):
     column_list = ('name',)
     column_searchable_list = ('name',)
     form_excluded_columns =('achievements',)
+    fast_mass_delete = True
     
     def __init__(self, session, **kwargs):
         super(ModelViewAchievementCategory, self).__init__(AchievementCategory, session, **kwargs)
@@ -62,6 +63,7 @@ class ModelViewAchievement(ModelView):
     column_list = ('name','valid_start','valid_end','relevance')
     column_searchable_list = ('name',)
     form_excluded_columns =('rewards','users','goals','properties','updated_at')
+    fast_mass_delete = True
     
     def __init__(self, session, **kwargs):
         super(ModelViewAchievement, self).__init__(Achievement, session, **kwargs)
@@ -70,6 +72,7 @@ class ModelViewGoal(ModelView):
     column_list = ('condition','evaluation','operator','goal','timespan','achievement','updated_at')
     #column_searchable_list = ('name',)
     column_filters = (Achievement.id,)
+    fast_mass_delete = True
     
     def __init__(self, session, **kwargs):
         super(ModelViewGoal, self).__init__(Goal, session, **kwargs)
@@ -82,6 +85,8 @@ class ModelViewValue(ModelView):
     
     # Override displayed fields
     column_list = ('user','variable','datetime','key','value')
+    
+    fast_mass_delete = True
 
     def __init__(self, session, **kwargs):
         super(ModelViewValue, self).__init__(Value, session, **kwargs)
@@ -97,6 +102,8 @@ class ModelViewGoalEvaluationCache(ModelView):
     
     column_filters = (IntEqualFilter(User.id, 'UserID'),
                       Goal.id)
+    
+    fast_mass_delete = True
 
     def __init__(self, session, **kwargs):
         super(ModelViewGoalEvaluationCache, self).__init__(GoalEvaluationCache, session, **kwargs)
@@ -104,6 +111,7 @@ class ModelViewGoalEvaluationCache(ModelView):
 class ModelViewProperty(ModelView):
     column_list = ('id','name')
     form_excluded_columns = ('achievements',)
+    fast_mass_delete = True
     
     def __init__(self, session, **kwargs):
         super(ModelViewProperty, self).__init__(Property, session, **kwargs)
@@ -111,12 +119,14 @@ class ModelViewProperty(ModelView):
 class ModelViewReward(ModelView):
     column_list = ('id','name')
     form_excluded_columns = ('achievements',)
+    fast_mass_delete = True
     
     def __init__(self, session, **kwargs):
         super(ModelViewReward, self).__init__(Reward, session, **kwargs)
         
 class ModelViewUser(ModelView):
     column_list = ('id','lat','lng','timezone','country','region','city','created_at')
+    fast_mass_delete = True
     
     def __init__(self, session, **kwargs):
         super(ModelViewUser, self).__init__(User, session, **kwargs)
