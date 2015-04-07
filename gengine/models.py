@@ -641,7 +641,7 @@ class Achievement(ABase):
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], user_id)
                     
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city":
-                    goal_eval["leaderboard"] = Goal.get_leaderboard(goal["id"], user_ids)
+                    goal_eval["leaderboard"] = Goal.get_leaderboard(goal, user_ids)
                     goal_eval["leaderboard_position"] = filter(lambda x : x["user_id"]==user_id, goal_eval["leaderboard"])[0]["position"]
                 
                 goal_evals[goal["id"]]=goal_eval
@@ -1021,19 +1021,37 @@ class Goal(ABase):
         update_connection().execute(t_goal_evaluation_cache.delete().where(and_(t_goal_evaluation_cache.c.user_id==user_id,
                                                                       t_goal_evaluation_cache.c.goal_id.in_(goal_ids))))
     @classmethod
-    def get_leaderboard(cls, goal_id, user_ids):
+    def get_leaderboard(cls, goal, user_ids):
         """get the leaderboard for the goal and userids"""
-        items = DBSession.execute(select([t_goal_evaluation_cache.c.user_id,
-                                          t_goal_evaluation_cache.c.value])\
-                                  .where(and_(t_goal_evaluation_cache.c.user_id.in_(user_ids),
-                                              t_goal_evaluation_cache.c.goal_id==goal_id))\
-                                  .order_by(t_goal_evaluation_cache.c.value.desc(),
-                                            t_goal_evaluation_cache.c.user_id.desc())).fetchall()
-                                  
+        q = select([t_goal_evaluation_cache.c.user_id,
+                    t_goal_evaluation_cache.c.value])\
+                .where(and_(t_goal_evaluation_cache.c.user_id.in_(user_ids),
+                            t_goal_evaluation_cache.c.goal_id==goal["id"]))\
+                .order_by(t_goal_evaluation_cache.c.value.desc(),
+                          t_goal_evaluation_cache.c.user_id.desc())
+        items = DBSession.execute(q).fetchall()
+        
+        missing_users = set(user_ids)-set([x["user_id"] for x in items])
+        if len(missing_users)>0:
+            #the goal has not been evaluated for some users...
+            achievement = Achievement.get_achievement(goal["achievement_id"])
+            
+            for user_id in missing_users:
+                user = User.get_user(user_id)
+                
+                user_has_level = Achievement.get_level_int(user_id, achievement["id"])
+                user_wants_level = min((user_has_level or 0)+1, achievement["maxlevel"])
+            
+                Goal.evaluate(goal, [user_id,], user_wants_level)
+                goal_eval = Goal.get_goal_eval_cache(goal["id"], user_id)
+            
+            #rerun the query
+            items = DBSession.execute(q).fetchall()
+            
         positions = [{ "user_id" : items[i]["user_id"],
                        "value" : items[i]["value"],
                        "position" : i} for i in range(0,len(items))]
-        
+    
         return positions
 
 class Language(ABase):
