@@ -247,7 +247,7 @@ class User(ABase):
         new_friends_set = set(friends)
         existing_users_set = {x["id"] for x in DBSession.execute(select([t_users.c.id]).where(t_users.c.id.in_([user_id,]+friends))).fetchall()}
         existing_friends = {x["to_id"] for x in DBSession.execute(select([t_users_users.c.to_id]).where(t_users_users.c.from_id==user_id)).fetchall()}
-        friends_to_create = (new_friends_set-existing_users_set)
+        friends_to_create = (new_friends_set-existing_users_set-{user_id,})
         friends_to_append = (new_friends_set-existing_friends)
         friends_to_delete = (existing_friends-new_friends_set)
         

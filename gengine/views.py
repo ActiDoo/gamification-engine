@@ -21,24 +21,46 @@ from gengine.wsgiutil import HTTPSProxied
 
 import traceback
 
-@view_config(route_name='add_or_update_user', renderer='string')
+@view_config(route_name='add_or_update_user', renderer='string', request_method="POST")
 def add_or_update_user(request):
     """add a user and set its metadata"""
     
     user_id = long(request.matchdict["user_id"])
     
-    lat = float(request.POST["lat"])
-    lon = float(request.POST["lon"])
-    friends = [long(x) for x in request.POST["friends"].split(",")]
-    groups = [long(x) for x in request.POST["groups"].split(",")]
-    timezone = request.POST["timezone"]
+    lat=None
+    if len(request.POST.get("lat",""))>0:
+        lat = float(request.POST["lat"])
+    
+    lon=None
+    if len(request.POST.get("lon",""))>0:
+        lon = float(request.POST["lon"])
+    
+    friends=[]
+    if len(request.POST.get("friends",""))>0:
+        friends = [long(x) for x in request.POST["friends"].split(",")]
+    
+    groups=[]
+    if len(request.POST.get("groups",""))>0:
+        groups = [long(x) for x in request.POST["groups"].split(",")]
+    
+    timezone="UTC"
+    if len(request.POST.get("timezone",""))>0:
+        timezone = request.POST["timezone"]
     
     if not valid_timezone(timezone):
         timezone = 'UTC'
     
-    country = request.POST["country"]
-    region = request.POST["region"]
-    city = request.POST["city"]
+    country=None
+    if len(request.POST.get("country",""))>0:
+        country = request.POST["country"]
+    
+    region=None
+    if len(request.POST.get("region",""))>0:
+        region = request.POST["region"]
+    
+    city=None
+    if len(request.POST.get("city",""))>0:
+        city = request.POST["city"]
     
     User.set_infos(user_id=user_id,
                    lat=lat,
