@@ -10,23 +10,24 @@ from flask_admin.base import AdminIndexView, BaseView, expose
 from wtforms import BooleanField
 from flask.globals import request
 from wtforms.form import Form
-import pkg_resources
+import pkg_resources, os
 from flask.helpers import send_from_directory
 import jinja2
 
 flaskadminapp=None
 admin=None
 
-def get_package_folder(uri):
-    from pyramid.path import AssetResolver
-    project,folder = uri.split(":",1)
-    a = AssetResolver(project)
-    resolver = a.resolve(folder)
-    folder = resolver.abspath()
-    return folder
+
+def resole_uri(uri):
+    from pyramid.path import PkgResourcesAssetDescriptor
+    pkg_name,path=uri.split(":",1)
+    a = PkgResourcesAssetDescriptor(pkg_name,path)
+    absolute = a.abspath() #this is sometimes not absolute :-/
+    absolute = os.path.abspath(absolute) #so we make it absolute
+    return absolute
 
 def get_static_view(folder,flaskadminapp):
-    folder=get_package_folder(folder)
+    folder=resole_uri(folder)
     
     def send_static_file(filename):
         cache_timeout = flaskadminapp.get_send_file_max_age(filename)
