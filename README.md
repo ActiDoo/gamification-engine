@@ -65,3 +65,35 @@ We offer commercial support at www.gamification-software.com
 You may use the engine in commercial products, but you need to contribute all your modifications and improvements back to the community.
 
 We also offer a commercial license at https://www.gamification-software.com
+
+## Licenses of dependencies
+
+Pyramid: BSD-derived (http://www.repoze.org/LICENSE.txt)
+
+pyramid_chameleon: BSD-derived (http://www.repoze.org/LICENSE.txt)
+
+pyramid_debugtoolbar: BSD
+
+SQLAlchemy: MIT
+
+zope.sqlalchemy: Zope Public License (ZPL) Version 2.1
+
+waitress: Zope Public License (ZPL) Version 2.1
+
+pytz: MIT
+
+dogpile.cache: BSD
+
+pyramid_dogpile_cache: MIT
+
+flask: BSD
+
+flask-admin: BSD
+
+psycopg2: LGPL / ZPL
+
+pymemcache: Apache License 2.0
+
+mock: BSD
+
+alembic: MIT
