@@ -51,7 +51,7 @@ def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=No
         # lets add our template directory
         my_loader = jinja2.ChoiceLoader([
             flaskadminapp.jinja_loader,
-            jinja2.FileSystemLoader(get_package_folder("gengine:templates")),
+            jinja2.FileSystemLoader(resole_uri("gengine:templates")),
         ])
         flaskadminapp.jinja_loader = my_loader
         
