@@ -611,7 +611,7 @@ class Achievement(ABase):
                         "value" : eval_formular(r["value"], {"level":i}),
                         "value_translated" : Translation.trs(r["value_translation_id"], {"level":i}),
                     } for r in Achievement.get_properties(achievement["id"],i)}
-            } for i in range(1,max_level_included+1)}
+            } for i in range(0,max_level_included+1)}
         return out
     
     @classmethod
