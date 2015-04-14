@@ -14,18 +14,19 @@ from pyramid.scripts.common import parse_vars
 import pyramid_dogpile_cache
 from pyramid.config import Configurator
 
-
 def usage(argv):
     cmd = os.path.basename(argv[0])
-    print('usage: %s <config_uri> [var=value]\n'
-          '(example: "%s development.ini")' % (cmd, cmd))
+    print('usage: %s <config_uri> <alembic_uri> [var=value]\n'
+          '(example: "%s production.ini alembic.ini")' % (cmd, cmd))
     sys.exit(1)
 
+
 def main(argv=sys.argv):
-    if len(argv) < 2:
+    if len(argv) < 3:
         usage(argv)
     config_uri = argv[1]
-    options = parse_vars(argv[2:])
+    alembic_uri = argv[2]
+    options = parse_vars(argv[3:])
     setup_logging(config_uri)
     settings = get_appsettings(config_uri, options=options)
     
@@ -74,6 +75,16 @@ def main(argv=sys.argv):
         Base.metadata.drop_all(engine)
         
     Base.metadata.create_all(engine)
+    
+    
+    # then, load the Alembic configuration and generate the
+    # version table, "stamping" it with the most recent rev:
+    from alembic.config import Config
+    from alembic import command
+    alembic_cfg = Config(alembic_uri)
+    command.stamp(alembic_cfg, "head")
+    
+    
     
     def add_translation_variable(name):
         t = TranslationVariable(name=name)
