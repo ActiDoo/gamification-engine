@@ -193,7 +193,7 @@ t_translations = Table('translations', Base.metadata,
    Column('id', ty.Integer, primary_key = True),
    Column('translationvariable_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="CASCADE"), nullable = False),
    Column('language_id', ty.Integer, ForeignKey("languages.id", ondelete="CASCADE"), nullable = False),
-   Column('text', ty.String(), nullable = False),
+   Column('text', ty.Text(), nullable = False),
 )
 
 class ABase(object):
