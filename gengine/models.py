@@ -1158,7 +1158,7 @@ mapper(Language, t_languages)
 mapper(TranslationVariable,t_translationvariables)
 mapper(Translation, t_translations, properties={
    'language' : relationship(Language),
-   'translationvariable' : relationship(TranslationVariable),
+   'translationvariable' : relationship(TranslationVariable, backref="translations"),
 })
 
 @event.listens_for(Property, "after_insert")

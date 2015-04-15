@@ -13,6 +13,7 @@ from wtforms.form import Form
 import pkg_resources, os
 from flask.helpers import send_from_directory
 import jinja2
+from flask_admin.model.form import InlineFormAdmin
 
 flaskadminapp=None
 admin=None
@@ -76,8 +77,8 @@ def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=No
     admin.add_view(ModelViewGoal(DBSession, category="Rules"))
     admin.add_view(ModelView(AchievementProperty, DBSession, category="Rules"))
     admin.add_view(ModelView(AchievementReward, DBSession, category="Rules"))
-    admin.add_view(ModelView(TranslationVariable, DBSession, category="Rules"))
-    admin.add_view(ModelView(Translation, DBSession, category="Rules"))
+    admin.add_view(ModelViewTranslationVariable(DBSession, category="Rules"))
+    admin.add_view(ModelView(Translation,DBSession, category="Rules"))
     
     admin.add_view(ModelViewAchievementCategory(DBSession, category="Settings"))
     admin.add_view(ModelView(Variable, DBSession, category="Settings"))
@@ -90,6 +91,17 @@ def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=No
     admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
     admin.add_view(ModelViewUser(DBSession, category="Debug"))
     admin.add_view(ModelView(AchievementUser, DBSession, category="Debug"))
+
+class TranslationInlineModelForm(InlineFormAdmin):
+    form_columns = ('id','language','text')
+
+class ModelViewTranslationVariable(ModelView):
+    column_list = ('name',)
+    column_searchable_list = ('name',)
+    inline_models = (TranslationInlineModelForm(Translation),)
+    
+    def __init__(self, session, **kwargs):
+        super(ModelViewTranslationVariable, self).__init__(TranslationVariable, session, **kwargs)
 
 class ModelViewAchievementCategory(ModelView):
     column_list = ('name',)
