@@ -1198,7 +1198,7 @@ def coords(row):
 safe_list = ['math','acos', 'asin', 'atan', 'atan2', 'ceil',
              'cos', 'cosh', 'degrees', 'e', 'exp', 'fabs', 'floor',
              'fmod', 'frexp', 'hypot', 'ldexp', 'log', 'log10', 'modf',
-             'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh']
+             'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'sum', 'range']
 
 #use the list to filter the local namespace
 safe_dict = dict([ (k, locals().get(k, None)) for k in safe_list])
@@ -1219,7 +1219,7 @@ def eval_formular(s,params={}):
     'math','acos', 'asin', 'atan', 'atan2', 'ceil',
     'cos', 'cosh', 'degrees', 'e', 'exp', 'fabs', 'floor',
     'fmod', 'frexp', 'hypot', 'ldexp', 'log', 'log10', 'modf',
-    'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh'
+    'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'sum', 'range'
     """
     try:
         if s is None:
