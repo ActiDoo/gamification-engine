@@ -583,7 +583,7 @@ class Achievement(ABase):
             #"updated_at" : combine_updated_at([achievement["updated_at"],]),
         }
         
-        def goal_out(g):
+        def goal_out(g,i):
             goal_goal = eval_formular(g["goal"], {"level":i})
             return {
                 "goal_id" : g["id"],
@@ -600,7 +600,7 @@ class Achievement(ABase):
             out["levels"] = {
                 str(i) : {
                     "level" : i,
-                    "goals" : { str(g["id"]) : goal_out(g) for g in goals},
+                    "goals" : { str(g["id"]) : goal_out(g,i) for g in goals},
                     "rewards" : {str(r["id"]) : {
                         "id" : r["id"],
                         "reward_id" : r["reward_id"],
