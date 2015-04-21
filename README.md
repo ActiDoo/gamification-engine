@@ -60,7 +60,7 @@ http://gamification-engine.readthedocs.org/en/latest/roadmap.html
 
 ## Who are you ?
 
-We developed the gamification engine for ActiDoo (www.actidoo.com) and extracted the component to release it to the open source community.
+We developed the gamification engine for another project and extracted the component to release it to the open source community.
 We offer commercial support at www.gamification-software.com
 
 ## AGPL ?
