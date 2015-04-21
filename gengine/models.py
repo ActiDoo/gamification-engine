@@ -37,6 +37,7 @@ import hashlib
 import warnings
 
 from gengine.metadata import Base, DBSession
+import __builtin__
 
 try:
     cache_general = get_region('general')
@@ -1202,6 +1203,10 @@ safe_list = ['math','acos', 'asin', 'atan', 'atan2', 'ceil',
 
 #use the list to filter the local namespace
 safe_dict = dict([ (k, locals().get(k, None)) for k in safe_list])
+for k in safe_dict.keys():
+    if safe_dict[k] is None:
+        if hasattr(__builtin__, k):
+            safe_dict[k] = getattr(__builtin__, k)
 safe_dict['and_'] = and_
 safe_dict['or_'] = or_
 safe_dict['abs'] = abs
