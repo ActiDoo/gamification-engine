@@ -37,6 +37,7 @@ def main(global_config, **settings):
     config.include('pyramid_chameleon')
     
     urlprefix = settings.get("urlprefix","")
+    urlcacheid = settings.get("urlcacheid","gengine")
     force_https = asbool(settings.get("force_https",False))
     init_reverse_proxy(force_https,urlprefix)
     
@@ -61,7 +62,8 @@ def main(global_config, **settings):
     from urlcache import setup_urlcache
     setup_urlcache(prefix=urlprefix,
                    url = urlcache_url,
-                   active = urlcache_active)
+                   active = urlcache_active,
+                   id = urlcacheid)
 
     #date serialization    
     json_renderer = JSON()
