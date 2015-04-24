@@ -58,17 +58,6 @@ For a full list see:
 
 http://gamification-engine.readthedocs.org/en/latest/roadmap.html
 
-## Who are you ?
-
-We developed the gamification engine for another project and extracted the component to release it to the open source community.
-We offer commercial support at www.gamification-software.com
-
-## AGPL ?
-
-You may use the engine in commercial products, but you need to contribute all your modifications and improvements back to the community.
-
-We also offer a commercial license at https://www.gamification-software.com
-
 ## Licenses of dependencies
 
 Pyramid: BSD-derived (http://www.repoze.org/LICENSE.txt)
