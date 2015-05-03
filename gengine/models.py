@@ -501,7 +501,7 @@ class Achievement(ABase):
                     distance])\
             .where(or_(and_(t_achievements.c.lat==None,t_achievements.c.lng==None),
                         distance < t_achievements.c.max_distance))
-        return [dict(x.items()) for x in DBSession.execute(q).fetchall()]
+        return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id']))>0]
     
     @classmethod
     @cache_general.cache_on_arguments()
@@ -512,7 +512,7 @@ class Achievement(ABase):
                                                or_(t_achievements.c.valid_end==None,
                                                           t_achievements.c.valid_end>=date)
                                                ))
-        return [dict(x.items()) for x in DBSession.execute(q).fetchall()]
+        return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id']))>0]
     
     #TODO:CACHE
     @classmethod
