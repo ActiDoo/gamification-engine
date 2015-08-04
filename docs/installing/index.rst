@@ -47,7 +47,7 @@ Serving
 =======
 
 You can use any WSGI-supporting webserver.
-At ActiDoo_ we make use of nginx as a reverse-proxy to uwsgi.
+(e.g. nginx as a reverse-proxy to uwsgi)
 
 To quickly get started, you can run: 
 
@@ -56,8 +56,6 @@ To quickly get started, you can run:
 ::
 
    $ pserve production.ini
-
-.. _ActiDoo: http://www.actidoo.com/
 
 Heroku-style
 ============
