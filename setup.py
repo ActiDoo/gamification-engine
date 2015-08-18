@@ -29,8 +29,8 @@ requires = [
     ]
 
 setup(name='gamification-engine',
-      version='0.1.18',
-      description='gamification-engine',
+      version='0.1.19',
+      description='The Gamification-Engine (gengine) provides an API for integrating any kinds of gamification features.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
         "Programming Language :: Python",
@@ -39,7 +39,7 @@ setup(name='gamification-engine',
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         "Topic :: Software Development :: Libraries",
         "Programming Language :: Python :: 2.7",
-        "License :: OSI Approved :: GNU Affero General Public License v3"
+        "License :: OSI Approved :: MIT License"
         ],
       author='Marcel Sander, Jens Janiuk',
       author_email='marcel@gamification-software.com',
