@@ -29,7 +29,7 @@ requires = [
     ]
 
 setup(name='gamification-engine',
-      version='0.1.17',
+      version='0.1.18',
       description='gamification-engine',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
@@ -43,7 +43,7 @@ setup(name='gamification-engine',
         ],
       author='Marcel Sander, Jens Janiuk',
       author_email='marcel@gamification-software.com',
-      license='AGPL, commercial',
+      license='MIT',
       url='https://www.gamification-software.com',
       keywords='web wsgi bfg pylons pyramid gamification',
       packages=find_packages()+["gengine_quickstart_template",],
@@ -59,4 +59,3 @@ setup(name='gamification-engine',
       gengine_quickstart = gengine.scripts.quickstart:main
       """,
      )
-    
