@@ -8,10 +8,10 @@
 [![Downloads](https://pypip.in/download/gamification-engine/badge.svg?period=month)](https://pypi.python.org/pypi/gamification-engine/)
 
 [![License](https://pypip.in/license/gamification-engine/badge.svg)](https://pypi.python.org/pypi/gamification-engine/)
-(commercial support / license available at https://www.gamification-software.com)
+(commercial support available at https://www.gamification-software.com)
 
 
-The Gamification-Engine (gengine) is an open source software (AGPL) for integrating any kinds of gamification features into your product.
+The Gamification-Engine (gengine) is an open source software (MIT) for integrating any kinds of gamification features into your product.
 
 The engine is **not meant to be a platform** including any kinds of predefined graphics, layouts or statistics.
 It is framework for developing your own solution, implemented as a **service** to which your application server can talk over a REST api. 
