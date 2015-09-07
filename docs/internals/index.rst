@@ -4,7 +4,7 @@
 Modules
 -------
 
-.. image:: /_static/erm.svg
+.. image:: /_static/2015-09-07-erm.svg
    :width: 1000
 
 gengine.models
@@ -16,6 +16,6 @@ gengine.models
 
 gengine.views
 =============
-  
+
 .. automodule:: gengine.views
    :members: add_or_update_user, delete_user, get_progress, increas_value, get_achievement_level
