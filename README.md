@@ -3,11 +3,11 @@
 [![Requirements Status](https://requires.io/github/ActiDoo/gamification-engine/requirements.svg?branch=master)](https://requires.io/github/ActiDoo/gamification-engine/requirements/?branch=master)
 [![Heroku](https://heroku-badge.herokuapp.com/?app=gamification-engine&root=admin)](https://gamification-engine.herokuapp.com)
 
-[![Documentation Status](https://readthedocs.org/projects/gamification-engine/badge/?version=latest)](https://readthedocs.org/projects/gamification-engine/?badge=latest)
-[![Latest Version](https://pypip.in/version/gamification-engine/badge.svg)](https://pypi.python.org/pypi/gamification-engine/)
-[![Downloads](https://pypip.in/download/gamification-engine/badge.svg?period=month)](https://pypi.python.org/pypi/gamification-engine/)
+[![Documentation Status](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](https://readthedocs.org/projects/gamification-engine/?badge=latest)
+[![Latest Version](https://badge.fury.io/py/gamification-engine.svg)](https://pypi.python.org/pypi/gamification-engine/)
+[![Downloads](https://img.shields.io/pypi/dm/gamification-engine.svg)](https://pypi.python.org/pypi/gamification-engine/)
 
-[![License](https://pypip.in/license/gamification-engine/badge.svg)](https://pypi.python.org/pypi/gamification-engine/)
+[![License](http://img.shields.io/:license-mit-green.svg)](https://pypi.python.org/pypi/gamification-engine/)
 (commercial support available at https://www.gamification-software.com)
 
 
