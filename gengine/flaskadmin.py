@@ -81,7 +81,7 @@ def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=No
     admin.add_view(ModelView(Translation,DBSession, category="Rules"))
     
     admin.add_view(ModelViewAchievementCategory(DBSession, category="Settings"))
-    admin.add_view(ModelView(Variable, DBSession, category="Settings"))
+    admin.add_view(ModelViewVariable(DBSession, category="Settings"))
     admin.add_view(ModelViewProperty(DBSession, category="Settings"))
     admin.add_view(ModelViewReward(DBSession, category="Settings"))
     admin.add_view(ModelView(Language, DBSession, category="Settings"))
@@ -120,6 +120,12 @@ class ModelViewAchievement(ModelView):
     
     def __init__(self, session, **kwargs):
         super(ModelViewAchievement, self).__init__(Achievement, session, **kwargs)
+
+class ModelViewVariable(ModelView):
+    form_excluded_columns =('values',)
+    
+    def __init__(self, session, **kwargs):
+        super(ModelViewVariable, self).__init__(Variable, session, **kwargs)
 
 class ModelViewGoal(ModelView):
     column_list = ('condition','evaluation','operator','goal','timespan','achievement','updated_at')
