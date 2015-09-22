@@ -128,7 +128,7 @@ class ModelViewVariable(ModelView):
         super(ModelViewVariable, self).__init__(Variable, session, **kwargs)
 
 class ModelViewGoal(ModelView):
-    column_list = ('condition','evaluation','operator','goal','timespan','achievement','updated_at')
+    column_list = ('condition','evaluation','operator','goal','timespan','priority','achievement','updated_at')
     #column_searchable_list = ('name',)
     column_filters = (Achievement.id,)
     fast_mass_delete = True

@@ -969,7 +969,8 @@ class Goal(ABase):
                     #t_goal_evaluation_cache.c.updated_at,
                     t_goals.c.name_translation_id,
                     t_goals.c.goal,
-                    t_goals.c.achievement_id],
+                    t_goals.c.achievement_id,
+                    t_goals.c.priority],
                    and_(t_goal_evaluation_cache.c.goal_id==goal_id,
                         t_goal_evaluation_cache.c.user_id==user_id),
                    from_obj=j)
@@ -991,7 +992,8 @@ class Goal(ABase):
                     "goal_name" : Translation.trs(cache["name_translation_id"],params),
                     "goal_goal" : goal_goal,
                     "achieved" : cache["achieved"],
-                    "value" : cache["value"]}
+                    "value" : cache["value"],
+                    "priority" : cache["priority"]}
                     #"updated_at" : cache["updated_at"]}
         else:
             return None
