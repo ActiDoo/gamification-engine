@@ -15,6 +15,8 @@ It is framework for developing your own solution, implemented as a **service** t
 
 (commercial support available at https://www.gamification-software.com)
 
+**Latest recommended version: v0.1.28** (not yet called "stable" though)
+
 ## Features
 
 - multi level achievements
