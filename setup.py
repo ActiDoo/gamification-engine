@@ -29,7 +29,7 @@ requires = [
     ]
 
 setup(name='gamification-engine',
-      version='0.1.23',
+      version='0.1.24',
       description='The Gamification-Engine (gengine) provides an API for integrating any kinds of gamification features.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
