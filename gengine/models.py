@@ -1108,7 +1108,7 @@ class Goal(ABase):
     
     @classmethod
     @cache_general.cache_on_arguments()
-    def basic_goal_output(goal,level):
+    def basic_goal_output(cls,goal,level):
         goal_goal = eval_formular(goal["goal"], {"level":level})
         properties = {
             str(r["property_id"]) : {
