@@ -136,15 +136,15 @@ t_values = Table('values', Base.metadata,
     Column('key', ty.String(100), primary_key=True, default=""),
 )
 
-t_properties = Table('properties', Base.metadata,
+t_achievementproperties = Table('achievementproperties', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('name', ty.String(255), nullable = False),
     Column('is_variable', ty.Boolean, nullable = False, default=False),
 )
 
-t_achievements_properties = Table('achievements_properties', Base.metadata,
+t_achievements_achievementproperties = Table('achievements_achievementproperties', Base.metadata,
     Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
-    Column('property_id', ty.Integer, ForeignKey("properties.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('property_id', ty.Integer, ForeignKey("achievementproperties.id", ondelete="CASCADE"), primary_key = True, nullable=False),
     Column('value', ty.String(255), nullable = True),
     Column('value_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = True),
     Column('from_level', ty.Integer, nullable = False, default=0, primary_key = True),
@@ -223,6 +223,10 @@ class ABase(object):
         
         for k,v in kw.items():
             setattr(self, k, v)
+            
+    def __str__(self):
+        if hasattr(self, "__unicode__"):
+            return self.__unicode__()
 
 class User(ABase):
     """A user participates in the gamification, i.e. can get achievements, rewards, participate in leaderbaord etc."""
@@ -470,7 +474,7 @@ class AchievementCategory(ABase):
         return self.name + " (ID: %s)" % (self.id,)
     
 class Achievement(ABase):
-    """A collection of goals which has multiple :class:`Property` and :class:`Reward`."""
+    """A collection of goals which has multiple :class:`AchievementProperty` and :class:`Reward`."""
     
     def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
@@ -778,22 +782,22 @@ class Achievement(ABase):
     def get_properties(cls,achievement_id,level):
         """return all properties which are associated to the achievement level."""
         
-        return DBSession.execute(select([t_properties.c.id.label("property_id"),
-                                         t_properties.c.name,
-                                         t_properties.c.is_variable,
-                                         t_achievements_properties.c.from_level,
-                                         t_achievements_properties.c.value,
-                                         t_achievements_properties.c.value_translation_id],
-                                        from_obj=t_properties.join(t_achievements_properties))\
-                                 .where(and_(or_(t_achievements_properties.c.from_level<=level,
-                                                 t_achievements_properties.c.from_level==None),
-                                             t_achievements_properties.c.achievement_id==achievement_id))\
-                                 .order_by(t_achievements_properties.c.from_level))\
+        return DBSession.execute(select([t_achievementproperties.c.id.label("property_id"),
+                                         t_achievementproperties.c.name,
+                                         t_achievementproperties.c.is_variable,
+                                         t_achievements_achievementproperties.c.from_level,
+                                         t_achievements_achievementproperties.c.value,
+                                         t_achievements_achievementproperties.c.value_translation_id],
+                                        from_obj=t_achievementproperties.join(t_achievements_achievementproperties))\
+                                 .where(and_(or_(t_achievements_achievementproperties.c.from_level<=level,
+                                                 t_achievements_achievementproperties.c.from_level==None),
+                                             t_achievements_achievementproperties.c.achievement_id==achievement_id))\
+                                 .order_by(t_achievements_achievementproperties.c.from_level))\
                         .fetchall()
        
     
-class Property(ABase):
-    """A property describes the :class:`Achievement`s of our system.
+class AchievementProperty(ABase):
+    """A AchievementProperty describes the :class:`Achievement`s of our system.
     
     Examples: name, image, description, xp
     
@@ -804,11 +808,11 @@ class Property(ABase):
     def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
 
-class AchievementProperty(ABase):
+class AchievementAchievementProperty(ABase):
     """A poperty value for an :class:`Achievement`"""
     pass
     
-class Goalproperty(ABase):
+class GoalProperty(ABase):
     """A goalproperty describes the :class:`Goal`s of our system.
     
     Examples: name, image, description, xp
@@ -820,7 +824,7 @@ class Goalproperty(ABase):
     def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
 
-class GoalGoalproperty(ABase):
+class GoalGoalProperty(ABase):
     """A goalpoperty value for a :class:`Goal`"""
     pass
     
@@ -851,7 +855,11 @@ class Goal(ABase):
     """A Goal defines a rule on variables that needs to be reached to get achievements"""
     
     def __unicode__(self, *args, **kwargs):
-        return str(self.name_translation) + " (ID: %s)" % (self.id,)
+        if self.name_translation!=None:
+            name = Translation.trs(self.name_translation.id, {"level":1, "goal":'0'})[_fallback_language]
+            return str(name) + " (ID: %s)" % (self.id,)
+        else:
+            return self.name + " (ID: %s)" % (self.id,)
     
     @classmethod
     @cache_general.cache_on_arguments()
@@ -1000,7 +1008,6 @@ class Goal(ABase):
         cache = DBSession.execute(q).fetchone()
         
         if cache:
-            
             achievement_id = cache["achievement_id"]
             achievement = Achievement.get_achievement(achievement_id)
             
@@ -1091,7 +1098,7 @@ class Goal(ABase):
                                          t_goals_goalproperties.c.from_level,
                                          t_goals_goalproperties.c.value,
                                          t_goals_goalproperties.c.value_translation_id],
-                                        from_obj=t_properties.join(t_goals_goalproperties))\
+                                        from_obj=t_achievementproperties.join(t_goals_goalproperties))\
                                  .where(and_(or_(t_goals_goalproperties.c.from_level<=level,
                                                  t_goals_goalproperties.c.from_level==None),
                                              t_goals_goalproperties.c.goal_id==goal_id))\
@@ -1195,14 +1202,14 @@ mapper(Achievement, t_achievements, properties={
                            secondaryjoin=t_achievements.c.id==t_denials.c.to_id,
                            ),
    'users': relationship(AchievementUser, backref='achievement'),
-   'properties' : relationship(AchievementProperty, backref='achievement'),
+   'properties' : relationship(AchievementAchievementProperty, backref='achievement'),
    'rewards' : relationship(AchievementReward, backref='achievement'),
    'goals': relationship(Goal, backref='achievement'),
    'achievementcategory' : relationship(AchievementCategory, backref='achievements')
 })
-mapper(Property, t_properties)
-mapper(AchievementProperty, t_achievements_properties, properties={
-   'property' : relationship(Property, backref='achievements'),
+mapper(AchievementProperty, t_achievementproperties)
+mapper(AchievementAchievementProperty, t_achievements_achievementproperties, properties={
+   'property' : relationship(AchievementProperty, backref='achievements'),
    'value_translation' : relationship(TranslationVariable)
 })
 mapper(Reward, t_rewards)
@@ -1213,11 +1220,12 @@ mapper(AchievementReward, t_achievements_rewards, properties={
 mapper(AchievementUser, t_achievements_users)
 
 mapper(Goal, t_goals, properties={
-    'name_translation' : relationship(TranslationVariable)
+    'name_translation' : relationship(TranslationVariable),
+    'properties' : relationship(GoalGoalProperty, backref='goal'),
 })
-mapper(Goalproperty, t_goalproperties)
-mapper(GoalGoalproperty, t_goals_goalproperties, properties={
-   'property' : relationship(Goalproperty, backref='goals'),
+mapper(GoalProperty, t_goalproperties)
+mapper(GoalGoalProperty, t_goals_goalproperties, properties={
+   'property' : relationship(GoalProperty, backref='goals'),
    'value_translation' : relationship(TranslationVariable)
 })
 mapper(GoalEvaluationCache, t_goal_evaluation_cache,properties={
@@ -1232,10 +1240,10 @@ mapper(Translation, t_translations, properties={
    'translationvariable' : relationship(TranslationVariable, backref="translations"),
 })
 
-@event.listens_for(Property, "after_insert")
-@event.listens_for(Property, 'after_update')
+@event.listens_for(AchievementProperty, "after_insert")
+@event.listens_for(AchievementProperty, 'after_update')
 def insert_variable_for_property(mapper,connection,target):
-    """when setting is_variable on a :class:`Property` a variable is automatically created"""
+    """when setting is_variable on a :class:`AchievementProperty` a variable is automatically created"""
     if target.is_variable and not exists_by_expr(t_variables, t_variables.c.name==target.name):
             variable = Variable()
             variable.name = target.name

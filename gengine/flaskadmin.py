@@ -3,8 +3,8 @@ from flask import Flask
 from flask.ext.admin import Admin
 from flask.ext.admin.contrib.sqla import ModelView
 
-from gengine.models import DBSession, Variable, Goal, AchievementCategory, Achievement, Property, Goalproperty, AchievementProperty, AchievementReward,\
-                           GoalGoalproperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation
+from gengine.models import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
+                           GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation
 from flask_admin.contrib.sqla.filters import BooleanEqualFilter, IntEqualFilter
 from flask_admin.base import AdminIndexView, BaseView, expose
 from wtforms import BooleanField
@@ -75,17 +75,17 @@ def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=No
             
     admin.add_view(ModelViewAchievement(DBSession, category="Rules"))
     admin.add_view(ModelViewGoal(DBSession, category="Rules"))
-    admin.add_view(ModelView(AchievementProperty, DBSession, category="Rules", name="Achievement Property Values"))
+    admin.add_view(ModelView(AchievementAchievementProperty, DBSession, category="Rules", name="Achievement Property Values"))
     admin.add_view(ModelView(AchievementReward, DBSession, category="Rules", name="Achievement Reward Values"))
-    admin.add_view(ModelView(GoalGoalproperty, DBSession, category="Rules", name="Goal Property Values"))
+    admin.add_view(ModelView(GoalGoalProperty, DBSession, category="Rules", name="Goal Property Values"))
     admin.add_view(ModelViewTranslationVariable(DBSession, category="Rules"))
     admin.add_view(ModelView(Translation,DBSession, category="Rules"))
     
     admin.add_view(ModelViewAchievementCategory(DBSession, category="Settings"))
     admin.add_view(ModelViewVariable(DBSession, category="Settings"))
-    admin.add_view(ModelViewProperty(DBSession, category="Settings", name="Achievement Property Types"))
+    admin.add_view(ModelViewAchievementProperty(DBSession, category="Settings", name="Achievement Property Types"))
     admin.add_view(ModelViewReward(DBSession, category="Settings", name="Achievement Reward Types"))
-    admin.add_view(ModelViewGoalproperty(DBSession, category="Settings", name="Goal Property Types"))
+    admin.add_view(ModelViewGoalProperty(DBSession, category="Settings", name="Goal Property Types"))
     admin.add_view(ModelView(Language, DBSession, category="Settings"))
     admin.add_view(MaintenanceView(name="Maintenance", category="Settings", url="maintenance"))
     
@@ -169,21 +169,21 @@ class ModelViewGoalEvaluationCache(ModelView):
     def __init__(self, session, **kwargs):
         super(ModelViewGoalEvaluationCache, self).__init__(GoalEvaluationCache, session, **kwargs)
 
-class ModelViewProperty(ModelView):
+class ModelViewAchievementProperty(ModelView):
     column_list = ('id','name')
     form_excluded_columns = ('achievements',)
     fast_mass_delete = True
     
     def __init__(self, session, **kwargs):
-        super(ModelViewProperty, self).__init__(Property, session, **kwargs)
+        super(ModelViewAchievementProperty, self).__init__(AchievementProperty, session, **kwargs)
         
-class ModelViewGoalproperty(ModelView):
+class ModelViewGoalProperty(ModelView):
     column_list = ('id','name')
     form_excluded_columns = ('goals',)
     fast_mass_delete = True
     
     def __init__(self, session, **kwargs):
-        super(ModelViewGoalproperty, self).__init__(Goalproperty, session, **kwargs)
+        super(ModelViewGoalProperty, self).__init__(GoalProperty, session, **kwargs)
         
 class ModelViewReward(ModelView):
     column_list = ('id','name')
