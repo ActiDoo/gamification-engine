@@ -28,6 +28,9 @@ init_declarative_base()
 
 from gengine.metadata import Base
 target_metadata = Base.metadata
+
+from gengine.models import *
+
 # target_metadata = None
 
 # other values from the config, defined by the needs of env.py,
@@ -66,8 +69,9 @@ def run_migrations_online():
         config.get_section(config.config_ini_section),
         prefix='sqlalchemy.',
         poolclass=pool.NullPool)
-
+    
     with connectable.connect() as connection:
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata
