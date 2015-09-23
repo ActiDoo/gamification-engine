@@ -611,7 +611,7 @@ class Achievement(ABase):
             out["levels"] = {
                 str(i) : {
                     "level" : i,
-                    "goals" : { str(g["id"]) : Goal.basic_goal_output(goal=g,level=i) for g in goals},
+                    "goals" : { str(g["id"]) : Goal.basic_goal_output(g,i) for g in goals},
                     "rewards" : {str(r["id"]) : {
                         "id" : r["id"],
                         "reward_id" : r["reward_id"],
@@ -1013,7 +1013,7 @@ class Goal(ABase):
             
             level = min((Achievement.get_level_int(user_id, achievement["id"]) or 0)+1,achievement["maxlevel"])
             
-            goal_output = Goal.basic_goal_output(goal=cache, level=level)
+            goal_output = Goal.basic_goal_output(cache,level)
             
             goal_output.update({
                 "achieved" : cache["achieved"],
