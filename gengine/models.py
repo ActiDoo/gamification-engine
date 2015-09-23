@@ -611,7 +611,7 @@ class Achievement(ABase):
             out["levels"] = {
                 str(i) : {
                     "level" : i,
-                    "goals" : { str(g["id"]) : Goal.basic_output(goal=g,level=i) for g in goals},
+                    "goals" : { str(g["id"]) : Goal.basic_goal_output(goal=g,level=i) for g in goals},
                     "rewards" : {str(r["id"]) : {
                         "id" : r["id"],
                         "reward_id" : r["reward_id"],
@@ -624,7 +624,7 @@ class Achievement(ABase):
                         "name" : r["name"],
                         "value" : eval_formular(r["value"], {"level":i}),
                         "value_translated" : Translation.trs(r["value_translation_id"], {"level":i}),
-                    } for r in Achievement.get_properties(achievement["id"],i)}
+                    } for r in Achievement.get_achievement_properties(achievement["id"],i)}
             } for i in range(0,max_level_included+1)}
         return out
     
@@ -686,7 +686,7 @@ class Achievement(ABase):
                             "is_variable" : r["is_variable"],
                             "value" : eval_formular(r["value"], {"level":user_wants_level}),
                             "value_translated" : Translation.trs(r["value_translation_id"], {"level":user_wants_level})
-                        } for r in Achievement.get_properties(achievement["id"],user_wants_level)
+                        } for r in Achievement.get_achievement_properties(achievement["id"],user_wants_level)
                     },
                     "level" : user_wants_level
                 }
@@ -778,8 +778,8 @@ class Achievement(ABase):
         return retlist
     
     @classmethod
-    @cache_general.cache_on_arguments(namespace="ACHIEVEMENT")
-    def get_properties(cls,achievement_id,level):
+    @cache_general.cache_on_arguments()
+    def get_achievement_properties(cls,achievement_id,level):
         """return all properties which are associated to the achievement level."""
         
         return DBSession.execute(select([t_achievementproperties.c.id.label("property_id"),
@@ -1013,7 +1013,7 @@ class Goal(ABase):
             
             level = min((Achievement.get_level_int(user_id, achievement["id"]) or 0)+1,achievement["maxlevel"])
             
-            goal_output = Goal.basic_output(goal=cache, level=level)
+            goal_output = Goal.basic_goal_output(goal=cache, level=level)
             
             goal_output.update({
                 "achieved" : cache["achieved"],
@@ -1087,7 +1087,8 @@ class Goal(ABase):
         return positions
     
     @classmethod
-    def get_properties(cls,goal_id,level):
+    @cache_general.cache_on_arguments()
+    def get_goal_properties(cls,goal_id,level):
         """return all properties which are associated to the achievement level."""
         
         #NOT CACHED, as full-basic_output is cached (see Goal.basic_output)
@@ -1106,8 +1107,8 @@ class Goal(ABase):
                         .fetchall()
     
     @classmethod
-    @cache_general.cache_on_arguments(namespace="GOAL")
-    def basic_output(goal,level):
+    @cache_general.cache_on_arguments()
+    def basic_goal_output(goal,level):
         goal_goal = eval_formular(goal["goal"], {"level":level})
         properties = {
             str(r["property_id"]) : {
@@ -1115,7 +1116,7 @@ class Goal(ABase):
                 "name" : r["name"],
                 "value" : eval_formular(r["value"], {"level":level}),
                 "value_translated" : Translation.trs(r["value_translation_id"], {"level":level}),
-            } for r in Goal.get_properties(goal["id"],level)
+            } for r in Goal.get_goal_properties(goal["id"],level)
         }
         return {
             "goal_id" : goal["id"],
