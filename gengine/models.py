@@ -590,6 +590,7 @@ class Achievement(ABase):
                 "goal_id" : g["id"],
                 "goal_name" : Translation.trs(g["name_translation_id"], {"level":i, "goal":goal_goal}),
                 "goal_goal" : goal_goal,
+                "priority"  : g["priority"],
                 #"updated_at" : g["updated_at"]
             }
         
