@@ -1099,7 +1099,7 @@ class Goal(ABase):
                                          t_goals_goalproperties.c.from_level,
                                          t_goals_goalproperties.c.value,
                                          t_goals_goalproperties.c.value_translation_id],
-                                        from_obj=t_achievementproperties.join(t_goals_goalproperties))\
+                                        from_obj=t_goalproperties.join(t_goals_goalproperties))\
                                  .where(and_(or_(t_goals_goalproperties.c.from_level<=level,
                                                  t_goals_goalproperties.c.from_level==None),
                                              t_goals_goalproperties.c.goal_id==goal_id))\
