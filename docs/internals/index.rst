@@ -11,7 +11,7 @@ gengine.models
 ==============
 
 .. automodule:: gengine.models
-   :members: ABase, User, Variable, Value, Achievement, Property, AchievementProperty, Reward, AchievementReward, AchievementUser, GoalEvaluationCache, Goal, Language, TranslationVariable, Translation
+   :members: ABase, User, Variable, Value, Achievement, Property, AchievementProperty, Reward, Goalproperty, GoalGoalproperty AchievementReward, AchievementUser, GoalEvaluationCache, Goal, Language, TranslationVariable, Translation
 
 
 gengine.views

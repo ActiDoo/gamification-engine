@@ -107,7 +107,7 @@ Valid values are "friends", "city" and "own".
 
 Properties
 ==========
-A property describes Achievements of our system, like the name, image, description or XP the user should get. 
+A property describes Achievements or Goals of our system, like the name, image, description or XP the user should get. 
 The Values of Properties can again be python formulars.
 Inside the formular you can make use of the level by using *p.level*.
     
