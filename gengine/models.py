@@ -102,7 +102,8 @@ t_achievements = Table('achievements', Base.metadata,
 t_goals = Table("goals", Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('name', ty.String(255), nullable = False, default=""), #internal use
-    Column('name_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = False),
+    Column('name_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = True),
+    #TODO: deprecate name_translation
     Column('condition', ty.String(255), nullable=True),
     Column('evaluation',ty.Enum("immediately","daily","weekly","monthly","yearly","end", name="evaluation_types")),
     Column('timespan',ty.Integer, nullable=True),
