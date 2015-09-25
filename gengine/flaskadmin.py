@@ -131,6 +131,7 @@ class ModelViewVariable(ModelView):
 
 class ModelViewGoal(ModelView):
     column_list = ('condition','evaluation','operator','goal','timespan','priority','achievement','updated_at')
+    form_excluded_columns =('properties',)
     #column_searchable_list = ('name',)
     column_filters = (Achievement.id,)
     fast_mass_delete = True
