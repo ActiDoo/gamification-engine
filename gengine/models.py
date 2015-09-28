@@ -1279,6 +1279,7 @@ safe_list = ['math','acos', 'asin', 'atan', 'atan2', 'ceil',
              'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'sum', 'range', 'str', 'int', 'float']
 
 #use the list to filter the local namespace
+from math import *
 safe_dict = dict([ (k, locals().get(k, None)) for k in safe_list])
 for k in safe_dict.keys():
     if safe_dict[k] is None:
