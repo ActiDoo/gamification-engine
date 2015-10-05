@@ -500,7 +500,7 @@ class Achievement(ABase):
             def update(arr,distance):
                 arr["distance"]=distance
                 return arr
-            
+                        
             return [update(arr,by_loc[arr["id"]]) for arr in by_date if by_loc.has_key(arr["id"])]
         
         key = str(user["id"])
@@ -1255,7 +1255,7 @@ def insert_variable_for_property(mapper,connection,target):
 #some query helpers
  
 def calc_distance(latlong1, latlong2):
-    """generates a sqlalchemy expression for distance query in miles
+    """generates a sqlalchemy expression for distance query in km
     
        :param latlong1: the location from which we look for rows, as tuple (lat,lng)
        
