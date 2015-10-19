@@ -25,7 +25,8 @@ requires = [
     'psycopg2',
     'pymemcache',
     'mock',
-    'alembic'
+    'alembic',
+	'raven'
     ]
 
 setup(name='gamification-engine',
