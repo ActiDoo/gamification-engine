@@ -14,6 +14,7 @@
 import sys, os
 
 from mock import Mock as MagicMock
+from gengine import __version__
 
 class Mock(MagicMock):
     @classmethod

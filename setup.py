@@ -30,8 +30,16 @@ requires = [
 	'raven'
     ]
 
+version = ''
+with open('requests/__init__.py', 'r') as fd:
+    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
+                        fd.read(), re.MULTILINE).group(1)
+
+if not version:
+    raise RuntimeError('Cannot find version information')
+	
 setup(name='gamification-engine',
-      version=__version__,
+      version=version,
       description='The Gamification-Engine (gengine) provides an API for integrating any kinds of gamification features.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
