@@ -1,6 +1,7 @@
 import os
 
 from setuptools import setup, find_packages
+from gengine import __version__
 
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.txt')) as f:
@@ -30,7 +31,7 @@ requires = [
     ]
 
 setup(name='gamification-engine',
-      version='0.1.33',
+      version=__version__,
       description='The Gamification-Engine (gengine) provides an API for integrating any kinds of gamification features.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[

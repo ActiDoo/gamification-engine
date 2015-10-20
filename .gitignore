@@ -58,3 +58,4 @@ target/
 .metadata
 .settings/
 *.pydevproject
+/*.dbm

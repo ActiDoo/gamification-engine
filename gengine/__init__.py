@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+__version__ = '0.1.34'
+
 import datetime, os
 
 from pyramid.config import Configurator
