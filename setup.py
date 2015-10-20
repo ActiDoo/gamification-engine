@@ -1,7 +1,6 @@
 import os
 
 from setuptools import setup, find_packages
-from gengine import __version__
 
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.txt')) as f:
@@ -31,7 +30,7 @@ requires = [
     ]
 
 version = ''
-with open('requests/__init__.py', 'r') as fd:
+with open('gengine/__init__.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
                         fd.read(), re.MULTILINE).group(1)
 
