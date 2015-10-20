@@ -12,13 +12,15 @@
 # serve to show the default.
 
 import sys, os
+import re
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('..'))
-import gengine
-from gengine import __version__
+read_version = ''
+with open('../gengine/__init__.py', 'r') as fd:
+    read_version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
+                        fd.read(), re.MULTILINE).group(1)
+
+if not read_version:
+    raise RuntimeError('Cannot find version information')
 
 from mock import Mock as MagicMock
 
@@ -66,7 +68,7 @@ copyright = u'2015, Marcel Sander, Jens Janiuk'
 # built documents.
 #
 # The short X.Y version.
-version = __version__
+version = read_version
 # The full version, including alpha/beta/rc tags.
 release = version
 
