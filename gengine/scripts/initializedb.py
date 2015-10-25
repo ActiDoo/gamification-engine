@@ -57,15 +57,18 @@ def main(argv=sys.argv):
     
     from ..models import (
         Achievement,
+		AchievementCategory,
         Goal,
         Variable,
         User,
         Language,
         TranslationVariable,
         Translation,
-        Property,
+        GoalProperty,
+		GoalGoalProperty,
         Reward,
-        AchievementProperty, 
+        AchievementProperty,
+		AchievementAchievementProperty,
         AchievementReward
     )
     
@@ -111,9 +114,16 @@ def main(argv=sys.argv):
                                          group="none")
             DBSession.add(var_invited_users)
             
+            goal_property_name = GoalProperty(name='name')
+            DBSession.add(goal_property_name)
+            
+            achievementcategory_community = AchievementCategory(name="community")
+            DBSession.add(achievementcategory_community)
+            
             achievement_invite = Achievement(name='invite_users',
                                              evaluation="immediately",
-                                             maxtimes=20)
+                                             maxtimes=20,
+											 achievementcategory=achievementcategory_community)
             DBSession.add(achievement_invite)
             
             transvar_invite = add_translation_variable(name="invite_users_goal_name")
@@ -127,10 +137,15 @@ def main(argv=sys.argv):
                                             achievement=achievement_invite)
             DBSession.add(achievement_invite_goal1)
             
+            DBSession.add(GoalGoalProperty(goal=achievement_invite_goal1, property=goal_property_name, value_translation=transvar_invite))
+            
+            achievementcategory_sports = AchievementCategory(name="sports")
+            DBSession.add(achievementcategory_sports)
             
             achievement_fittest = Achievement(name='fittest',
                                               relevance="friends",
-                                              maxlevel=100)
+                                              maxlevel=100,
+											  achievementcategory=achievementcategory_sports)
             DBSession.add(achievement_fittest)
             
             transvar_fittest = add_translation_variable(name="fittest_goal_name")
@@ -143,19 +158,18 @@ def main(argv=sys.argv):
                                              goal="5*p.level",
                                              achievement=achievement_fittest
                                              )
+            
             DBSession.add(achievement_fittest_goal1)
+            DBSession.add(GoalGoalProperty(goal=achievement_fittest_goal1, property=goal_property_name, value_translation=transvar_fittest))
 
-            property_name = Property(name='name')
+            property_name = AchievementProperty(name='name')
             DBSession.add(property_name)
             
-            property_xp = Property(name='xp')
+            property_xp = AchievementProperty(name='xp')
             DBSession.add(property_xp)
             
-            property_icon = Property(name='icon')
+            property_icon = AchievementProperty(name='icon')
             DBSession.add(property_icon)
-            
-            property_description = Property(name='description')
-            DBSession.add(property_description)
 
             reward_badge = Reward(name='badge')
             DBSession.add(reward_badge)
@@ -167,10 +181,9 @@ def main(argv=sys.argv):
             add_translation(transvar_invite_name, lang_en, '"The Community!"')
             add_translation(transvar_invite_name, lang_de, '"Die Community!"')
             
-            DBSession.add(AchievementProperty(achievement=achievement_invite, property=property_name, value_translation=transvar_invite_name))
-            DBSession.add(AchievementProperty(achievement=achievement_invite, property=property_xp, value='100 * p.level'))
-            DBSession.add(AchievementProperty(achievement=achievement_invite, property=property_icon, value="'https://www.gamification-software.com/img/running.png'"))
-            DBSession.add(AchievementProperty(achievement=achievement_invite, property=property_description, value_translation=transvar_invite))
+            DBSession.add(AchievementAchievementProperty(achievement=achievement_invite, property=property_name, value_translation=transvar_invite_name))
+            DBSession.add(AchievementAchievementProperty(achievement=achievement_invite, property=property_xp, value='100 * p.level'))
+            DBSession.add(AchievementAchievementProperty(achievement=achievement_invite, property=property_icon, value="'https://www.gamification-software.com/img/running.png'"))
             
             DBSession.add(AchievementReward(achievement=achievement_invite, reward=reward_badge, value="'https://www.gamification-software.com/img/trophy.png'", from_level=5))
             DBSession.add(AchievementReward(achievement=achievement_invite, reward=reward_image, value="'https://www.gamification-software.com/img/video-controller-336657_1920.jpg'", from_level=5))
@@ -179,10 +192,9 @@ def main(argv=sys.argv):
             add_translation(transvar_fittest_name, lang_en, '"The Fittest!"')
             add_translation(transvar_fittest_name, lang_de, '"Der Fitteste!"')
             
-            DBSession.add(AchievementProperty(achievement=achievement_fittest, property=property_name, value_translation=transvar_fittest_name))
-            DBSession.add(AchievementProperty(achievement=achievement_fittest, property=property_xp, value='50 + (200 * p.level)'))
-            DBSession.add(AchievementProperty(achievement=achievement_fittest, property=property_icon, value="'https://www.gamification-software.com/img/colorwheel.png'"))
-            DBSession.add(AchievementProperty(achievement=achievement_fittest, property=property_description, value_translation=transvar_fittest))
+            DBSession.add(AchievementAchievementProperty(achievement=achievement_fittest, property=property_name, value_translation=transvar_fittest_name))
+            DBSession.add(AchievementAchievementProperty(achievement=achievement_fittest, property=property_xp, value='50 + (200 * p.level)'))
+            DBSession.add(AchievementAchievementProperty(achievement=achievement_fittest, property=property_icon, value="'https://www.gamification-software.com/img/colorwheel.png'"))
             
             DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_badge, value="'https://www.gamification-software.com/img/easel.png'", from_level=1))
             DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_image, value="'https://www.gamification-software.com/img/game-characters-622654.jpg'", from_level=1))
