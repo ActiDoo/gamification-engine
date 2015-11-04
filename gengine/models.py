@@ -544,7 +544,7 @@ class Achievement(ABase):
     def get_relevant_users_by_achievement_and_user(cls,achievement,user_id):
         """return all relevant other users for the leaderboard. 
         
-        dependes on the "relevance" attribute of the achivement, can be "friends" or "city" (city is still a todo)
+        depends on the "relevance" attribute of the achivement, can be "friends" or "city" (city is still a todo)
         """
         # this is needed to compute the leaderboards
         users=[user_id,] 
@@ -903,11 +903,14 @@ class Goal(ABase):
         evaluation_type = goal["evaluation"]
         
         #prepare
-        select_cols=[func.sum(t_values.c.value).label("sum"),
+        select_cols=[func.sum(t_values.c.value).label("value"),
                      t_values.c.user_id]
          
-        j = t_values.join(t_variables)\
-                    .join(t_users)
+        j = t_values.join(t_variables)
+        
+        if evaluation_type in ("daily","weekly","monthly","yearly"):
+            # We need to access the user's timezone later
+            j = j.join(t_users)
          
         datetime_col=None
         if group_by_dateformat:
@@ -942,25 +945,28 @@ class Goal(ABase):
             elif evaluation_type=="yearly":
                 q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
          
-        if datetime_col:
-            q = q.group_by(datetime_col)
+        if datetime_col or group_by_key:
+            if datetime_col:
+                q = q.group_by(datetime_col)
+         
+            if group_by_key:
+                q = q.group_by(t_values.c.key)
+         
+            query_with_groups = q.alias()
+         
+            select_cols2 = [query_with_groups.c.user_id]
+            
+            if maxmin=="min":
+                select_cols2.append(func.min(query_with_groups.c.value).label("value"))
+            else:
+                select_cols2.append(func.max(query_with_groups.c.value).label("value"))
      
-        if group_by_key:
-            q = q.group_by(t_values.c.key)
-     
-        query_with_groups = q.alias()
-     
-        select_cols2 = [query_with_groups.c.user_id]
+            combined_user_query = select(select_cols2,from_obj=query_with_groups)\
+                                  .group_by(query_with_groups.c.user_id)
         
-        if maxmin=="min":
-            select_cols2.append(func.min(query_with_groups.c.sum).label("value"))
+            return DBSession.execute(combined_user_query).fetchall()
         else:
-            select_cols2.append(func.max(query_with_groups.c.sum).label("value"))
-     
-        combined_user_query = select(select_cols2,from_obj=query_with_groups)\
-                              .group_by(query_with_groups.c.user_id)
-        
-        return DBSession.execute(combined_user_query).fetchall()
+            return DBSession.execute(q).fetchall()
 
     @classmethod
     def evaluate(cls, goal, user_ids, level):
@@ -1060,12 +1066,13 @@ class Goal(ABase):
                                                 "achieved" : achieved})
             update_connection().execute(q)
             
-        cache_goal_evaluation.delete("%s_%s" % (goal_id,user_id), generate)
+        cache_goal_evaluation.delete("%s_%s" % (goal_id,user_id))
     
     @classmethod
     def clear_goal_caches(cls, user_id, goal_ids):
         """clear the evaluation cache for the user and gaols"""
-        
+        for goal_id in goal_ids:
+            cache_goal_evaluation.delete("%s_%s" % (goal_id,user_id))
         update_connection().execute(t_goal_evaluation_cache.delete().where(and_(t_goal_evaluation_cache.c.user_id==user_id,
                                                                       t_goal_evaluation_cache.c.goal_id.in_(goal_ids))))
     @classmethod
