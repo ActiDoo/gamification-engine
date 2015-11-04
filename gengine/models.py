@@ -43,14 +43,19 @@ try:
     cache_general = get_region('general')
     cache_achievement_eval = get_region('achievement_eval')
     cache_achievements_by_user_for_today = get_region('achievements_by_user_for_today')
+    cache_achievements_users_levels = get_region('achievements_users_levels')
     cache_translations = get_region('translations')
+    # The Goal evaluation Cache is implemented as a two-level cache (persistent in db, non-persistent as dogpile)
+    cache_goal_evaluation = get_region('goal_evaluation')
 except:
     from dogpile.cache import make_region
 
     cache_general = make_region().configure('dogpile.cache.memory')
     cache_achievement_eval = make_region().configure('dogpile.cache.memory')
     cache_achievements_by_user_for_today = make_region().configure('dogpile.cache.memory')
+    cache_achievements_users_levels = make_region().configure('dogpile.cache.memory')
     cache_translations = make_region().configure('dogpile.cache.memory')
+    cache_goal_evaluation = make_region().configure('dogpile.cache.memory')
     
     warnings.warn("Warning: cache objects are in memory, are you creating docs?")
 
@@ -564,16 +569,18 @@ class Achievement(ABase):
             users += [x["from_id"] for x in DBSession.execute(select([t_users_users.c.from_id,], t_users_users.c.to_id==user_id)).fetchall()]
         return set(users)
     
-    #TODO:CACHE
     @classmethod
     def get_level(cls, user_id, achievement_id):
         """get the current level of the user for this achievement."""
+    
+        def generate():    
+            q = select([t_achievements_users.c.level,
+                        t_achievements_users.c.updated_at],
+                           and_(t_achievements_users.c.user_id==user_id,
+                                t_achievements_users.c.achievement_id==achievement_id)).order_by(t_achievements_users.c.level.desc())
+            return [x for x in DBSession.execute(q).fetchall()]
         
-        q = select([t_achievements_users.c.level,
-                    t_achievements_users.c.updated_at],
-                       and_(t_achievements_users.c.user_id==user_id,
-                            t_achievements_users.c.achievement_id==achievement_id)).order_by(t_achievements_users.c.level.desc())
-        return DBSession.execute(q).fetchall()
+        return cache_achievements_users_levels.get_or_create("%s_%s" % (user_id,achievement_id),generate)
     
     @classmethod
     def get_level_int(cls,user_id,achievement_id):
@@ -701,6 +708,9 @@ class Achievement(ABase):
                     "achievement_id" : achievement["id"],
                     "level" : user_wants_level
                 }))
+                
+                #invalidate getter
+                cache_achievements_users_levels.delete("%s_%s" % (user_id,achievement_id))
                 
                 user_has_level = user_wants_level
                 user_wants_level = user_wants_level+1
@@ -993,37 +1003,40 @@ class Goal(ABase):
     @classmethod
     def get_goal_eval_cache(cls,goal_id,user_id):
         """lookup and return cache entry, else return None"""
-        j = t_goal_evaluation_cache.join(t_goals)
-        q = select([t_goal_evaluation_cache.c.goal_id.label("id"),
-                    t_goal_evaluation_cache.c.value,
-                    t_goal_evaluation_cache.c.achieved,
-                    #t_goal_evaluation_cache.c.updated_at,
-                    t_goals.c.name_translation_id,
-                    t_goals.c.goal,
-                    t_goals.c.achievement_id,
-                    t_goals.c.priority],
-                   and_(t_goal_evaluation_cache.c.goal_id==goal_id,
-                        t_goal_evaluation_cache.c.user_id==user_id),
-                   from_obj=j)
         
-        cache = DBSession.execute(q).fetchone()
+        def generate():
+            j = t_goal_evaluation_cache.join(t_goals)
+            q = select([t_goal_evaluation_cache.c.goal_id.label("id"),
+                        t_goal_evaluation_cache.c.value,
+                        t_goal_evaluation_cache.c.achieved,
+                        t_goals.c.name_translation_id,
+                        t_goals.c.goal,
+                        t_goals.c.achievement_id,
+                        t_goals.c.priority],
+                       and_(t_goal_evaluation_cache.c.goal_id==goal_id,
+                            t_goal_evaluation_cache.c.user_id==user_id),
+                       from_obj=j)
+            
+            cache = DBSession.execute(q).fetchone()
+            
+            if cache:
+                achievement_id = cache["achievement_id"]
+                achievement = Achievement.get_achievement(achievement_id)
+                
+                level = min((Achievement.get_level_int(user_id, achievement["id"]) or 0)+1,achievement["maxlevel"])
+                
+                goal_output = Goal.basic_goal_output(cache,level)
+                
+                goal_output.update({
+                    "achieved" : cache["achieved"],
+                    "value" : cache["value"],
+                })
+                
+                return goal_output
+            else:
+                return None
         
-        if cache:
-            achievement_id = cache["achievement_id"]
-            achievement = Achievement.get_achievement(achievement_id)
-            
-            level = min((Achievement.get_level_int(user_id, achievement["id"]) or 0)+1,achievement["maxlevel"])
-            
-            goal_output = Goal.basic_goal_output(cache,level)
-            
-            goal_output.update({
-                "achieved" : cache["achieved"],
-                "value" : cache["value"],
-            })
-            
-            return goal_output
-        else:
-            return None
+        return cache_goal_evaluation.get_or_create("%s_%s" % (goal_id,user_id), generate)
         
     @classmethod
     def set_goal_eval_cache(cls,goal_id,user_id,value,achieved):
@@ -1046,6 +1059,8 @@ class Goal(ABase):
                                        .values({"value" : value,
                                                 "achieved" : achieved})
             update_connection().execute(q)
+            
+        cache_goal_evaluation.delete("%s_%s" % (goal_id,user_id), generate)
     
     @classmethod
     def clear_goal_caches(cls, user_id, goal_ids):
