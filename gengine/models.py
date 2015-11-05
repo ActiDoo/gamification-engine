@@ -5,6 +5,7 @@ import pytz
 import datetime
 import sqlalchemy.types as ty
 from pyramid_dogpile_cache import get_region
+from dogpile.cache import make_region
 
 from sqlalchemy import (
     Table,
@@ -39,25 +40,43 @@ import warnings
 from gengine.metadata import Base, DBSession
 import __builtin__
 
-try:
-    cache_general = get_region('general')
-    cache_achievement_eval = get_region('achievement_eval')
-    cache_achievements_by_user_for_today = get_region('achievements_by_user_for_today')
-    cache_achievements_users_levels = get_region('achievements_users_levels')
-    cache_translations = get_region('translations')
-    # The Goal evaluation Cache is implemented as a two-level cache (persistent in db, non-persistent as dogpile)
-    cache_goal_evaluation = get_region('goal_evaluation')
-except:
-    from dogpile.cache import make_region
+def my_key_mangler(prefix):
+        def s(o):
+            if type(o)==dict:
+                return "_".join(["%s=%s" % (str(k),str(v)) for k,v in o.items()])
+            if type(o)==tuple:
+                return "_".join([str(v) for v in o])
+            if type(o)==list:
+                return "_".join([str(v) for v in o])
+            else:
+                return str(o)
+            
+        def generate_key(key):
+            return prefix + s(key).replace(" ","")
 
-    cache_general = make_region().configure('dogpile.cache.memory')
-    cache_achievement_eval = make_region().configure('dogpile.cache.memory')
-    cache_achievements_by_user_for_today = make_region().configure('dogpile.cache.memory')
-    cache_achievements_users_levels = make_region().configure('dogpile.cache.memory')
-    cache_translations = make_region().configure('dogpile.cache.memory')
-    cache_goal_evaluation = make_region().configure('dogpile.cache.memory')
+        return generate_key
+
+def create_cache(name):
+    ch = None
     
-    warnings.warn("Warning: cache objects are in memory, are you creating docs?")
+    try:
+        ch = get_region(name)
+        # The Goal evaluation Cache is implemented as a two-level cache (persistent in db, non-persistent as dogpile)
+    except:
+        ch = make_region().configure('dogpile.cache.memory')
+        warnings.warn("Warning: cache objects are in memory, are you creating docs?")
+    
+    ch.key_mangler = my_key_mangler(name)    
+    globals()["cache_"+name] = ch
+
+create_cache("general")
+create_cache("achievement_eval")
+create_cache("achievements_by_user_for_today")
+create_cache("achievements_users_levels")
+create_cache("translations")
+# The Goal evaluation Cache is implemented as a two-level cache (persistent in db, non-persistent as dogpile)
+create_cache("goal_evaluation")
+
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
