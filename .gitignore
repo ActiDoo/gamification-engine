@@ -59,3 +59,5 @@ target/
 .settings/
 *.pydevproject
 /*.dbm
+
+venv/
