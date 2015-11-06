@@ -50,6 +50,7 @@ def main(global_config, **settings):
     config.add_route('get_progress', urlprefix+'/progress/{user_id}')
     config.add_route('increase_value', urlprefix+'/increase_value/{variable_name}/{user_id}')
     config.add_route('increase_value_with_key', urlprefix+'/increase_value/{variable_name}/{user_id}/{key}')
+    config.add_route('increase_multi_values', urlprefix+'/increase_multi_values')
     config.add_route('add_or_update_user', urlprefix+'/add_or_update_user/{user_id}')
     config.add_route('delete_user', urlprefix+'/delete_user/{user_id}')
     config.add_route('get_achievement_level', urlprefix+'/achievement/{achievement_id}/level/{level}')

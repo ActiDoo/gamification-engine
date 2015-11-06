@@ -82,16 +82,7 @@ def delete_user(request):
     User.delete_user(user_id)
     return {"status" : "OK"}
 
-@view_config(route_name='get_progress', renderer='string')
-def get_progress(request, return_object=False):
-    """get all relevant data concerning the user's progress"""
-    user_id = long(request.matchdict["user_id"])
-    
-    user = User.get_user(user_id)
-    if not user:
-        raise NotFound("user not found")
-    
-        
+def _get_progress(user,force_generation=False):
     def generate():
         achievements = Achievement.get_achievements_by_user_for_today(user)
         
@@ -118,20 +109,28 @@ def get_progress(request, return_object=False):
             }
         }
         
-        if return_object:
-            return render("json",ret),ret
-        else:
-            return render("json",ret)
+        return render("json",ret),ret
+        
+    key = "/progress/"+str(user.id)
     
-    key = "/progress/"+str(user_id)
-    
-    if not return_object:
-        request.response.content_type = 'application/json'
-        return get_or_set(key,generate)
+    if not force_generation:
+        #in this case, we do not return the decoded json object - the caller has to take of this if needed
+        return get_or_set(key,lambda:generate()[0]), None
     else:
         ret_str, ret = generate()
         set_value(key,ret_str)
-        return ret
+        return ret_str, ret
+
+@view_config(route_name='get_progress', renderer='json')
+def get_progress(request):
+    """get all relevant data concerning the user's progress"""
+    user_id = long(request.matchdict["user_id"])
+    
+    user = User.get_user(user_id)
+    if not user:
+        raise NotFound("user not found")
+    
+    return _get_progress(user, force_generation=False)[0]
     
 @view_config(route_name='increase_value', renderer='json', request_method="POST")
 @view_config(route_name='increase_value_with_key', renderer='json', request_method="POST")
@@ -157,7 +156,7 @@ def increase_value(request):
     
     Value.increase_value(variable_name, user, value, key) 
     
-    output = get_progress(request,return_object=True)
+    output = _get_progress(user,force_generation=True)[1]
     
     for aid in output["achievements"].keys():
         if len(output["achievements"][aid]["new_levels"])>0:
@@ -167,6 +166,48 @@ def increase_value(request):
         else:
             del output["achievements"][aid]
     return output
+
+@view_config(route_name="increase_multi_values", renderer="json", request_method="POST")
+def increase_multi_values(request):
+    try:
+        doc = request.json_body
+    except:
+        raise BadRequest("no valid json body")
+    ret = {}
+    for user_id, values in doc.items():
+        user = User.get_user(user_id)
+        if not user:
+            raise BadRequest("user %s not found" % (user_id,))
+        
+        for variable_name, values_and_keys in values.items():
+            for value_and_key in values_and_keys:
+                variable = Variable.get_variable_by_name(variable_name)
+                
+                if not variable:
+                    raise BadRequest("variable %s not found" % (variable_name,))
+                
+                if not 'value' in value_and_key:
+                    raise BadRequest("illegal value for %s" % (variable_name,))
+                
+                value = value_and_key['value']
+                key = value_and_key.get('key','')
+                
+                Value.increase_value(variable_name, user, value, key)
+    
+        output = _get_progress(user,force_generation=True)[1]
+        
+        for aid in output["achievements"].keys():
+            if len(output["achievements"][aid]["new_levels"])>0:
+                del output["achievements"][aid]["levels"]
+                del output["achievements"][aid]["priority"]
+                del output["achievements"][aid]["goals"]
+            else:
+                del output["achievements"][aid]
+        
+        if len(output["achievements"])>0 :
+            ret[user_id]=output
+    
+    return ret
 
 @view_config(route_name='get_achievement_level', renderer='string', request_method="GET")
 def get_achievement_level(request):
