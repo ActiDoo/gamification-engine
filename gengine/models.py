@@ -678,7 +678,7 @@ class Achievement(ABase):
     
                 goal_eval = Goal.get_goal_eval_cache(goal["id"], user_id)
                 if not goal_eval:
-                    Goal.evaluate(goal, [user_id,], user_wants_level)
+                    Goal.evaluate(goal, user_id, user_wants_level,None)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], user_id)
                     
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city":
@@ -988,91 +988,66 @@ class Goal(ABase):
             return DBSession.execute(q).fetchall()
 
     @classmethod
-    def evaluate(cls, goal, user_ids, level):
+    def evaluate(cls, goal, user_id, level, goal_eval_cache_before=False):
         """evaluate the goal for the user_ids and the level"""
         
         operator = goal["operator"]
         
-        users_progress = Goal.compute_progress(goal,user_ids)
+        users_progress = Goal.compute_progress(goal,[user_id,])
         
         goal_evaluation = {e["user_id"] : e["value"] for e in users_progress}
         
-        for user_id in user_ids:
-            goal_achieved = False
+        goal_achieved = False
 
-            before = cls.get_goal_eval_cache(goal["id"], user_id)
-            new = goal_evaluation.get(user_id,0.0)
+        if goal_eval_cache_before is False:
+            goal_eval_cache_before = cls.get_goal_eval_cache(goal["id"], user_id)
             
-            if before is None or before.get("value",0.0)!=goal_evaluation.get(user_id,0.0):
-                
-                #Level is the next level, or the current level if I'm alread at max
-                params = {
-                    "level" : level
-                }
+        new = goal_evaluation.get(user_id,0.0)
+        
+        if goal_eval_cache_before is None or goal_eval_cache_before.get("value",0.0)!=goal_evaluation.get(user_id,0.0):
+            
+            #Level is the next level, or the current level if I'm alread at max
+            params = {
+                "level" : level
+            }
 
-                goal_goal = eval_formular(goal["goal"], params)
-    
-                if goal_goal is not None and operator=="geq" and new>=goal_goal:
-                    goal_achieved = True
-                    new = min(new,goal_goal)
-                        
-                elif goal_goal is not None and operator=="leq" and new<=goal_goal:
-                    goal_achieved = True
-                    new = max(new,goal_goal)
-                
-                Goal.set_goal_eval_cache(goal_id=goal["id"],
-                                                user_id=user_id,
-                                                value=new,
-                                                achieved = goal_achieved)
+            goal_goal = eval_formular(goal["goal"], params)
+
+            if goal_goal is not None and operator=="geq" and new>=goal_goal:
+                goal_achieved = True
+                new = min(new,goal_goal)
+                    
+            elif goal_goal is not None and operator=="leq" and new<=goal_goal:
+                goal_achieved = True
+                new = max(new,goal_goal)
+            
+            return Goal.set_goal_eval_cache(goal=goal,
+                                            user_id=user_id,
+                                            value=new,
+                                            achieved = goal_achieved)
+        else:
+            return Goal.get_goal_eval_cache(goal["id"], user_id)
             
     @classmethod
     def get_goal_eval_cache(cls,goal_id,user_id):
         """lookup and return cache entry, else return None"""
-        
-        def generate():
-            j = t_goal_evaluation_cache.join(t_goals)
-            q = select([t_goal_evaluation_cache.c.goal_id.label("id"),
-                        t_goal_evaluation_cache.c.value,
-                        t_goal_evaluation_cache.c.achieved,
-                        t_goals.c.name_translation_id,
-                        t_goals.c.goal,
-                        t_goals.c.achievement_id,
-                        t_goals.c.priority],
-                       and_(t_goal_evaluation_cache.c.goal_id==goal_id,
-                            t_goal_evaluation_cache.c.user_id==user_id),
-                       from_obj=j)
-            
-            cache = DBSession.execute(q).fetchone()
-            
-            if cache:
-                achievement_id = cache["achievement_id"]
-                achievement = Achievement.get_achievement(achievement_id)
-                
-                level = min((Achievement.get_level_int(user_id, achievement["id"]) or 0)+1,achievement["maxlevel"])
-                
-                goal_output = Goal.basic_goal_output(cache,level)
-                
-                goal_output.update({
-                    "achieved" : cache["achieved"],
-                    "value" : cache["value"],
-                })
-                
-                return goal_output
-            else:
-                return None
-        
-        return cache_goal_evaluation.get_or_create("%s_%s" % (goal_id,user_id), generate)
+        v = cache_goal_evaluation.get("%s_%s" % (goal_id,user_id))
+        if v:
+            return v
+        else:
+            return None
         
     @classmethod
-    def set_goal_eval_cache(cls,goal_id,user_id,value,achieved):
+    def set_goal_eval_cache(cls,goal,user_id,value,achieved):
         """set cache entry after evaluation"""
         
-        cache = Goal.get_goal_eval_cache(goal_id, user_id)
+        exists = exists_by_expr(t_goal_evaluation_cache, and_(t_goal_evaluation_cache.c.goal_id==goal_id,
+                                                              t_goal_evaluation_cache.c.user_id==user_id))
         
-        if not cache:
+        if not exists:
             q = t_goal_evaluation_cache.insert()\
                                        .values({"user_id":user_id,
-                                                "goal_id":goal_id,
+                                                "goal_id":goal["id"],
                                                 "value" : value,
                                                 "achieved" : achieved})
             update_connection().execute(q)
@@ -1084,8 +1059,32 @@ class Goal(ABase):
                                        .values({"value" : value,
                                                 "achieved" : achieved})
             update_connection().execute(q)
-            
-        cache_goal_evaluation.delete("%s_%s" % (goal_id,user_id))
+        
+        data = {
+            "id" : goal["id"],
+            "value" : value,
+            "achieved" : achieved,
+            "name_translation_id" : goal["name_translation_id"],
+            "goal" : goal["goal"],
+            "achievement_id" : goal["achievement_id"],
+            "priority" : goal["priority"]
+        }
+        
+        achievement_id = cache["achievement_id"]
+        achievement = Achievement.get_achievement(achievement_id)
+        
+        level = min((Achievement.get_level_int(user_id, achievement["id"]) or 0)+1,achievement["maxlevel"])
+        
+        goal_output = Goal.basic_goal_output(data,level)
+        
+        goal_output.update({
+            "achieved" : achieved,
+            "value" : cache["value"],
+        })
+        
+        cache_goal_evaluation.set("%s_%s" % (goal["id"],user_id),goal_output)
+        
+        return goal_output
     
     @classmethod
     def clear_goal_caches(cls, user_id, goal_ids):
@@ -1116,8 +1115,7 @@ class Goal(ABase):
                 user_has_level = Achievement.get_level_int(user_id, achievement["id"])
                 user_wants_level = min((user_has_level or 0)+1, achievement["maxlevel"])
             
-                Goal.evaluate(goal, [user_id,], user_wants_level)
-                goal_eval = Goal.get_goal_eval_cache(goal["id"], user_id)
+                goal_eval = Goal.evaluate(goal, user_id, user_wants_level)
             
             #rerun the query
             items = DBSession.execute(q).fetchall()
