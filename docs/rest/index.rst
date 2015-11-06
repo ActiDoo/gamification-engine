@@ -39,11 +39,30 @@ Increase Value
 	  - POST parameters:
 		 - value (the increase/decrease value in Double)
 	
-   - if the userId is not registered a empty record with only the userId will be created
+   - if the userId is not registered an error will be thrown
    - directly evaluates all goals associated with this variable_name
    - directly returns new reached achievements
 
-
+Increase multiple Values at once
+==============
+   
+   - POST to "/increase_multi_values"
+      - JSON request body:
+        .. code:: json
+        {
+            "{userId}" : {
+                "{variable}" : [
+                    {
+                        "key" : "{key}",
+                        "value" : "{value}"
+                    }
+                ]
+            }
+        }
+    
+    - directly evaluates all goals associated with the given variables
+    - directly returns new reached achievements
+   
 Get Progress
 ============
 
