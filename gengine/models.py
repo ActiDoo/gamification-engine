@@ -30,7 +30,7 @@ from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.session import sessionmaker, Session
 from zope.sqlalchemy.datamanager import ZopeTransactionExtension, mark_changed
 from datetime import timedelta
-from gengine import urlcache
+from . import urlcache
 import transaction
 from _collections import defaultdict
 from pytz import timezone
@@ -39,6 +39,7 @@ import warnings
 
 from gengine.metadata import Base, DBSession
 import __builtin__
+from sqlalchemy.sql import bindparam
 
 def my_key_mangler(prefix):
         def s(o):
@@ -76,7 +77,7 @@ create_cache("achievements_users_levels")
 create_cache("translations")
 # The Goal evaluation Cache is implemented as a two-level cache (persistent in db, non-persistent as dogpile)
 create_cache("goal_evaluation")
-
+create_cache("goal_statements")
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
@@ -897,8 +898,8 @@ class Goal(ABase):
         return DBSession.execute(t_goals.select(t_goals.c.achievement_id==achievement_id)).fetchall()
     
     @classmethod
-    def compute_progress(cls,goal,user_ids):
-        """computes the progress of the goal for the given user_ids
+    def compute_progress(cls,goal,user_id):
+        """computes the progress of the goal for the given user_id
         
         goal attributes:
             - goal:                the value that is used for comparison
@@ -913,79 +914,84 @@ class Goal(ABase):
             - evaluation:          "daily", "weekly", "monthly", "yearly" evaluation (users timezone)
             
         """
-        condition = eval_formular(goal["condition"],{"var" : t_variables.c.name.label("variable_name"),
-                                                     "key" : t_values.c.key})
-        group_by_dateformat = goal["group_by_dateformat"]
-        group_by_key = goal["group_by_key"]
-        timespan = goal["timespan"]
-        maxmin = goal["maxmin"]
-        evaluation_type = goal["evaluation"]
         
-        #prepare
-        select_cols=[func.sum(t_values.c.value).label("value"),
-                     t_values.c.user_id]
-         
-        j = t_values.join(t_variables)
-        
-        if evaluation_type in ("daily","weekly","monthly","yearly"):
-            # We need to access the user's timezone later
-            j = j.join(t_users)
-         
-        datetime_col=None
-        if group_by_dateformat:
-            # here we need to convert to users' time zone, as we might need to group by e.g. USER's weekday
-            datetime_col = func.to_char(text("values.datetime AT TIME ZONE users.timezone"),group_by_dateformat).label("datetime")
-            select_cols.append(datetime_col)
+        def generate_statement_cache():
+            condition = eval_formular(goal["condition"],{"var" : t_variables.c.name.label("variable_name"),
+                                                         "key" : t_values.c.key})
+            group_by_dateformat = goal["group_by_dateformat"]
+            group_by_key = goal["group_by_key"]
+            timespan = goal["timespan"]
+            maxmin = goal["maxmin"]
+            evaluation_type = goal["evaluation"]
             
-        if group_by_key:
-            select_cols.append(t_values.c.key)
-
-        #build query
-        q = select(select_cols,
-                   from_obj=j)\
-           .where(t_values.c.user_id.in_(user_ids))\
-           .group_by(t_values.c.user_id)
-         
-        if condition is not None:
-            q = q.where(condition)
+            #prepare
+            select_cols=[func.sum(t_values.c.value).label("value"),
+                         t_values.c.user_id]
+             
+            j = t_values.join(t_variables)
             
-        if timespan:
-            #here we can use the utc time
-            q = q.where(t_values.c.datetime>=datetime.datetime.utcnow()-datetime.timedelta(days=timespan))
-        
-        if evaluation_type!="immediately":
-
-            if evaluation_type=="daily":
-                q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("day","users.timezone")))
-            elif evaluation_type=="weekly":
-                q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("week","users.timezone")))
-            elif evaluation_type=="monthly":
-                q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("month","users.timezone")))
-            elif evaluation_type=="yearly":
-                q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
-         
-        if datetime_col or group_by_key:
-            if datetime_col:
-                q = q.group_by(datetime_col)
-         
+            if evaluation_type in ("daily","weekly","monthly","yearly"):
+                # We need to access the user's timezone later
+                j = j.join(t_users)
+             
+            datetime_col=None
+            if group_by_dateformat:
+                # here we need to convert to users' time zone, as we might need to group by e.g. USER's weekday
+                datetime_col = func.to_char(text("values.datetime AT TIME ZONE users.timezone"),group_by_dateformat).label("datetime")
+                select_cols.append(datetime_col)
+                
             if group_by_key:
-                q = q.group_by(t_values.c.key)
-         
-            query_with_groups = q.alias()
-         
-            select_cols2 = [query_with_groups.c.user_id]
+                select_cols.append(t_values.c.key)
+    
+            #build query
+            q = select(select_cols,
+                       from_obj=j)\
+               .where(t_values.c.user_id==bindparam("user_id"))\
+               .group_by(t_values.c.user_id)
+             
+            if condition is not None:
+                q = q.where(condition)
+                
+            if timespan:
+                #here we can use the utc time
+                q = q.where(t_values.c.datetime>=datetime.datetime.utcnow()-datetime.timedelta(days=timespan))
             
-            if maxmin=="min":
-                select_cols2.append(func.min(query_with_groups.c.value).label("value"))
+            if evaluation_type!="immediately":
+    
+                if evaluation_type=="daily":
+                    q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("day","users.timezone")))
+                elif evaluation_type=="weekly":
+                    q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("week","users.timezone")))
+                elif evaluation_type=="monthly":
+                    q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("month","users.timezone")))
+                elif evaluation_type=="yearly":
+                    q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
+             
+            if datetime_col or group_by_key:
+                if datetime_col:
+                    q = q.group_by(datetime_col)
+             
+                if group_by_key:
+                    q = q.group_by(t_values.c.key)
+             
+                query_with_groups = q.alias()
+             
+                select_cols2 = [query_with_groups.c.user_id]
+                
+                if maxmin=="min":
+                    select_cols2.append(func.min(query_with_groups.c.value).label("value"))
+                else:
+                    select_cols2.append(func.max(query_with_groups.c.value).label("value"))
+         
+                combined_user_query = select(select_cols2,from_obj=query_with_groups)\
+                                      .group_by(query_with_groups.c.user_id)
+            
+                return combined_user_query
             else:
-                select_cols2.append(func.max(query_with_groups.c.value).label("value"))
-     
-            combined_user_query = select(select_cols2,from_obj=query_with_groups)\
-                                  .group_by(query_with_groups.c.user_id)
-        
-            return DBSession.execute(combined_user_query).fetchall()
-        else:
-            return DBSession.execute(q).fetchall()
+                return q
+            
+        q = cache_goal_statements.get_or_create(str(goal["id"]),generate_statement_cache)
+        return DBSession.bind.execute(q, user_id=user_id)
 
     @classmethod
     def evaluate(cls, goal, user_id, level, goal_eval_cache_before=False):
@@ -993,7 +999,7 @@ class Goal(ABase):
         
         operator = goal["operator"]
         
-        users_progress = Goal.compute_progress(goal,[user_id,])
+        users_progress = Goal.compute_progress(goal,user_id)
         
         goal_evaluation = {e["user_id"] : e["value"] for e in users_progress}
         
@@ -1041,10 +1047,10 @@ class Goal(ABase):
     def set_goal_eval_cache(cls,goal,user_id,value,achieved):
         """set cache entry after evaluation"""
         
-        exists = exists_by_expr(t_goal_evaluation_cache, and_(t_goal_evaluation_cache.c.goal_id==goal_id,
-                                                              t_goal_evaluation_cache.c.user_id==user_id))
+        cache = t_goal_evaluation_cache.select().where(and_(t_goal_evaluation_cache.c.goal_id==goal["id"],
+                                                            t_goal_evaluation_cache.c.user_id==user_id)).execute().fetchone()
         
-        if not exists:
+        if not cache:
             q = t_goal_evaluation_cache.insert()\
                                        .values({"user_id":user_id,
                                                 "goal_id":goal["id"],
@@ -1054,7 +1060,7 @@ class Goal(ABase):
         elif cache["value"]!=value or cache["achieved"]!=achieved:
             #update
             q = t_goal_evaluation_cache.update()\
-                                       .where(and_(t_goal_evaluation_cache.c.goal_id==goal_id,
+                                       .where(and_(t_goal_evaluation_cache.c.goal_id==goal["id"],
                                                    t_goal_evaluation_cache.c.user_id==user_id))\
                                        .values({"value" : value,
                                                 "achieved" : achieved})
@@ -1070,7 +1076,7 @@ class Goal(ABase):
             "priority" : goal["priority"]
         }
         
-        achievement_id = cache["achievement_id"]
+        achievement_id = goal["achievement_id"]
         achievement = Achievement.get_achievement(achievement_id)
         
         level = min((Achievement.get_level_int(user_id, achievement["id"]) or 0)+1,achievement["maxlevel"])
@@ -1079,7 +1085,7 @@ class Goal(ABase):
         
         goal_output.update({
             "achieved" : achieved,
-            "value" : cache["value"],
+            "value" : value,
         })
         
         cache_goal_evaluation.set("%s_%s" % (goal["id"],user_id),goal_output)
