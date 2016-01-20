@@ -48,7 +48,7 @@ A demo installation is available at https://gamification-engine.herokuapp.com/
 
 1. A ready-to-use buildpack for Heroku and dokku is available at https://github.com/ActiDoo/gamification-engine-dokku Follow the instructions there.
 2. The current stable version is available as phyton package at https://pypi.python.org/pypi/gamification-engine
-3. Checkout the source code and configure the PostgreSQL database in `development.ini`. Then run `python setup.py develop` to configure the application and `pserve development.ini` to start it. The front end is available at http://localhost:6543/admin/
+3. Checkout the source code and configure the PostgreSQL database in `development.ini` and in `alembic.ini`. Then run `python setup.py develop` to configure the application, `initialize_gengine_db development.ini alembic.ini reset_db=True populate_demo=True` to configure the database and `pserve development.ini` to start it. The front end is available at http://localhost:6543/admin/
 
 ## Roadmap
 
