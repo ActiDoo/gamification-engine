@@ -4,6 +4,15 @@
 Installation
 ------------
 
+Requirements
+============
+
+The gamification-engine requires an installed python distribution in version 2.7. It uses different language structures which are not supported in Python 2.6 or Python 3.x. Furthermore, the only currently supported persistence layer is PostgreSQL.
+
+
+Installation from PyPI
+======================
+
 The gamification-engine is available as a python package.
 You can install it by invoking
 
