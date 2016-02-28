@@ -72,3 +72,9 @@ Heroku-style
 There is also an Heroku-like Project (we use dokku) at gamification-engine-dokku_
 
 .. _gamification-engine-dokku: https://github.com/ActiDoo/gamification-engine-dokku
+
+
+Commercial Support
+==================
+
+Commercial support is available at https://www.gamification-software.com or together with app development at https://www.appnadoo.de
