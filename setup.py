@@ -27,7 +27,7 @@ requires = [
     'pymemcache',
     'mock',
     'alembic',
-	'raven'
+    'raven'
     ]
 
 version = ''
@@ -67,5 +67,6 @@ setup(name='gamification-engine',
       [console_scripts]
       initialize_gengine_db = gengine.scripts.initializedb:main
       gengine_quickstart = gengine.scripts.quickstart:main
+      generate_gengine_erd = gengine.scripts.generate_erd:main
       """,
      )
