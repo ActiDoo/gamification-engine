@@ -439,7 +439,7 @@ class Variable(ABase):
                        t_goals.c.condition.ilike(func.concat("%'",t_variables.c.name,"'%"))))
         m={}
         for row in DBSession.execute(q).fetchall():
-            if not m.has_key(row["variable_id"]):
+            if not row["variable_id"] in m:
                 m[row["variable_id"]] = []
             
             m[row["variable_id"]].append({"goal":row,"achievement":Achievement.get_achievement(row["achievement_id"])})
@@ -530,7 +530,7 @@ class Achievement(ABase):
                 arr["distance"]=distance
                 return arr
                         
-            return [update(arr,by_loc[arr["id"]]) for arr in by_date if by_loc.has_key(arr["id"])]
+            return [update(arr,by_loc[arr["id"]]) for arr in by_date if arr["id"] in by_loc]
         
         key = str(user["id"])
         expiration_time = User.get_cache_expiration_time_for_today(user)
@@ -1203,11 +1203,11 @@ class Translation(ABase):
         except:
             ret = {str(x["name"]) : x["text"] for x in cls.get_translation_variable(translation_id)}
             
-        if not ret.has_key(_fallback_language):
+        if not _fallback_language in ret:
             ret[_fallback_language] = "[not_translated]_"+str(translation_id) 
         
         for lang in cls.get_languages():
-            if not ret.has_key(str(lang["name"])):
+            if not str(lang["name"]) in ret:
                 ret[str(lang["name"])] = ret[_fallback_language]
         
         return ret    

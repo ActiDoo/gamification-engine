@@ -96,7 +96,7 @@ def _get_progress(user,force_generation=False):
                 tb = traceback.format_exc()
                 return { "error": tb, "id" : achievement["id"] }
             
-        check = lambda x : x!=None and not x.has_key("error") and (x["hidden"]==False or x["level"]>0)
+        check = lambda x : x!=None and not "error" in x and (x["hidden"]==False or x["level"]>0)
         
         evaluatelist = [ea(achievement) for achievement in achievements]
         
@@ -105,7 +105,7 @@ def _get_progress(user,force_generation=False):
                 x["id"] : x for x in evaluatelist if check(x) 
             },
             "achievement_errors" : {
-                x["id"] : x for x in evaluatelist if x!=None and x.has_key("error") 
+                x["id"] : x for x in evaluatelist if x!=None and "error" in x
             }
         }
         
@@ -143,7 +143,7 @@ def increase_value(request):
     except:
         raise APIError(400,"invalid_value","Invalid value provided")
     
-    key = request.matchdict["key"] if request.matchdict.has_key("key") else ""
+    key = request.matchdict["key"] if "key" in request.matchdict else ""
     variable_name = request.matchdict["variable_name"]
     
     user = User.get_user(user_id)
@@ -225,9 +225,9 @@ def get_achievement_level(request):
             raise APIError(404, "achievement_not_found", "achievement not found")
          
         level_output = Achievement.basic_output(achievement, [], True, level).get("levels").get(str(level), {"properties":{},"rewards":{}})
-        if level_output.has_key("goals"):
+        if "goals" in level_output:
             del level_output["goals"]
-        if level_output.has_key("level"):
+        if "level" in level_output:
             del level_output["level"]
         return render("json",level_output)
      
