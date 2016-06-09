@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
 """models including business logic"""
 
-import pytz
 import datetime
-import sqlalchemy.types as ty
-from pyramid_dogpile_cache import get_region
-from dogpile.cache import make_region
+from datetime import timedelta
 
+import hashlib
+import pytz
+import sqlalchemy.types as ty
+import warnings
+from dogpile.cache import make_region
+from pyramid_dogpile_cache import get_region
+from pytz.exceptions import UnknownTimeZoneError
 from sqlalchemy import (
     Table,
     ForeignKey,
@@ -17,27 +21,16 @@ from sqlalchemy import (
     text,
     Column
 , event)
-
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.orm import (
     mapper,
     relationship
 )
-
-from sqlalchemy.dialects.postgresql import TIMESTAMP
-from pytz.exceptions import UnknownTimeZoneError
-from sqlalchemy.orm.scoping import scoped_session
-from sqlalchemy.orm.session import sessionmaker, Session
-from zope.sqlalchemy.datamanager import ZopeTransactionExtension, mark_changed
-from datetime import timedelta
-from . import urlcache
-import transaction
-from _collections import defaultdict
-from pytz import timezone
-import hashlib
-import warnings
+from zope.sqlalchemy.datamanager import mark_changed
 
 from gengine.metadata import Base, DBSession
+from . import urlcache
+
 try:
     import __builtin__
 except:
@@ -155,7 +148,7 @@ t_goal_evaluation_cache = Table("goal_evaluation_cache", Base.metadata,
 t_variables = Table('variables', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('name', ty.String(255), nullable = False, index=True),
-    Column('group', ty.Enum("year","month","week","day","timeslot","none", name="variable_group_types"), nullable = False, default="none"),
+    Column('group', ty.Enum("year","month","week","day","none", name="variable_group_types"), nullable = False, default="none"),
 )
 
 t_values = Table('values', Base.metadata,
@@ -406,19 +399,6 @@ class Variable(ABase):
             t = t.replace(hour=0, minute=0, second=0, microsecond=0)
         elif group=="day":
             t = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        elif group=="timeslot":
-            
-            tslist = [
-                (now-datetime.timedelta(days=1)).replace(hour=21, minute=0, second=0, microsecond=0),
-                now.replace(hour=9, minute=0, second=0, microsecond=0),
-                now.replace(hour=12, minute=0, second=0, microsecond=0),
-                now.replace(hour=15, minute=0, second=0, microsecond=0),
-                now.replace(hour=18, minute=0, second=0, microsecond=0),
-                now.replace(hour=21, minute=0, second=0, microsecond=0),
-                (now+datetime.timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0),
-            ]
-            
-            t = min(tslist,key=lambda date : abs(dt-date))
         elif group=="none":
             t = now
         else:
