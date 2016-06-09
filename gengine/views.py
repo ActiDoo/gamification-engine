@@ -6,18 +6,18 @@ from .models import (
     Value
     )
 
-from urlcache import get_or_set
+from .urlcache import get_or_set
 from pyramid.renderers import render, JSON
 
 from .flaskadmin import flaskadminapp
 from pyramid.wsgi import wsgiapp2, wsgiapp
 from _collections import defaultdict
 from gengine.models import Variable, valid_timezone, Goal, AchievementReward, FormularEvaluationException
-from werkzeug.exceptions import BadRequest
 from gengine.urlcache import set_value
-from pyramid.exceptions import NotFound
+from pyramid.exceptions import NotFound, HTTPBadRequest
 from werkzeug import DebuggedApplication
 from gengine.wsgiutil import HTTPSProxied
+from .errors import APIError
 
 import traceback
 
@@ -25,7 +25,7 @@ import traceback
 def add_or_update_user(request):
     """add a user and set its metadata"""
     
-    user_id = long(request.matchdict["user_id"])
+    user_id = int(request.matchdict["user_id"])
     
     lat=None
     if len(request.POST.get("lat",""))>0:
@@ -37,11 +37,11 @@ def add_or_update_user(request):
     
     friends=[]
     if len(request.POST.get("friends",""))>0:
-        friends = [long(x) for x in request.POST["friends"].split(",")]
+        friends = [int(x) for x in request.POST["friends"].split(",")]
     
     groups=[]
     if len(request.POST.get("groups",""))>0:
-        groups = [long(x) for x in request.POST["groups"].split(",")]
+        groups = [int(x) for x in request.POST["groups"].split(",")]
     
     timezone="UTC"
     if len(request.POST.get("timezone",""))>0:
@@ -78,7 +78,7 @@ def add_or_update_user(request):
 def delete_user(request):
     """delete a user completely"""
     
-    user_id = long(request.matchdict["user_id"])
+    user_id = int(request.matchdict["user_id"])
     User.delete_user(user_id)
     return {"status" : "OK"}
 
@@ -124,7 +124,7 @@ def _get_progress(user,force_generation=False):
 @view_config(route_name='get_progress', renderer='json')
 def get_progress(request):
     """get all relevant data concerning the user's progress"""
-    user_id = long(request.matchdict["user_id"])
+    user_id = int(request.matchdict["user_id"])
     
     user = User.get_user(user_id)
     if not user:
@@ -141,18 +141,18 @@ def increase_value(request):
     try:
         value = float(request.POST["value"])
     except:
-        raise BadRequest("Invalid value provided")
+        raise APIError(400,"invalid_value","Invalid value provided")
     
     key = request.matchdict["key"] if request.matchdict.has_key("key") else ""
     variable_name = request.matchdict["variable_name"]
     
     user = User.get_user(user_id)
     if not user:
-        raise NotFound("user not found")
+        raise APIError(404, "user_not_found", "user not found")
     
     variable = Variable.get_variable_by_name(variable_name)
     if not variable:
-        raise NotFound("variable not found")
+        raise APIError(404, "variable_not_found", "variable not found")
     
     Value.increase_value(variable_name, user, value, key) 
     
@@ -172,22 +172,22 @@ def increase_multi_values(request):
     try:
         doc = request.json_body
     except:
-        raise BadRequest("no valid json body")
+        raise APIError(400, "invalid_json", "no valid json body")
     ret = {}
     for user_id, values in doc.items():
         user = User.get_user(user_id)
         if not user:
-            raise BadRequest("user %s not found" % (user_id,))
-        
+            raise APIError(404, "user_not_found", "user %s not found" % (user_id,))
+
         for variable_name, values_and_keys in values.items():
             for value_and_key in values_and_keys:
                 variable = Variable.get_variable_by_name(variable_name)
                 
                 if not variable:
-                    raise BadRequest("variable %s not found" % (variable_name,))
-                
+                    raise APIError(404, "variable_not_found", "variable %s not found" % (variable_name,))
+
                 if not 'value' in value_and_key:
-                    raise BadRequest("illegal value for %s" % (variable_name,))
+                    raise APIError(400, "variable_not_found", "illegal value for %s" % (variable_name,))
                 
                 value = value_and_key['value']
                 key = value_and_key.get('key','')
@@ -216,13 +216,13 @@ def get_achievement_level(request):
         achievement_id = int(request.matchdict.get("achievement_id",None))
         level = int(request.matchdict.get("level",None))
     except:
-        raise BadRequest("invalid input")
+        raise APIError(400, "invalid_input", "invalid input")
          
     def generate():
         achievement = Achievement.get_achievement(achievement_id)
          
         if not achievement:
-            raise NotFound("achievement not found")
+            raise APIError(404, "achievement_not_found", "achievement not found")
          
         level_output = Achievement.basic_output(achievement, [], True, level).get("levels").get(str(level), {"properties":{},"rewards":{}})
         if level_output.has_key("goals"):

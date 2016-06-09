@@ -31,4 +31,4 @@ def main(argv=sys.argv):
         copyDirectory(quickstart_template_path, directory)
         
     else:
-        print "directory already exists"
+        print("directory already exists")

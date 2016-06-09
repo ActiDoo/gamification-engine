@@ -62,7 +62,7 @@ def main(global_config, **settings):
     init_flaskadmin(urlprefix=urlprefix,
                     secret=settings.get("flaskadmin_secret","fKY7kJ2xSrbPC5yieEjV"))
 
-    from urlcache import setup_urlcache
+    from .urlcache import setup_urlcache
     setup_urlcache(prefix=urlprefix,
                    url = urlcache_url,
                    active = urlcache_active,

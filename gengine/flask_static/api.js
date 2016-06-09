@@ -111,7 +111,12 @@ var setupAPIForm = function($, defaultcall, fields, api_funcs) {
 		});
 		
 		request.fail(function( jqXHR, textStatus ) {
-			api_result.html("<pre> Error: "+jqXHR.status+"</pre>");
+			try {
+				var json = JSON.parse(jqXHR.responseText);
+				api_result.html("<pre>Error "+jqXHR.status+":\n"+syntaxHighlight(json)+"</pre>");
+			} catch(e) {
+				api_result.html("<pre>Error: "+jqXHR.status+"</pre>");
+			}
 		});
 		
 		return false;

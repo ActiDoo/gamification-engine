@@ -38,7 +38,11 @@ import hashlib
 import warnings
 
 from gengine.metadata import Base, DBSession
-import __builtin__
+try:
+    import __builtin__
+except:
+    #py35
+    import builtins as __builtin__
 from sqlalchemy.sql import bindparam
 
 def my_key_mangler(prefix):
