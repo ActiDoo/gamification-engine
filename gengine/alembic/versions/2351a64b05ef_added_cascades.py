@@ -68,7 +68,6 @@ def downgrade():
         fks = insp.get_foreign_keys(table) 
         
         for fk in fks:
-            print "ALTER TABLE "+table+" DROP CONSTRAINT "+fk["name"]
             op.execute("ALTER TABLE "+table+" DROP CONSTRAINT "+fk["name"])
     
     op.create_foreign_key(None, 'achievements', 'achievementcategories', ['achievementcategory_id'], ['id'])
