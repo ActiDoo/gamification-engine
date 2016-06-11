@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
+import jinja2
+import os
+import pkg_resources
 from flask import Flask
 from flask.ext.admin import Admin
 from flask.ext.admin.contrib.sqla import ModelView
+from flask.helpers import send_from_directory
 
 from gengine.metadata import DBSession
-from gengine.model_olymp import Tenant
-import pkg_resources, os
-from flask.helpers import send_from_directory
-import jinja2
+from gengine.olymp.model import Tenant
 
 olympadminapp = None
 admin = None
@@ -47,13 +48,13 @@ def init_admin(urlprefix="", secret="fKY7kJ2xSrbPC5yieEjV", override_admin=None,
     # lets add our template directory
     my_loader = jinja2.ChoiceLoader([
         olympadminapp.jinja_loader,
-        jinja2.FileSystemLoader(resole_uri("gengine:templates_olymp")),
+        jinja2.FileSystemLoader(resole_uri("gengine:olymp/templates")),
     ])
     olympadminapp.jinja_loader = my_loader
 
     olympadminapp.add_url_rule('/static_gengine/<path:filename>',
                                 endpoint='static_gengine',
-                                view_func=get_static_view('gengine:flask_static', olympadminapp))
+                                view_func=get_static_view('gengine:olymp/static', olympadminapp))
 
     @olympadminapp.context_processor
     def inject_version():

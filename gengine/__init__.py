@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-from pyramid import events
 
 __version__ = '0.1.36'
 
-import datetime, os
+import datetime
 
+import os
 from pyramid.config import Configurator
 from pyramid.renderers import JSON
-
+from pyramid.settings import asbool
 from sqlalchemy import engine_from_config
 
-from pyramid.settings import asbool
 from gengine.wsgiutil import HTTPSProxied, init_reverse_proxy
+
 
 def main(global_config, **settings):
     """ This function returns a Pyramid WSGI application.
@@ -49,28 +49,24 @@ def main(global_config, **settings):
     urlcache_active = asbool(os.environ.get("URLCACHE_ACTIVE", settings.get("urlcache_active",True)))
 	
     #routes
-    config.add_route('get_progress', urlprefix+'/t/{tenant}/progress/{user_id}', traverse="/t/{tenant}")
-    config.add_route('increase_value', urlprefix+'/t/{tenant}/increase_value/{variable_name}/{user_id}', traverse="/t/{tenant}")
-    config.add_route('increase_value_with_key', urlprefix+'/t/{tenant}/increase_value/{variable_name}/{user_id}/{key}', traverse="/t/{tenant}")
-    config.add_route('increase_multi_values', urlprefix+'/t/{tenant}/increase_multi_values', traverse="/t/{tenant}")
-    config.add_route('add_or_update_user', urlprefix+'/t/{tenant}/add_or_update_user/{user_id}', traverse="/t/{tenant}")
-    config.add_route('delete_user', urlprefix+'/t/{tenant}/delete_user/{user_id}', traverse="/t/{tenant}")
-    config.add_route('get_achievement_level', urlprefix+'/t/{tenant}/achievement/{achievement_id}/level/{level}', traverse="/t/{tenant}")
-    #config.add_route('get_achievement_reward', urlprefix+'/achievement_reward/{achievement_reward_id}')
-    
-    config.add_route('admin_tenant', '/t/{tenant}/*subpath', traverse="/t/{tenant}") #prefix is set in flaskadmin.py
+    from gengine.tenant.route import config_routes as config_tenant_routes
+    from gengine.olymp.route import config_routes as config_olymp_routes
 
+    config.include(config_tenant_routes, route_prefix=urlprefix)
+    config.include(config_olymp_routes, route_prefix=urlprefix)
+
+    config.add_route('admin_tenant', '/t/{tenant}/*subpath', traverse="/t/{tenant}") #prefix is set in flaskadmin.py
     config.add_route('admin_olymp', '/olymp/*subpath')  # prefix is set in flaskadmin.py
 
-    from gengine.tenantadmin import init_admin as init_tenantadmin
+    from gengine.tenant.admin import init_admin as init_tenantadmin
     init_tenantadmin(urlprefix=urlprefix,
                secret=settings.get("flaskadmin_secret","fKY7kJ2xSrbPC5yieEjV"))
 
-    from gengine.olympadmin import init_admin as init_olympadmin
+    from gengine.olymp.admin import init_admin as init_olympadmin
     init_olympadmin(urlprefix=urlprefix,
                secret=settings.get("flaskadmin_secret", "fKY7kJ2xSrbPC5yieEjV"))
 
-    from .cache import setup_urlcache
+    from gengine.base.cache import setup_urlcache
     setup_urlcache(prefix=urlprefix,
                    url = urlcache_url,
                    active = urlcache_active,

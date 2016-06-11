@@ -7,7 +7,9 @@ from datetime import timedelta
 import hashlib
 import pytz
 import sqlalchemy.types as ty
-
+from gengine.base.model import ABase, exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
+from gengine.base.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_users_levels, \
+    cache_achievements_by_user_for_today, invalidate, cache_goal_statements, cache_translations
 from sqlalchemy import (
     Table,
     ForeignKey,
@@ -23,17 +25,10 @@ from sqlalchemy.orm import (
     mapper,
     relationship
 )
-from zope.sqlalchemy.datamanager import mark_changed
-
-from gengine.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_users_levels, \
-    cache_achievements_by_user_for_today, invalidate, cache_goal_statements, cache_translations
-from gengine.metadata import Base, DBSession
-from gengine.model_base import exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
-
-from .model_base import ABase
-from .formular import eval_formular
-
 from sqlalchemy.sql import bindparam
+
+from gengine.metadata import Base, DBSession
+from gengine.tenant.formular import eval_formular
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),

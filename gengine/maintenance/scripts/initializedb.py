@@ -1,20 +1,17 @@
 # -*- coding: utf-8 -*-
-import os
 import sys
+
+import os
+import pyramid_dogpile_cache
 import transaction
-
-from sqlalchemy import engine_from_config
-
+from pyramid.config import Configurator
 from pyramid.paster import (
     get_appsettings,
     setup_logging,
     )
-
 from pyramid.scripts.common import parse_vars
-import pyramid_dogpile_cache
-from pyramid.config import Configurator
+from sqlalchemy import engine_from_config
 from sqlalchemy.sql.schema import Table
-from zope.sqlalchemy.datamanager import mark_changed
 
 
 def usage(argv):
@@ -70,9 +67,9 @@ def main(argv=sys.argv):
 
     engine.execute("CREATE SCHEMA IF NOT EXISTS olymp")
 
-    from gengine import model_olymp
+    from gengine.olymp import model
 
-    tables = [t for name, t in model_olymp.__dict__.items() if isinstance(t, Table)]
+    tables = [t for name, t in model.__dict__.items() if isinstance(t, Table)]
     Base.metadata.create_all(engine, tables=tables)
 
     # then, load the Alembic configuration and generate the
@@ -84,20 +81,20 @@ def main(argv=sys.argv):
         'engine' : engine,
         'schema' : 'olymp'
     })
-    alembic_cfg.set_main_option("script_location", "gengine/alembic")
+    alembic_cfg.set_main_option("script_location", "gengine/olymp/alembic")
 
     command.stamp(alembic_cfg, "head")
 
     if options.get("populate_demo",False):
         with transaction.manager:
-            t = model_olymp.Tenant(id="demo")
+            t = model.Tenant(id="demo")
             DBSession.add(t)
 
         populate_demo(DBSession, "demo")
 
 def populate_demo(DBSession, tenant_id):
 
-    from gengine.model_tenant import (
+    from gengine.tenant.model import (
         Achievement,
         AchievementCategory,
         Goal,

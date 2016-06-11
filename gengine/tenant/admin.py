@@ -1,19 +1,20 @@
 # -*- coding: utf-8 -*-
+import jinja2
+import os
+import pkg_resources
 from flask import Flask
 from flask.ext.admin import Admin
 from flask.ext.admin.contrib.sqla import ModelView
-
-from .model_tenant import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
-                           GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation
-from flask_admin.contrib.sqla.filters import BooleanEqualFilter, IntEqualFilter
-from flask_admin.base import AdminIndexView, BaseView, expose
-from wtforms import BooleanField
 from flask.globals import request
-from wtforms.form import Form
-import pkg_resources, os
 from flask.helpers import send_from_directory
-import jinja2
+from flask_admin.base import BaseView, expose
+from flask_admin.contrib.sqla.filters import IntEqualFilter
 from flask_admin.model.form import InlineFormAdmin
+from wtforms import BooleanField
+from wtforms.form import Form
+
+from gengine.tenant.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
+                           GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation
 
 tenantadminapp=None
 admin=None
@@ -52,13 +53,13 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     # lets add our template directory
     my_loader = jinja2.ChoiceLoader([
         tenantadminapp.jinja_loader,
-        jinja2.FileSystemLoader(resole_uri("gengine:templates")),
+        jinja2.FileSystemLoader(resole_uri("gengine:tenant/templates")),
     ])
     tenantadminapp.jinja_loader = my_loader
         
     tenantadminapp.add_url_rule('/static_gengine/<path:filename>',
                                 endpoint='static_gengine',
-                                view_func=get_static_view('gengine:flask_static', tenantadminapp))
+                                view_func=get_static_view('gengine:tenant/static', tenantadminapp))
     
     @tenantadminapp.context_processor
     def inject_version():

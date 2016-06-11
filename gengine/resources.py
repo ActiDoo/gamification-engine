@@ -1,6 +1,8 @@
 from sqlalchemy.sql.expression import select
+
 from gengine.metadata import DBSession
-from gengine.model_olymp import t_tenants
+from gengine.olymp.model import t_tenants
+
 
 def root_factory(request):
     return RootResource()

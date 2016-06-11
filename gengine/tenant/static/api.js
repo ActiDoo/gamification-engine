@@ -40,7 +40,7 @@ var setupAPIForm = function($, defaultcall, fields, api_funcs) {
 	var api_settings_postparams; 
 	
 	var setURL = function(url,method,postparams) {
-		api_settings_url = url;
+		api_settings_url = API_BASE_URL ? API_BASE_URL+url : url;
 		api_settings_method=method;
 		api_settings_postparams = postparams;
 	};

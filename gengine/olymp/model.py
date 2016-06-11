@@ -1,12 +1,12 @@
+import sqlalchemy.types as ty
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import event
 from sqlalchemy.orm import mapper
 from sqlalchemy.sql.schema import Table, Column, MetaData
-import sqlalchemy.types as ty
 
-from gengine.metadata import Base, DBSession
-from gengine.model_base import ABase
+from gengine.metadata import Base
+from gengine.base.model import ABase
 
 OLYMP_SCHEMA = "olymp"
 
@@ -32,7 +32,7 @@ def create_tenant_schema(mapper, connection, target):
     connection.execute("CREATE SCHEMA IF NOT EXISTS "+schema)
     connection.execute("SET search_path TO "+schema)
 
-    from . import model_tenant
+    from gengine.tenant import model as model_tenant
 
     tables = [t.tometadata(tenant_meta, schema=schema) for name, t in model_tenant.__dict__.items() if isinstance(t, Table)]
 
@@ -42,5 +42,5 @@ def create_tenant_schema(mapper, connection, target):
         'engine' : connection,
         'schema' : schema
     })
-    alembic_cfg.set_main_option("script_location", "gengine/alembic")
+    alembic_cfg.set_main_option("script_location", "gengine/tenant/alembic")
     command.stamp(alembic_cfg, "head")

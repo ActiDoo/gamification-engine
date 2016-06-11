@@ -4,8 +4,8 @@ from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.functions import func
 from zope.sqlalchemy.datamanager import mark_changed
 
-from gengine.cache import cache_general
 from gengine.metadata import DBSession
+from gengine.base.cache import cache_general
 
 
 class ABase(object):

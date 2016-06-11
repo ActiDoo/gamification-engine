@@ -1,26 +1,25 @@
 # -*- coding: utf-8 -*-
 import traceback
 
-from gengine.cache import set_value
+from gengine.base.model import valid_timezone
+from gengine.base.cache import get_or_set, set_value
+from gengine.base.errors import APIError
 from pyramid.exceptions import NotFound
 from pyramid.renderers import render
 from pyramid.view import view_config
 from pyramid.wsgi import wsgiapp2
 from werkzeug import DebuggedApplication
 
-from gengine.formular import FormularEvaluationException
-from gengine.model_base import valid_timezone
-from gengine.wsgiutil import HTTPSProxied
-from .cache import get_or_set
-from .errors import APIError
-from .model_tenant import (
+from gengine.olymp.admin import olympadminapp
+from gengine.tenant.admin import tenantadminapp
+from gengine.tenant.formular import FormularEvaluationException
+from gengine.tenant.model import (
     User,
     Achievement,
     Value,
-Variable
+    Variable
 )
-from .tenantadmin import tenantadminapp
-from .olympadmin import olympadminapp
+from gengine.wsgiutil import HTTPSProxied
 
 @view_config(route_name='add_or_update_user', renderer='string', request_method="POST")
 def add_or_update_user(request):
@@ -241,8 +240,3 @@ def get_achievement_level(request):
 @wsgiapp2
 def admin_tenant(environ, start_response):
     return HTTPSProxied(DebuggedApplication(tenantadminapp.wsgi_app, True))(environ, start_response)
-
-@view_config(route_name='admin_olymp')
-@wsgiapp2
-def admin_olymp(environ, start_response):
-    return HTTPSProxied(DebuggedApplication(olympadminapp.wsgi_app, True))(environ, start_response)
