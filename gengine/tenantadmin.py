@@ -3,7 +3,7 @@ from flask import Flask
 from flask.ext.admin import Admin
 from flask.ext.admin.contrib.sqla import ModelView
 
-from gengine.models import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
+from .model_tenant import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
                            GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation
 from flask_admin.contrib.sqla.filters import BooleanEqualFilter, IntEqualFilter
 from flask_admin.base import AdminIndexView, BaseView, expose
@@ -15,7 +15,7 @@ from flask.helpers import send_from_directory
 import jinja2
 from flask_admin.model.form import InlineFormAdmin
 
-flaskadminapp=None
+tenantadminapp=None
 admin=None
 
 
@@ -36,40 +36,40 @@ def get_static_view(folder,flaskadminapp):
     
     return send_static_file
     
-def init_flaskadmin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,override_flaskadminapp=None):
-    global flaskadminapp, admin
+def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,override_flaskadminapp=None):
+    global tenantadminapp, admin
     
     if not override_flaskadminapp:
-        flaskadminapp = Flask(__name__)
-        flaskadminapp.debug=True
-        flaskadminapp.secret_key = secret
-        flaskadminapp.config.update(dict(
+        tenantadminapp = Flask(__name__)
+        tenantadminapp.debug=True
+        tenantadminapp.secret_key = secret
+        tenantadminapp.config.update(dict(
             PREFERRED_URL_SCHEME = 'https'
         ))
     else:
-        flaskadminapp = override_flaskadminapp
+        tenantadminapp = override_flaskadminapp
 
-        # lets add our template directory
-        my_loader = jinja2.ChoiceLoader([
-            flaskadminapp.jinja_loader,
-            jinja2.FileSystemLoader(resole_uri("gengine:templates")),
-        ])
-        flaskadminapp.jinja_loader = my_loader
+    # lets add our template directory
+    my_loader = jinja2.ChoiceLoader([
+        tenantadminapp.jinja_loader,
+        jinja2.FileSystemLoader(resole_uri("gengine:templates")),
+    ])
+    tenantadminapp.jinja_loader = my_loader
         
-    flaskadminapp.add_url_rule('/static_gengine/<path:filename>',
-                               endpoint='static_gengine',
-                               view_func=get_static_view('gengine:flask_static',flaskadminapp))
+    tenantadminapp.add_url_rule('/static_gengine/<path:filename>',
+                                endpoint='static_gengine',
+                                view_func=get_static_view('gengine:flask_static', tenantadminapp))
     
-    @flaskadminapp.context_processor
+    @tenantadminapp.context_processor
     def inject_version():
         return { "gamification_engine_version" : pkg_resources.get_distribution("gamification-engine").version }
     
     if not override_admin:
-        admin = Admin(flaskadminapp,
+        admin = Admin(tenantadminapp,
                       name="Gamification Engine - Admin Control Panel",
                       base_template='admin_layout.html',
                       url=urlprefix+"/admin"
-                     )
+                      )
     else:
         admin = override_admin
             

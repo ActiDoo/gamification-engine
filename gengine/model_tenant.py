@@ -7,10 +7,7 @@ from datetime import timedelta
 import hashlib
 import pytz
 import sqlalchemy.types as ty
-import warnings
-from dogpile.cache import make_region
-from pyramid_dogpile_cache import get_region
-from pytz.exceptions import UnknownTimeZoneError
+
 from sqlalchemy import (
     Table,
     ForeignKey,
@@ -28,53 +25,15 @@ from sqlalchemy.orm import (
 )
 from zope.sqlalchemy.datamanager import mark_changed
 
+from gengine.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_users_levels, \
+    cache_achievements_by_user_for_today, invalidate, cache_goal_statements, cache_translations
 from gengine.metadata import Base, DBSession
-from . import urlcache
+from gengine.model_base import exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
 
-try:
-    import __builtin__
-except:
-    #py35
-    import builtins as __builtin__
+from .model_base import ABase
+from .formular import eval_formular
+
 from sqlalchemy.sql import bindparam
-
-def my_key_mangler(prefix):
-        def s(o):
-            if type(o)==dict:
-                return "_".join(["%s=%s" % (str(k),str(v)) for k,v in o.items()])
-            if type(o)==tuple:
-                return "_".join([str(v) for v in o])
-            if type(o)==list:
-                return "_".join([str(v) for v in o])
-            else:
-                return str(o)
-            
-        def generate_key(key):
-            return prefix + s(key).replace(" ","")
-
-        return generate_key
-
-def create_cache(name):
-    ch = None
-    
-    try:
-        ch = get_region(name)
-        # The Goal evaluation Cache is implemented as a two-level cache (persistent in db, non-persistent as dogpile)
-    except:
-        ch = make_region().configure('dogpile.cache.memory')
-        warnings.warn("Warning: cache objects are in memory, are you creating docs?")
-    
-    ch.key_mangler = my_key_mangler(name)    
-    globals()["cache_"+name] = ch
-
-create_cache("general")
-create_cache("achievement_eval")
-create_cache("achievements_by_user_for_today")
-create_cache("achievements_users_levels")
-create_cache("translations")
-# The Goal evaluation Cache is implemented as a two-level cache (persistent in db, non-persistent as dogpile)
-create_cache("goal_evaluation")
-create_cache("goal_statements")
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
@@ -234,22 +193,6 @@ t_translations = Table('translations', Base.metadata,
    Column('language_id', ty.Integer, ForeignKey("languages.id", ondelete="CASCADE"), nullable = False),
    Column('text', ty.Text(), nullable = False),
 )
-
-class ABase(object):
-    """abstract base class which introduces a nice constructor for the model classes."""
-    
-    def __init__(self,*args,**kw):
-        """ create a model object.
-        
-        pass attributes by using named parameters, e.g. name="foo", value=123
-        """
-        
-        for k,v in kw.items():
-            setattr(self, k, v)
-            
-    def __str__(self):
-        if hasattr(self, "__unicode__"):
-            return self.__unicode__()
 
 class User(ABase):
     """A user participates in the gamification, i.e. can get achievements, rewards, participate in leaderbaord etc."""
@@ -753,7 +696,7 @@ class Achievement(ABase):
         #We neeed to invalidate for all relevant users because of the leaderboards
         for uid in Achievement.get_relevant_users_by_achievement_and_user_reverse(achievement, user_id):
             cache_achievement_eval.delete("%s_%s" % (uid,achievement["id"]))
-            urlcache.invalidate("/progress/"+str(uid))
+            invalidate("/progress/"+str(uid))
     
     @classmethod
     @cache_general.cache_on_arguments()
@@ -1281,126 +1224,4 @@ def insert_variable_for_property(mapper,connection,target):
             variable.group = "day"
             DBSession.add(variable)
 
-#some query helpers
- 
-def calc_distance(latlong1, latlong2):
-    """generates a sqlalchemy expression for distance query in km
-    
-       :param latlong1: the location from which we look for rows, as tuple (lat,lng)
-       
-       :param latlong2: the columns containing the latitude and longitude, as tuple (lat,lng) 
-    """
-    
-    #explain: http://geokoder.com/distances
-    
-    #return func.sqrt(func.pow(69.1 * (latlong1[0] - latlong2[0]),2)
-    #               + func.pow(53.0 * (latlong1[1] - latlong2[1]),2))
 
-    return func.sqrt(func.pow(111.2 * (latlong1[0]-latlong2[0]),2)
-           + func.pow(111.2 * (latlong1[1]-latlong2[1]) * func.cos(latlong2[0]),2))
-    
-def coords(row):
-    return (row["lat"],row["lng"])
-
-safe_list = ['math','acos', 'asin', 'atan', 'atan2', 'ceil',
-             'cos', 'cosh', 'degrees', 'e', 'exp', 'fabs', 'floor',
-             'fmod', 'frexp', 'hypot', 'ldexp', 'log', 'log10', 'modf',
-             'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'sum', 'range', 'str', 'int', 'float']
-
-#use the list to filter the local namespace
-from math import *
-safe_dict = dict([ (k, locals().get(k, None)) for k in safe_list])
-for k in safe_dict.keys():
-    if safe_dict[k] is None:
-        if hasattr(__builtin__, k):
-            safe_dict[k] = getattr(__builtin__, k)
-safe_dict['and_'] = and_
-safe_dict['or_'] = or_
-safe_dict['abs'] = abs
-
-class FormularEvaluationException(Exception):
-    pass
-
-#TODO: Cache
-def eval_formular(s,params={}):
-    """evaluates the formular.
-    
-    parameters are available as p.name,
-    
-    available math functions:
-    'math','acos', 'asin', 'atan', 'atan2', 'ceil',
-    'cos', 'cosh', 'degrees', 'e', 'exp', 'fabs', 'floor',
-    'fmod', 'frexp', 'hypot', 'ldexp', 'log', 'log10', 'modf',
-    'pi', 'pow', 'radians', 'sin', 'sinh', 'sqrt', 'tan', 'tanh', 'sum', 'range'
-    """
-    try:
-        if s is None:
-            return None
-        else:
-            p = DictObjectProxy(params)
-            
-            #add any needed builtins back in.
-            safe_dict['p'] = p
-            
-            result = eval(s,{"__builtins__":None},safe_dict)
-            if type(result)==str or type(result)==unicode:
-                return result % params
-            else:
-                return result
-    except:
-        raise FormularEvaluationException(s)
-    
-class DictObjectProxy():
-    obj = None
-    
-    def __init__(self, obj):
-        self.obj = obj
-    def __getattr__(self, name):
-        if not name in self.obj:
-            return ""
-        return self.obj[name]
-
-def combine_updated_at(list_of_dates):
-    return max(list_of_dates)
-
-def get_insert_id_by_result(r):
-    return r.last_inserted_ids()[0]
-
-def get_insert_ids_by_result(r):
-    return r.last_inserted_ids()
-
-def exists_by_expr(t, expr):
-    #TODO: use exists instead of count
-    q = select([func.count("*").label("c")], from_obj=t).where(expr)
-    r = DBSession.execute(q).fetchone()
-    if r.c > 0:
-        return True
-    else:
-        return False
-    
-@cache_general.cache_on_arguments()
-def datetime_trunc(field,timezone):
-    return "date_trunc('%(field)s', CAST(to_char(NOW() AT TIME ZONE %(timezone)s, 'YYYY-MM-DD HH24:MI:SS') AS TIMESTAMP)) AT TIME ZONE %(timezone)s" % {
-                "field" : field,
-                "timezone" : timezone
-            }
-    
-@cache_general.cache_on_arguments()
-def valid_timezone(timezone):
-    try:
-        pytz.timezone(timezone)
-    except UnknownTimeZoneError:
-        return False
-    return True
-
-def update_connection():
-    session = DBSession()
-    mark_changed(session)
-    return session
-
-def clear_all_caches():
-    cache_achievement_eval.invalidate(hard=True)
-    cache_achievements_by_user_for_today.invalidate(hard=True)
-    cache_translations.invalidate(hard=True)
-    cache_general.invalidate(hard=True)
-    urlcache.invalidate_all()
