@@ -65,8 +65,8 @@ setup(name='gamification-engine',
       [paste.app_factory]
       main = gengine:main
       [console_scripts]
-      initialize_gengine_db = gengine.scripts.initializedb:main
-      gengine_quickstart = gengine.scripts.quickstart:main
-      generate_gengine_erd = gengine.scripts.generate_erd:main
+      initialize_gengine_db = gengine.maintenance.scripts.initializedb:main
+      gengine_quickstart = gengine.maintenance.scripts.quickstart:main
+      generate_gengine_erd = gengine.maintenance.scripts.generate_erd:main
       """,
      )
