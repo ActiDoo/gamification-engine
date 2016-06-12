@@ -1,7 +1,7 @@
 import sys
 from sqlalchemy.sql.expression import and_, or_
 
-if sys.version_info < (3,5):
+if sys.version_info < (3,0):
     import __builtin__
 else:
     import builtins as __builtin__
