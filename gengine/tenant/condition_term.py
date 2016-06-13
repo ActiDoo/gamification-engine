@@ -4,12 +4,12 @@ import jsonschema
 
 class Conjunction(jsl.Document):
     terms = jsl.ArrayField(jsl.DocumentField("Term", as_ref=True), required=True)
-    type = jsl.StringField(pattern="^and$")
+    operator = jsl.StringField(pattern="^and$")
 
 
 class Disjunction(jsl.Document):
     terms = jsl.ArrayField(jsl.DocumentField("Term", as_ref=True), required=True)
-    type = jsl.StringField(pattern="^or$")
+    operator = jsl.StringField(pattern="^or$")
 
 
 class Literal(jsl.Document):
@@ -33,9 +33,10 @@ def __get_schema():
 def validate_term(json):
     return jsonschema.validate(json,__get_schema())
 
+
 demo_schema = {
     'content' : {
         'variable' : 'participate',
-        'key' : '2'
+        'key' : ['2',]
     }
 }
