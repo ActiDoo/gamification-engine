@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import traceback
 
+import copy
+
 from gengine.base.model import valid_timezone
 from gengine.base.cache import get_or_set, set_value
 from gengine.base.errors import APIError
@@ -121,7 +123,7 @@ def _get_progress(user,force_generation=False):
         set_value(key,ret_str)
         return ret_str, ret
 
-@view_config(route_name='get_progress', renderer='json')
+@view_config(route_name='get_progress', renderer='string')
 def get_progress(request):
     """get all relevant data concerning the user's progress"""
     user_id = int(request.matchdict["user_id"])
@@ -129,8 +131,12 @@ def get_progress(request):
     user = User.get_user(user_id)
     if not user:
         raise NotFound("user not found")
-    
-    return _get_progress(user, force_generation=False)[0]
+
+    request.response.content_type = "application/json"
+    progress = _get_progress(user, force_generation=False)
+    json_string, pmap = progress
+    return json_string
+
     
 @view_config(route_name='increase_value', renderer='json', request_method="POST")
 @view_config(route_name='increase_value_with_key', renderer='json', request_method="POST")
@@ -156,13 +162,15 @@ def increase_value(request):
     
     Value.increase_value(variable_name, user, value, key) 
     
-    output = _get_progress(user,force_generation=True)[1]
-    
-    for aid in output["achievements"].keys():
+    output = copy.deepcopy(_get_progress(user,force_generation=True)[1]) #1 is the map
+    for aid in list(output["achievements"].keys()):
         if len(output["achievements"][aid]["new_levels"])>0:
-            del output["achievements"][aid]["levels"]
-            del output["achievements"][aid]["priority"]
-            del output["achievements"][aid]["goals"]
+            if "levels" in output["achievements"][aid]:
+                del output["achievements"][aid]["levels"]
+            if "priority" in output["achievements"][aid]:
+                del output["achievements"][aid]["priority"]
+            if "goals" in output["achievements"][aid]:
+                del output["achievements"][aid]["goals"]
         else:
             del output["achievements"][aid]
     return output
@@ -194,16 +202,19 @@ def increase_multi_values(request):
                 
                 Value.increase_value(variable_name, user, value, key)
     
-        output = _get_progress(user,force_generation=True)[1]
+        output = copy.deepcopy(_get_progress(user, force_generation=True)[1])  # 1 is the map
         
-        for aid in output["achievements"].keys():
+        for aid in list(output["achievements"].keys()):
             if len(output["achievements"][aid]["new_levels"])>0:
-                del output["achievements"][aid]["levels"]
-                del output["achievements"][aid]["priority"]
-                del output["achievements"][aid]["goals"]
+                if "levels" in output["achievements"][aid]:
+                    del output["achievements"][aid]["levels"]
+                if "priority" in output["achievements"][aid]:
+                    del output["achievements"][aid]["priority"]
+                if "goals" in output["achievements"][aid]:
+                    del output["achievements"][aid]["goals"]
             else:
                 del output["achievements"][aid]
-        
+
         if len(output["achievements"])>0 :
             ret[user_id]=output
     
