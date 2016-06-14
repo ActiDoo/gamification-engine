@@ -149,12 +149,12 @@ def populate_demo(DBSession, tenant_id):
         DBSession.add(achievement_invite)
 
         transvar_invite = add_translation_variable(name="invite_users_goal_name")
-        add_translation(transvar_invite, lang_en, '"Invite "+`(5*p.level)`+" Users"')
-        add_translation(transvar_invite, lang_de, '"Lade "+`(5*p.level)`+" Freunde ein"')
+        add_translation(transvar_invite, lang_en, 'Invite ${5*level} Users')
+        add_translation(transvar_invite, lang_de, 'Lade ${5*level} Freunde ein')
 
         achievement_invite_goal1 = Goal(name_translation=transvar_invite,
-                                        condition='p.var=="invite_users"',
-                                        goal="5*p.level",
+                                        condition='{"term": {"type": "literal", "variable": "invite_users"}}',
+                                        goal="5*level",
                                         operator="geq",
                                         achievement=achievement_invite)
         DBSession.add(achievement_invite_goal1)
@@ -171,13 +171,13 @@ def populate_demo(DBSession, tenant_id):
         DBSession.add(achievement_fittest)
 
         transvar_fittest = add_translation_variable(name="fittest_goal_name")
-        add_translation(transvar_fittest, lang_en, '"Do the most sport activities among your friends"')
-        add_translation(transvar_fittest, lang_de, '"Mache unter deinen Freunden am meisten Sportaktivitäten"')
+        add_translation(transvar_fittest, lang_en, 'Do the most sport activities among your friends')
+        add_translation(transvar_fittest, lang_de, 'Mache unter deinen Freunden am meisten Sportaktivitäten')
 
         achievement_fittest_goal1 = Goal(name_translation=transvar_fittest,
-                                         condition='and_(p.var=="participate", p.key.in_(["5","7","9"]))',
+                                         condition='{"term": {"key": ["5","7","9"], "type": "literal", "key_operator": "IN", "variable": "participate"}}',
                                          evaluation="weekly",
-                                         goal="5*p.level",
+                                         goal="5*level",
                                          achievement=achievement_fittest
                                          )
 
@@ -200,26 +200,26 @@ def populate_demo(DBSession, tenant_id):
         DBSession.add(reward_image)
 
         transvar_invite_name = add_translation_variable(name="invite_achievement_name")
-        add_translation(transvar_invite_name, lang_en, '"The Community!"')
-        add_translation(transvar_invite_name, lang_de, '"Die Community!"')
+        add_translation(transvar_invite_name, lang_en, 'The Community!')
+        add_translation(transvar_invite_name, lang_de, 'Die Community!')
 
         DBSession.add(AchievementAchievementProperty(achievement=achievement_invite, property=property_name, value_translation=transvar_invite_name))
-        DBSession.add(AchievementAchievementProperty(achievement=achievement_invite, property=property_xp, value='100 * p.level'))
-        DBSession.add(AchievementAchievementProperty(achievement=achievement_invite, property=property_icon, value="'https://www.gamification-software.com/img/running.png'"))
+        DBSession.add(AchievementAchievementProperty(achievement=achievement_invite, property=property_xp, value='${100 * level}'))
+        DBSession.add(AchievementAchievementProperty(achievement=achievement_invite, property=property_icon, value="https://www.gamification-software.com/img/running.png"))
 
-        DBSession.add(AchievementReward(achievement=achievement_invite, reward=reward_badge, value="'https://www.gamification-software.com/img/trophy.png'", from_level=5))
-        DBSession.add(AchievementReward(achievement=achievement_invite, reward=reward_image, value="'https://www.gamification-software.com/img/video-controller-336657_1920.jpg'", from_level=5))
+        DBSession.add(AchievementReward(achievement=achievement_invite, reward=reward_badge, value="https://www.gamification-software.com/img/trophy.png", from_level=5))
+        DBSession.add(AchievementReward(achievement=achievement_invite, reward=reward_image, value="https://www.gamification-software.com/img/video-controller-336657_1920.jpg", from_level=5))
 
         transvar_fittest_name = add_translation_variable(name="fittest_achievement_name")
-        add_translation(transvar_fittest_name, lang_en, '"The Fittest!"')
-        add_translation(transvar_fittest_name, lang_de, '"Der Fitteste!"')
+        add_translation(transvar_fittest_name, lang_en, 'The Fittest!')
+        add_translation(transvar_fittest_name, lang_de, 'Der Fitteste!')
 
         DBSession.add(AchievementAchievementProperty(achievement=achievement_fittest, property=property_name, value_translation=transvar_fittest_name))
-        DBSession.add(AchievementAchievementProperty(achievement=achievement_fittest, property=property_xp, value='50 + (200 * p.level)'))
-        DBSession.add(AchievementAchievementProperty(achievement=achievement_fittest, property=property_icon, value="'https://www.gamification-software.com/img/colorwheel.png'"))
+        DBSession.add(AchievementAchievementProperty(achievement=achievement_fittest, property=property_xp, value='${50 + (200 * level)}'))
+        DBSession.add(AchievementAchievementProperty(achievement=achievement_fittest, property=property_icon, value="https://www.gamification-software.com/img/colorwheel.png"))
 
-        DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_badge, value="'https://www.gamification-software.com/img/easel.png'", from_level=1))
-        DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_image, value="'https://www.gamification-software.com/img/game-characters-622654.jpg'", from_level=1))
+        DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_badge, value="https://www.gamification-software.com/img/easel.png", from_level=1))
+        DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_image, value="https://www.gamification-software.com/img/game-characters-622654.jpg", from_level=1))
 
 
         user1 = User(id=1,lat=10,lng=50,timezone="Europe/Berlin")

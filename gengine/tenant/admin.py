@@ -212,7 +212,7 @@ class MaintenanceView(BaseView):
         self._template_args['clear_caches_form'] = self.clear_caches_form = ClearCacheForm(request.form)
         
         if request.method == 'POST':
-            from models import clear_all_caches
+            from gengine.base.cache import clear_all_caches
             if self.clear_caches_form.clear_check.data:
                 clear_all_caches()
                 self._template_args['msgs'].append("All caches cleared!")    

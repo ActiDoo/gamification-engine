@@ -203,7 +203,7 @@ def increase_multi_values(request):
                 Value.increase_value(variable_name, user, value, key)
     
         output = copy.deepcopy(_get_progress(user, force_generation=True)[1])  # 1 is the map
-        
+
         for aid in list(output["achievements"].keys()):
             if len(output["achievements"][aid]["new_levels"])>0:
                 if "levels" in output["achievements"][aid]:

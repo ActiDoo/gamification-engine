@@ -51,6 +51,8 @@ def clear_all_caches():
     cache_achievements_by_user_for_today.invalidate(hard=True)
     cache_translations.invalidate(hard=True)
     cache_general.invalidate(hard=True)
+    cache_goal_evaluation.invalidate(hard=True)
+    cache_goal_statements.invalidate(hard=True)
     invalidate_all_mc()
 
 
