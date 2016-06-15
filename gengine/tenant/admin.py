@@ -55,6 +55,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         tenantadminapp.jinja_loader,
         jinja2.FileSystemLoader(resole_uri("gengine:tenant/templates")),
     ])
+
     tenantadminapp.jinja_loader = my_loader
         
     tenantadminapp.add_url_rule('/static_gengine/<path:filename>',

@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+from pyramid.events import NewRequest
+
+from gengine.base.context import reset_context
 
 __version__ = '0.2.0'
 
@@ -24,8 +27,15 @@ def main(global_config, **settings):
     init_declarative_base()
     init_db(engine)
 
+    from gengine.base.monkeypatch_flaskadmin import do_monkeypatch
+    do_monkeypatch()
+
     from gengine.resources import root_factory
     config = Configurator(settings=settings, root_factory=root_factory)
+
+    def reset_context_on_new_request(event):
+        reset_context()
+    config.add_subscriber(reset_context_on_new_request,NewRequest)
     config.include('pyramid_dogpile_cache')
     
     durl = os.environ.get("DATABASE_URL") #heroku
