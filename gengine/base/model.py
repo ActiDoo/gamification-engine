@@ -1,5 +1,6 @@
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
+from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.functions import func
 from zope.sqlalchemy.datamanager import mark_changed
@@ -7,8 +8,16 @@ from zope.sqlalchemy.datamanager import mark_changed
 from gengine.metadata import DBSession
 from gengine.base.cache import cache_general
 
+class ABaseMeta(type):
+    def __init__(cls, name, bases, nmspc):
+        super(ABaseMeta, cls).__init__(name, bases, nmspc)
 
-class ABase(object):
+    def __getattr__(cls, item):
+        if item == "__table__":
+            return inspect(cls).local_table
+        raise AttributeError(item)
+
+class ABase(object, metaclass=ABaseMeta):
     """abstract base class which introduces a nice constructor for the model classes."""
 
     def __init__(self, *args, **kw):
@@ -23,7 +32,6 @@ class ABase(object):
     def __str__(self):
         if hasattr(self, "__unicode__"):
             return self.__unicode__()
-
 
 def calc_distance(latlong1, latlong2):
     """generates a sqlalchemy expression for distance query in km

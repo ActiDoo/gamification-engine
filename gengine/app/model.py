@@ -29,7 +29,7 @@ from sqlalchemy.sql import bindparam
 
 from gengine.metadata import Base, DBSession
 
-from gengine.tenant.formular import evaluate_condition, evaluate_value_expression, evaluate_string
+from gengine.app.formular import evaluate_condition, evaluate_value_expression, evaluate_string
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),

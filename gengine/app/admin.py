@@ -13,10 +13,10 @@ from flask_admin.model.form import InlineFormAdmin
 from wtforms import BooleanField
 from wtforms.form import Form
 
-from gengine.tenant.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
+from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
                            GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation
 
-tenantadminapp=None
+adminapp=None
 admin=None
 
 
@@ -38,36 +38,36 @@ def get_static_view(folder,flaskadminapp):
     return send_static_file
     
 def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,override_flaskadminapp=None):
-    global tenantadminapp, admin
+    global adminapp, admin
     
     if not override_flaskadminapp:
-        tenantadminapp = Flask(__name__)
-        tenantadminapp.debug=True
-        tenantadminapp.secret_key = secret
-        tenantadminapp.config.update(dict(
+        adminapp = Flask(__name__)
+        adminapp.debug=True
+        adminapp.secret_key = secret
+        adminapp.config.update(dict(
             PREFERRED_URL_SCHEME = 'https'
         ))
     else:
-        tenantadminapp = override_flaskadminapp
+        adminapp = override_flaskadminapp
 
     # lets add our template directory
     my_loader = jinja2.ChoiceLoader([
-        tenantadminapp.jinja_loader,
-        jinja2.FileSystemLoader(resole_uri("gengine:tenant/templates")),
+        adminapp.jinja_loader,
+        jinja2.FileSystemLoader(resole_uri("gengine:app/templates")),
     ])
 
-    tenantadminapp.jinja_loader = my_loader
+    adminapp.jinja_loader = my_loader
         
-    tenantadminapp.add_url_rule('/static_gengine/<path:filename>',
-                                endpoint='static_gengine',
-                                view_func=get_static_view('gengine:tenant/static', tenantadminapp))
+    adminapp.add_url_rule('/static_gengine/<path:filename>',
+                          endpoint='static_gengine',
+                          view_func=get_static_view('gengine:app/static', adminapp))
     
-    @tenantadminapp.context_processor
+    @adminapp.context_processor
     def inject_version():
         return { "gamification_engine_version" : pkg_resources.get_distribution("gamification-engine").version }
     
     if not override_admin:
-        admin = Admin(tenantadminapp,
+        admin = Admin(adminapp,
                       name="Gamification Engine - Admin Control Panel",
                       base_template='admin_layout.html',
                       url=urlprefix+"/admin"

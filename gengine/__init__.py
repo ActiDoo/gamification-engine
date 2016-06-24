@@ -30,8 +30,7 @@ def main(global_config, **settings):
     from gengine.base.monkeypatch_flaskadmin import do_monkeypatch
     do_monkeypatch()
 
-    from gengine.resources import root_factory
-    config = Configurator(settings=settings, root_factory=root_factory)
+    config = Configurator(settings=settings)
 
     def reset_context_on_new_request(event):
         reset_context()
@@ -59,22 +58,15 @@ def main(global_config, **settings):
     urlcache_active = asbool(os.environ.get("URLCACHE_ACTIVE", settings.get("urlcache_active",True)))
 	
     #routes
-    from gengine.tenant.route import config_routes as config_tenant_routes
-    from gengine.olymp.route import config_routes as config_olymp_routes
+    from gengine.app.route import config_routes as config_tenant_routes
 
     config.include(config_tenant_routes, route_prefix=urlprefix)
-    config.include(config_olymp_routes, route_prefix=urlprefix)
 
-    config.add_route('admin_tenant', '/t/{tenant}/*subpath', traverse="/t/{tenant}") #prefix is set in flaskadmin.py
-    config.add_route('admin_olymp', '/olymp/*subpath')  # prefix is set in flaskadmin.py
+    config.add_route('admin_tenant', '/*subpath') #prefix is set in flaskadmin.py
 
-    from gengine.tenant.admin import init_admin as init_tenantadmin
+    from gengine.app.admin import init_admin as init_tenantadmin
     init_tenantadmin(urlprefix=urlprefix,
-               secret=settings.get("flaskadmin_secret","fKY7kJ2xSrbPC5yieEjV"))
-
-    from gengine.olymp.admin import init_admin as init_olympadmin
-    init_olympadmin(urlprefix=urlprefix,
-               secret=settings.get("flaskadmin_secret", "fKY7kJ2xSrbPC5yieEjV"))
+                     secret=settings.get("flaskadmin_secret","fKY7kJ2xSrbPC5yieEjV"))
 
     from gengine.base.cache import setup_urlcache
     setup_urlcache(prefix=urlprefix,

@@ -3,7 +3,7 @@ from dogpile.cache import make_region
 from pyramid_dogpile_cache import get_region
 from gengine.base.context import get_context
 
-def my_key_mangler(prefix, is_tenant_cache):
+def my_key_mangler(prefix):
     def s(o):
         if type(o) == dict:
             return "_".join(["%s=%s" % (str(k), str(v)) for k, v in o.items()])
@@ -16,17 +16,13 @@ def my_key_mangler(prefix, is_tenant_cache):
 
     def generate_key(key):
         ret = ""
-        if is_tenant_cache:
-            ret += get_context().tenant.id + "_"
-        else:
-            ret += "global_"
         ret += prefix + s(key).replace(" ", "")
         return ret
 
     return generate_key
 
 
-def create_cache(name, is_tenant_cache=True):
+def create_cache(name):
     ch = None
 
     try:
@@ -36,11 +32,9 @@ def create_cache(name, is_tenant_cache=True):
         ch = make_region().configure('dogpile.cache.memory')
         warnings.warn("Warning: cache objects are in memory, are you creating docs?")
 
-    ch.key_mangler = my_key_mangler(name, is_tenant_cache)
+    ch.key_mangler = my_key_mangler(name)
     
     return ch
-
-
 
 cache_general = create_cache("general")
 cache_achievement_eval = create_cache("achievement_eval")

@@ -12,10 +12,9 @@ from pyramid.view import view_config
 from pyramid.wsgi import wsgiapp2
 from werkzeug import DebuggedApplication
 
-from gengine.olymp.admin import olympadminapp
-from gengine.tenant.admin import tenantadminapp
-from gengine.tenant.formular import FormularEvaluationException
-from gengine.tenant.model import (
+from gengine.app.admin import adminapp
+from gengine.app.formular import FormularEvaluationException
+from gengine.app.model import (
     User,
     Achievement,
     Value,
@@ -250,4 +249,4 @@ def get_achievement_level(request):
 @view_config(route_name='admin_tenant')
 @wsgiapp2
 def admin_tenant(environ, start_response):
-    return HTTPSProxied(DebuggedApplication(tenantadminapp.wsgi_app, True))(environ, start_response)
+    return HTTPSProxied(DebuggedApplication(adminapp.wsgi_app, True))(environ, start_response)

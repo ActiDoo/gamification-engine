@@ -228,7 +228,7 @@ def evaluate_condition(inst, column_variable=None, column_key=None):
     try:
         if isinstance(inst,str):
             inst = json.loads(inst)
-        from gengine.tenant.model import t_values, t_variables
+        from gengine.app.model import t_values, t_variables
         if column_variable is None:
             column_variable = t_variables.c.name.label("variable_name")
         if column_key is None:

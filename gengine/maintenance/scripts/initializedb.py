@@ -58,16 +58,11 @@ def main(argv=sys.argv):
 
     if options.get("reset_db",False):
         Base.metadata.drop_all(engine)
-        engine.execute("DROP SCHEMA IF EXISTS olymp CASCADE")
+        engine.execute("DROP SCHEMA IF EXISTS public CASCADE")
 
-        tenant_schemas = engine.execute("SELECT DISTINCT schemaname FROM pg_catalog.pg_tables WHERE schemaname LIKE 't_%%'")
+    engine.execute("CREATE SCHEMA IF NOT EXISTS public")
 
-        for t in tenant_schemas:
-            engine.execute("DROP SCHEMA %s CASCADE" % (t["schemaname"],))
-
-    engine.execute("CREATE SCHEMA IF NOT EXISTS olymp")
-
-    from gengine.olymp import model
+    from gengine.app import model
 
     tables = [t for name, t in model.__dict__.items() if isinstance(t, Table)]
     Base.metadata.create_all(engine, tables=tables)
@@ -79,22 +74,18 @@ def main(argv=sys.argv):
 
     alembic_cfg = Config(attributes={
         'engine' : engine,
-        'schema' : 'olymp'
+        'schema' : 'public'
     })
-    alembic_cfg.set_main_option("script_location", "gengine/olymp/alembic")
+    alembic_cfg.set_main_option("script_location", "gengine/app/alembic")
 
     command.stamp(alembic_cfg, "head")
 
     if options.get("populate_demo",False):
-        with transaction.manager:
-            t = model.Tenant(id="demo")
-            DBSession.add(t)
+        populate_demo(DBSession)
 
-        populate_demo(DBSession, "demo")
+def populate_demo(DBSession):
 
-def populate_demo(DBSession, tenant_id):
-
-    from gengine.tenant.model import (
+    from gengine.app.model import (
         Achievement,
         AchievementCategory,
         Goal,
@@ -122,8 +113,6 @@ def populate_demo(DBSession, tenant_id):
         return tr
 
     with transaction.manager:
-        DBSession.execute("SET search_path TO t_%s" % tenant_id)
-
         lang_de = Language(name="de")
         lang_en = Language(name="en")
         DBSession.add(lang_de)
