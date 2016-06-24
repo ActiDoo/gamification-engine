@@ -62,13 +62,6 @@ def main(argv=sys.argv):
 
     engine.execute("CREATE SCHEMA IF NOT EXISTS public")
 
-    from gengine.app import model
-
-    tables = [t for name, t in model.__dict__.items() if isinstance(t, Table)]
-    Base.metadata.create_all(engine, tables=tables)
-
-    # then, load the Alembic configuration and generate the
-    # version table, "stamping" it with the most recent rev:
     from alembic.config import Config
     from alembic import command
 
@@ -78,10 +71,21 @@ def main(argv=sys.argv):
     })
     alembic_cfg.set_main_option("script_location", "gengine/app/alembic")
 
-    command.stamp(alembic_cfg, "head")
+    do_upgrade = options.get("upgrade",False)
+    if not do_upgrade:
+        #init
+        from gengine.app import model
 
-    if options.get("populate_demo",False):
-        populate_demo(DBSession)
+        tables = [t for name, t in model.__dict__.items() if isinstance(t, Table)]
+        Base.metadata.create_all(engine, tables=tables)
+
+        command.stamp(alembic_cfg, "head")
+
+        if options.get("populate_demo", False):
+            populate_demo(DBSession)
+    else:
+        #upgrade
+        command.upgrade(alembic_cfg,'head')
 
 def populate_demo(DBSession):
 
