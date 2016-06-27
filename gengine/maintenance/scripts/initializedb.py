@@ -70,7 +70,7 @@ def main(argv=sys.argv):
         'schema' : 'public'
     })
     script_location = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         'app/alembic'
     )
     alembic_cfg.set_main_option("script_location", script_location)
