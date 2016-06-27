@@ -69,7 +69,11 @@ def main(argv=sys.argv):
         'engine' : engine,
         'schema' : 'public'
     })
-    alembic_cfg.set_main_option("script_location", "gengine/app/alembic")
+    script_location = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'app/alembic'
+    )
+    alembic_cfg.set_main_option("script_location", script_location)
 
     do_upgrade = options.get("upgrade",False)
     if not do_upgrade:
