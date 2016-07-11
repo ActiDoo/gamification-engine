@@ -36,7 +36,10 @@ def main(argv=sys.argv):
     murl = os.environ.get("MEMCACHED_URL")
     if murl:
         settings['urlcache_url']=murl
-    
+
+    initialize(settings,options)
+
+def initialize(settings,options):
     engine = engine_from_config(settings, 'sqlalchemy.')
     
     config = Configurator(settings=settings)
@@ -90,6 +93,8 @@ def main(argv=sys.argv):
     else:
         #upgrade
         command.upgrade(alembic_cfg,'head')
+
+    engine.dispose()
 
 def populate_demo(DBSession):
 
