@@ -1,10 +1,20 @@
 # -*- coding: utf-8 -*-
 import traceback
 
-import copy
+import binascii
+from http.cookies import SimpleCookie
 
-from gengine.base.model import valid_timezone
-from gengine.base.cache import get_or_set, set_value
+import base64
+import copy
+import datetime
+from pyramid.request import Request
+from pyramid.response import Response
+from pyramid.settings import asbool
+from sqlalchemy.sql.expression import select
+
+from gengine.app.permissions import perm_own_update_user_infos, perm_global_update_user_infos, perm_global_delete_user, perm_own_delete_user, \
+    perm_global_access_admin_ui
+from gengine.base.model import valid_timezone, exists_by_expr
 from gengine.base.errors import APIError
 from pyramid.exceptions import NotFound
 from pyramid.renderers import render
@@ -19,19 +29,27 @@ from gengine.app.model import (
     Achievement,
     Value,
     Variable,
-    AuthUser, AuthToken)
+    AuthUser, AuthToken, t_users, t_auth_users, t_auth_users_roles, t_auth_roles, t_auth_roles_permissions)
+from gengine.base.settings import get_settings
 from gengine.metadata import DBSession
 from gengine.wsgiutil import HTTPSProxied
-
-def require_perm(request, perm):
-    pass
 
 @view_config(route_name='add_or_update_user', renderer='string', request_method="POST")
 def add_or_update_user(request):
     """add a user and set its metadata"""
-    
+
     user_id = int(request.matchdict["user_id"])
-    
+
+    if asbool(get_settings().get("enable_user_authentication", False)):
+        #ensure that the user exists and we have the permission to update it
+        may_update = request.has_perm(perm_global_update_user_infos) or request.has_perm(perm_own_update_user_infos) and request.user.id == user_id
+        if not may_update:
+            raise APIError(403, "forbidden", "You may not edit this user.")
+
+        if not exists_by_expr(t_users,t_users.c.id==user_id):
+            raise APIError(403, "forbidden", "The user does not exist. As the user authentication is enabled, you need to create the AuthUser first.")
+
+
     lat=None
     if len(request.POST.get("lat",""))>0:
         lat = float(request.POST["lat"])
@@ -82,49 +100,55 @@ def add_or_update_user(request):
 @view_config(route_name='delete_user', renderer='string', request_method="DELETE")
 def delete_user(request):
     """delete a user completely"""
-    
     user_id = int(request.matchdict["user_id"])
+
+    if asbool(get_settings().get("enable_user_authentication", False)):
+        # ensure that the user exists and we have the permission to update it
+        may_delete = request.has_perm(perm_global_delete_user) or request.has_perm(perm_own_delete_user) and request.user.id == user_id
+        if not may_delete:
+            raise APIError(403, "forbidden", "You may not delete this user.")
+
     User.delete_user(user_id)
     return {"status" : "OK"}
 
-def _get_progress(user,force_generation=False):
-    def generate():
-        achievements = Achievement.get_achievements_by_user_for_today(user)
-        
-        def ea(achievement):
-            try:
-                #print "evaluating "+`achievement["id"]`
-                return Achievement.evaluate(user, achievement["id"])
-            except FormularEvaluationException as e:
-                return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
-            except Exception as e:
-                tb = traceback.format_exc()
-                return { "error": tb, "id" : achievement["id"] }
-            
-        check = lambda x : x!=None and not "error" in x and (x["hidden"]==False or x["level"]>0)
-        
-        evaluatelist = [ea(achievement) for achievement in achievements]
-        
-        ret = {
-            "achievements" : {
-                x["id"] : x for x in evaluatelist if check(x) 
-            },
-            "achievement_errors" : {
-                x["id"] : x for x in evaluatelist if x!=None and "error" in x
-            }
+def _get_progress(achievements_for_user, requesting_user):
+
+    achievements = Achievement.get_achievements_by_user_for_today(achievements_for_user)
+
+    def ea(achievement):
+        try:
+            return Achievement.evaluate(achievements_for_user, achievement["id"])
+        except FormularEvaluationException as e:
+            return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
+        except Exception as e:
+            tb = traceback.format_exc()
+            return { "error": tb, "id" : achievement["id"] }
+
+    check = lambda x : x!=None and not "error" in x and (x["hidden"]==False or x["level"]>0)
+
+    def may_view(achievement, requesting_user):
+        if not asbool(get_settings().get("enable_user_authentication", False)):
+            return True
+
+        if achievement["view_permission"] == "everyone":
+            return True
+        if achievement["view_permission"] == "own" and achievements_for_user["id"] == requesting_user["id"]:
+            return True
+        return False
+
+    evaluatelist = [ea(achievement) for achievement in achievements if may_view(achievement, requesting_user)]
+
+    ret = {
+        "achievements" : {
+            x["id"] : x for x in evaluatelist if check(x)
+        },
+        "achievement_errors" : {
+            x["id"] : x for x in evaluatelist if x!=None and "error" in x
         }
-        
-        return render("json",ret),ret
-        
-    key = "/progress/"+str(user.id)
-    
-    if not force_generation:
-        #in this case, we do not return the decoded json object - the caller has to take of this if needed
-        return get_or_set(key,lambda:generate()[0]), None
-    else:
-        ret_str, ret = generate()
-        set_value(key,ret_str)
-        return ret_str, ret
+    }
+
+    return ret
+
 
 @view_config(route_name='get_progress', renderer='string')
 def get_progress(request):
@@ -136,7 +160,7 @@ def get_progress(request):
         raise NotFound("user not found")
 
     request.response.content_type = "application/json"
-    progress = _get_progress(user, force_generation=False)
+    progress = _get_progress(achievements_for_user=user, requesting_user=request.user)
     json_string, pmap = progress
     return json_string
 
@@ -161,10 +185,14 @@ def increase_value(request):
     variable = Variable.get_variable_by_name(variable_name)
     if not variable:
         raise APIError(404, "variable_not_found", "variable not found")
+
+    if asbool(get_settings().get("enable_user_authentication", False)):
+        if not Variable.may_increase(variable, request, user_id):
+            raise APIError(403, "forbidden", "You may not increase the variable for this user.")
     
     Value.increase_value(variable_name, user, value, key) 
     
-    output = copy.deepcopy(_get_progress(user,force_generation=True)[1]) #1 is the map
+    output = _get_progress(achievements_for_user=user, requesting_user=request.user)
     for aid in list(output["achievements"].keys()):
         if len(output["achievements"][aid]["new_levels"])>0:
             if "levels" in output["achievements"][aid]:
@@ -192,6 +220,10 @@ def increase_multi_values(request):
         for variable_name, values_and_keys in values.items():
             for value_and_key in values_and_keys:
                 variable = Variable.get_variable_by_name(variable_name)
+
+                if asbool(get_settings().get("enable_user_authentication", False)):
+                    if not Variable.may_increase(variable, request, user_id):
+                        raise APIError(403, "forbidden", "You may not increase the variable %s for user %s." % (variable_name, user_id))
                 
                 if not variable:
                     raise APIError(404, "variable_not_found", "variable %s not found" % (variable_name,))
@@ -203,8 +235,8 @@ def increase_multi_values(request):
                 key = value_and_key.get('key','')
                 
                 Value.increase_value(variable_name, user, value, key)
-    
-        output = copy.deepcopy(_get_progress(user, force_generation=True)[1])  # 1 is the map
+
+        output = _get_progress(achievements_for_user=user, requesting_user=request.user)
 
         for aid in list(output["achievements"].keys()):
             if len(output["achievements"][aid]["new_levels"])>0:
@@ -222,7 +254,7 @@ def increase_multi_values(request):
     
     return ret
 
-@view_config(route_name='get_achievement_level', renderer='string', request_method="GET")
+@view_config(route_name='get_achievement_level', renderer='json', request_method="GET")
 def get_achievement_level(request):
     """get all information about an achievement for a specific level""" 
     try:
@@ -230,24 +262,19 @@ def get_achievement_level(request):
         level = int(request.matchdict.get("level",None))
     except:
         raise APIError(400, "invalid_input", "invalid input")
-         
-    def generate():
-        achievement = Achievement.get_achievement(achievement_id)
-         
-        if not achievement:
-            raise APIError(404, "achievement_not_found", "achievement not found")
-         
-        level_output = Achievement.basic_output(achievement, [], True, level).get("levels").get(str(level), {"properties":{},"rewards":{}})
-        if "goals" in level_output:
-            del level_output["goals"]
-        if "level" in level_output:
-            del level_output["level"]
-        return render("json",level_output)
-     
-    key = "/achievement/"+str(achievement_id)+"/level/"+str(level)
-    request.response.content_type = 'application/json'
-         
-    return get_or_set(key,generate)
+
+    achievement = Achievement.get_achievement(achievement_id)
+
+    if not achievement:
+        raise APIError(404, "achievement_not_found", "achievement not found")
+
+    level_output = Achievement.basic_output(achievement, [], True, level).get("levels").get(str(level), {"properties":{},"rewards":{}})
+    if "goals" in level_output:
+        del level_output["goals"]
+    if "level" in level_output:
+        del level_output["level"]
+
+    return level_output
 
 
 @view_config(route_name='auth_login', renderer='json', request_method="POST")
@@ -284,7 +311,71 @@ def auth_login(request):
         "token" : token
     }
 
-@view_config(route_name='admin_tenant')
+@view_config(route_name='admin_app')
 @wsgiapp2
 def admin_tenant(environ, start_response):
-    return HTTPSProxied(DebuggedApplication(adminapp.wsgi_app, True))(environ, start_response)
+
+    def admin_app():
+        return HTTPSProxied(DebuggedApplication(adminapp.wsgi_app, True))(environ, start_response)
+
+    def request_auth():
+        resp = Response()
+        resp.status_code = 401
+        resp.www_authenticate = 'Basic realm="%s"' % ("Gamification Engine Admin",)
+        return resp(environ, start_response)
+
+    if not asbool(get_settings().get("enable_user_authentication", False)):
+        return admin_app()
+
+    req = Request(environ)
+
+    def _get_basicauth_credentials(request):
+        authorization = request.headers.get("authorization","")
+        try:
+            authmeth, auth = authorization.split(' ', 1)
+        except ValueError:  # not enough values to unpack
+            return None
+        if authmeth.lower() == 'basic':
+            try:
+                auth = base64.b64decode(auth.strip()).decode("UTF-8")
+            except binascii.Error:  # can't decode
+                return None
+            try:
+                login, password = auth.split(':', 1)
+            except ValueError:  # not enough values to unpack
+                return None
+            return {'login': login, 'password': password}
+        return None
+
+    user = None
+    cred = _get_basicauth_credentials(req)
+    token = req.cookies.get("token",None)
+    if token:
+        tokenObj = DBSession.query(AuthToken).filter(AuthToken.token == token).first()
+        user = None
+        if tokenObj and tokenObj.valid_until < datetime.datetime.utcnow():
+            tokenObj.extend()
+        if tokenObj:
+            user = tokenObj.user
+
+    if not user:
+        if cred:
+            user = DBSession.query(AuthUser).filter_by(email=cred["login"]).first()
+        if not user or not user.verify_password(cred["password"]):
+            return request_auth()
+
+    if user:
+        j = t_auth_users.join(t_auth_users_roles).join(t_auth_roles).join(t_auth_roles_permissions)
+        q = select([t_auth_roles_permissions.c.name], from_obj=j).where(t_auth_users.c.id==user.id)
+        permissions = [r["name"] for r in DBSession.execute(q).fetchall()]
+        if not perm_global_access_admin_ui in permissions:
+            return request_auth()
+        else:
+            cookie = SimpleCookie()
+            cookie['X-Auth-Token'] = user.get_or_create_token().token
+            cookie['X-Auth-Token']['path'] = get_settings().get("urlprefix","").rstrip("/")+"/"
+
+            cookieheaders = ('Set-Cookie', cookie['X-Auth-Token'].OutputString())
+            start_response(200,[cookieheaders,])
+
+            return admin_app()

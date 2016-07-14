@@ -7,12 +7,14 @@ from datetime import timedelta
 import hashlib
 import pytz
 import sqlalchemy.types as ty
+from pyramid.settings import asbool
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.schema import UniqueConstraint
 
+from gengine.app.permissions import perm_global_increase_value
 from gengine.base.model import ABase, exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
 from gengine.base.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_users_levels, \
-    cache_achievements_by_user_for_today, invalidate, cache_goal_statements, cache_translations
+    cache_achievements_by_user_for_today, cache_goal_statements, cache_translations
 from sqlalchemy import (
     Table,
     ForeignKey,
@@ -30,6 +32,7 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import bindparam
 
+from gengine.base.settings import get_settings
 from gengine.metadata import Base, DBSession
 
 from gengine.app.formular import evaluate_condition, evaluate_value_expression, evaluate_string
@@ -43,11 +46,14 @@ t_auth_users = Table("auth_users", Base.metadata,
     Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
 )
 
+def get_default_token_valid_time():
+    return datetime.datetime.utcnow() + datetime.timedelta(days=30)
+
 t_auth_tokens = Table("auth_tokens", Base.metadata,
     Column("id", ty.BigInteger, primary_key=True),
-    Column("user_id", ty.BigInteger, ForeignKey("auth_users.id"), nullable=False),
+    Column("user_id", ty.BigInteger, ForeignKey("auth_users.id", ondelete="CASCADE"), nullable=False),
     Column("token", ty.String, nullable=False),
-    Column('valid_until', ty.DateTime, nullable = False, default=lambda: datetime.datetime.utcnow()+datetime.timedelta.days(30)),
+    Column('valid_until', ty.DateTime, nullable = False, default=get_default_token_valid_time),
 )
 
 t_auth_roles = Table("auth_roles", Base.metadata,
@@ -56,15 +62,13 @@ t_auth_roles = Table("auth_roles", Base.metadata,
 )
 
 t_auth_users_roles = Table("auth_users_roles", Base.metadata,
-    Column("id", ty.BigInteger, primary_key=True, nullable=False),
-    Column("user_id", ty.BigInteger, ForeignKey("auth_users.id"), primary_key=True, nullable=False),
-    Column("role_id", ty.BigInteger, ForeignKey("auth_roles.id"), primary_key=True, nullable=False),
-    UniqueConstraint("user_id","role_id")
+    Column("user_id", ty.BigInteger, ForeignKey("auth_users.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("role_id", ty.BigInteger, ForeignKey("auth_roles.id", ondelete="CASCADE"), primary_key=True, nullable=False),
 )
 
 t_auth_roles_permissions = Table("auth_roles_permissions", Base.metadata,
     Column("id", ty.Integer, primary_key=True),
-    Column("role_id", ty.Integer, ForeignKey("auth_roles.id", use_alter=True), nullable=False, index=True),
+    Column("role_id", ty.Integer, ForeignKey("auth_roles.id", use_alter=True, ondelete="CASCADE"), nullable=False, index=True),
     Column("name", ty.String(255), nullable=False),
     UniqueConstraint("role_id", "name")
 )
@@ -112,6 +116,7 @@ t_achievements = Table('achievements', Base.metadata,
     Column("max_distance", ty.Integer, nullable=True),
     Column('priority', ty.Integer, index=True, default=0),
     Column('relevance',ty.Enum("friends","city","own", name="relevance_types"), default="own"),
+    Column('view_permission',ty.Enum("everyone", "own", name="achievement_view_permission"), default="everyone"),
 )
 
 t_goals = Table("goals", Base.metadata,
@@ -142,6 +147,7 @@ t_variables = Table('variables', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('name', ty.String(255), nullable = False, index=True),
     Column('group', ty.Enum("year","month","week","day","none", name="variable_group_types"), nullable = False, default="none"),
+    Column('increase_permission',ty.Enum("own", "admin", name="variable_increase_permission"), default="admin"),
 )
 
 t_values = Table('values', Base.metadata,
@@ -235,12 +241,13 @@ class AuthUser(ABase):
 
     @password.setter
     def password(self,new_pw):
-        import argon2
-        import crypt
-        import base64
-        self.password_salt = crypt.mksalt()
-        hash = argon2.argon2_hash(new_pw, self.password_salt)
-        self.password_hash = base64.b64encode(hash).decode("UTF-8")
+        if new_pw!=self.password_hash:
+            import argon2
+            import crypt
+            import base64
+            self.password_salt = crypt.mksalt()
+            hash = argon2.argon2_hash(new_pw, self.password_salt)
+            self.password_hash = base64.b64encode(hash).decode("UTF-8")
 
     def verify_password(self, pw):
         import argon2
@@ -249,6 +256,21 @@ class AuthUser(ABase):
         orig = self.password_hash
         is_valid = check == orig
         return is_valid
+
+    def get_or_create_token(self):
+        tokenObj = DBSession.query(AuthToken).filter(AuthToken.valid_until>=datetime.datetime.utcnow()).first()
+
+        if not tokenObj:
+            token = AuthToken.generate_token()
+            tokenObj = AuthToken(
+                user_id=self.id,
+                token=token
+            )
+
+            DBSession.add(tokenObj)
+
+        return tokenObj
+
 
 class AuthToken(ABase):
 
@@ -266,11 +288,11 @@ class AuthToken(ABase):
 
 class AuthRole(ABase):
     def __unicode__(self, *args, **kwargs):
-        return "Role %s" % (self.id,)
+        return "Role %s" % (self.name,)
 
-class AuthUserRole(ABase):
-    def __unicode__(self, *args, **kwargs):
-        return "UserRole %s" % (self.id,)
+#class AuthUserRole(ABase):
+#    def __unicode__(self, *args, **kwargs):
+#        return "UserRole %s" % (self.id,)
 
 class AuthRolePermission(ABase):
     def __unicode__(self, *args, **kwargs):
@@ -469,6 +491,19 @@ class Variable(ABase):
         for entry in goalsandachievements:
             Achievement.invalidate_evaluate_cache(user_id,entry["achievement"])
 
+    @classmethod
+    def may_increase(cls, variable_row, request, user_id):
+        if not asbool(get_settings().get("enable_user_authentication", False)):
+            #Authentication deactivated
+            return True
+        if request.has_perm(perm_global_increase_value):
+            # I'm the global admin
+            return True
+        if variable_row["increase_permission"]=="own" and request.user and str(request.user.id)==str(user_id):
+            #The variable may be updated for myself
+            return True
+        return False
+
 
 class Value(ABase):
     """A Value describes the relation of the user to a variable.
@@ -641,6 +676,7 @@ class Achievement(ABase):
 
         out = {
             "id" : achievement["id"],
+            "view_permission" : achievement["view_permission"],
             "internal_name" : achievement["name"],
             "maxlevel" : achievement["maxlevel"],
             "priority" : achievement["priority"],
@@ -787,7 +823,6 @@ class Achievement(ABase):
         #We neeed to invalidate for all relevant users because of the leaderboards
         for uid in Achievement.get_relevant_users_by_achievement_and_user_reverse(achievement, user_id):
             cache_achievement_eval.delete("%s_%s" % (uid,achievement["id"]))
-            invalidate("/progress/"+str(uid))
 
     @classmethod
     @cache_general.cache_on_arguments()
@@ -1241,17 +1276,17 @@ class Translation(ABase):
         return DBSession.execute(t_languages.select()).fetchall()
 
 mapper(AuthUser, t_auth_users, properties={
-
+    'roles' : relationship(AuthRole, secondary=t_auth_users_roles, backref="users")
 })
 
 mapper(AuthToken, t_auth_tokens, properties={
-
+    'user' : relationship(AuthUser, backref="tokens")
 })
 
-mapper(AuthUserRole, t_auth_users_roles, properties={
-    'user' : relationship(AuthUser, backref="roles"),
-    'role' : relationship(AuthRole, backref="users")
-})
+#mapper(AuthUserRole, t_auth_users_roles, properties={
+#    'user' : relationship(AuthUser, backref="roles"),
+#    'role' : relationship(AuthRole, backref="users")
+#})
 
 mapper(AuthRole, t_auth_roles, properties={
 

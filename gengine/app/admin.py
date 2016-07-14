@@ -16,6 +16,7 @@ from wtforms.form import Form
 from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
                            GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation, \
     AuthUser, AuthRole, AuthRolePermission
+from gengine.app.permissions import yield_all_perms
 
 adminapp=None
 admin=None
@@ -233,6 +234,9 @@ class ModelViewAuthUser(ModelView):
 
 class PermissionInlineModelForm(InlineFormAdmin):
     form_columns = ('id','name')
+    form_choices = {
+        "name" : sorted(list(yield_all_perms()),key=lambda x:x[1])
+    }
 
 class ModelViewAuthRole(ModelView):
     column_list = ('id', 'name', 'permissions')

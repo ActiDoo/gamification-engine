@@ -33,8 +33,10 @@ var setupAPIForm = function($, defaultcall, fields, api_funcs) {
 		"url" : "/",
 		"data" : {
 			
-		}
+		},
 	};
+	$.ajaxSetup({headers: {"X-Auth-Token": $.cookie("X-Auth-Token")}});
+
 	var api_settings_url;
 	var api_settings_method;
 	var api_settings_postparams; 

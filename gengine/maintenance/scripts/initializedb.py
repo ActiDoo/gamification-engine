@@ -13,6 +13,8 @@ from pyramid.scripts.common import parse_vars
 from sqlalchemy import engine_from_config
 from sqlalchemy.sql.schema import Table
 
+from gengine.app.permissions import perm_global_delete_user, perm_global_increase_value, perm_global_update_user_infos
+
 
 def usage(argv):
     cmd = os.path.basename(argv[0])
@@ -112,7 +114,10 @@ def populate_demo(DBSession):
         Reward,
         AchievementProperty,
         AchievementAchievementProperty,
-        AchievementReward
+        AchievementReward,
+        AuthUser,
+        AuthRole,
+        AuthRolePermission
     )
 
     def add_translation_variable(name):
@@ -240,6 +245,17 @@ def populate_demo(DBSession):
         DBSession.add(user1)
         DBSession.add(user2)
         DBSession.add(user3)
+
+        auth_user = AuthUser(id=1,email="admin@gamification-software.com",password="test123",active=True)
+        DBSession.add(auth_user)
+
+        auth_role = AuthRole(name="Global Admin")
+        DBSession.add(auth_role)
+
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_user))
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_user_infos))
+
 
 if __name__ == '__main__':
     main()
