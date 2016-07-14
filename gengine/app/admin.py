@@ -3,18 +3,19 @@ import jinja2
 import os
 import pkg_resources
 from flask import Flask
-from flask.ext.admin import Admin
-from flask.ext.admin.contrib.sqla import ModelView
+from flask_admin import Admin
 from flask.globals import request
 from flask.helpers import send_from_directory
 from flask_admin.base import BaseView, expose
 from flask_admin.contrib.sqla.filters import IntEqualFilter
+from flask_admin.contrib.sqla.view import ModelView
 from flask_admin.model.form import InlineFormAdmin
 from wtforms import BooleanField
 from wtforms.form import Form
 
 from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
-                           GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation
+                           GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation, \
+    AuthUser, AuthRole, AuthRolePermission
 
 adminapp=None
 admin=None
@@ -90,6 +91,9 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     admin.add_view(ModelViewGoalProperty(DBSession, category="Settings", name="Goal Property Types"))
     admin.add_view(ModelView(Language, DBSession, category="Settings"))
     admin.add_view(MaintenanceView(name="Maintenance", category="Settings", url="maintenance"))
+
+    admin.add_view(ModelViewAuthUser(DBSession, category="Authentication"))
+    admin.add_view(ModelViewAuthRole(DBSession, category="Authentication"))
     
     admin.add_view(ModelViewValue(DBSession, category="Debug"))
     admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
@@ -218,4 +222,22 @@ class MaintenanceView(BaseView):
                 clear_all_caches()
                 self._template_args['msgs'].append("All caches cleared!")    
         return self.render(template="admin_maintenance.html")
-    
+
+class ModelViewAuthUser(ModelView):
+    column_list = ('id', 'email', 'active', 'created_at')
+    form_columns = ('email', 'password', 'active', 'roles')
+    column_labels = {'password': 'Password'}
+
+    def __init__(self, session, **kwargs):
+        super(ModelViewAuthUser, self).__init__(AuthUser, session, **kwargs)
+
+class PermissionInlineModelForm(InlineFormAdmin):
+    form_columns = ('id','name')
+
+class ModelViewAuthRole(ModelView):
+    column_list = ('id', 'name', 'permissions')
+    form_excluded_columns = ('users')
+    inline_models = (PermissionInlineModelForm(AuthRolePermission),)
+
+    def __init__(self, session, **kwargs):
+        super(ModelViewAuthRole, self).__init__(AuthRole, session, **kwargs)

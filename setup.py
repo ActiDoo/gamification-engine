@@ -30,7 +30,8 @@ requires = [
     'raven',
     'jsl',
     'jsonschema',
-    'pyparsing'
+    'pyparsing',
+    'argon2'
     ]
 
 version = ''

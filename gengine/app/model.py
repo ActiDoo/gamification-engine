@@ -7,6 +7,9 @@ from datetime import timedelta
 import hashlib
 import pytz
 import sqlalchemy.types as ty
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.schema import UniqueConstraint
+
 from gengine.base.model import ABase, exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
 from gengine.base.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_users_levels, \
     cache_achievements_by_user_for_today, invalidate, cache_goal_statements, cache_translations
@@ -30,6 +33,41 @@ from sqlalchemy.sql import bindparam
 from gengine.metadata import Base, DBSession
 
 from gengine.app.formular import evaluate_condition, evaluate_value_expression, evaluate_string
+
+t_auth_users = Table("auth_users", Base.metadata,
+    Column("id", ty.BigInteger, primary_key = True),
+    Column("email", ty.String, unique=True),
+    Column("password_hash", ty.String, nullable=False),
+    Column("password_salt", ty.Unicode, nullable=False),
+    Column("active", ty.Boolean, nullable=False),
+    Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
+)
+
+t_auth_tokens = Table("auth_tokens", Base.metadata,
+    Column("id", ty.BigInteger, primary_key=True),
+    Column("user_id", ty.BigInteger, ForeignKey("auth_users.id"), nullable=False),
+    Column("token", ty.String, nullable=False),
+    Column('valid_until', ty.DateTime, nullable = False, default=lambda: datetime.datetime.utcnow()+datetime.timedelta.days(30)),
+)
+
+t_auth_roles = Table("auth_roles", Base.metadata,
+    Column("id", ty.Integer, primary_key=True),
+    Column("name", ty.String(100), unique=True),
+)
+
+t_auth_users_roles = Table("auth_users_roles", Base.metadata,
+    Column("id", ty.BigInteger, primary_key=True, nullable=False),
+    Column("user_id", ty.BigInteger, ForeignKey("auth_users.id"), primary_key=True, nullable=False),
+    Column("role_id", ty.BigInteger, ForeignKey("auth_roles.id"), primary_key=True, nullable=False),
+    UniqueConstraint("user_id","role_id")
+)
+
+t_auth_roles_permissions = Table("auth_roles_permissions", Base.metadata,
+    Column("id", ty.Integer, primary_key=True),
+    Column("role_id", ty.Integer, ForeignKey("auth_roles.id", use_alter=True), nullable=False, index=True),
+    Column("name", ty.String(255), nullable=False),
+    UniqueConstraint("role_id", "name")
+)
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
@@ -189,6 +227,63 @@ t_translations = Table('translations', Base.metadata,
    Column('language_id', ty.Integer, ForeignKey("languages.id", ondelete="CASCADE"), nullable = False),
    Column('text', ty.Text(), nullable = False),
 )
+
+class AuthUser(ABase):
+    @hybrid_property
+    def password(self):
+        return self.password_hash
+
+    @password.setter
+    def password(self,new_pw):
+        import argon2
+        import crypt
+        import base64
+        self.password_salt = crypt.mksalt()
+        hash = argon2.argon2_hash(new_pw, self.password_salt)
+        self.password_hash = base64.b64encode(hash).decode("UTF-8")
+
+    def verify_password(self, pw):
+        import argon2
+        import base64
+        check = base64.b64encode(argon2.argon2_hash(pw, self.password_salt)).decode("UTF-8")
+        orig = self.password_hash
+        is_valid = check == orig
+        return is_valid
+
+class AuthToken(ABase):
+
+    @staticmethod
+    def generate_token():
+        import crypt
+        return str(crypt.mksalt()+crypt.mksalt())
+
+    def extend(self):
+        self.valid_until = datetime.datetime.utcnow() + datetime.timedelta(days=30)
+        DBSession.add(self)
+
+    def __unicode__(self, *args, **kwargs):
+        return "Token %s" % (self.id,)
+
+class AuthRole(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "Role %s" % (self.id,)
+
+class AuthUserRole(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "UserRole %s" % (self.id,)
+
+class AuthRolePermission(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "%s" % (self.name,)
+
+#@total_ordering
+#class DeviceType(CUserType):
+#    device_id = columns.Text()
+#    device_os = columns.Text()
+#    push_id = columns.Text()
+#    app_version = columns.Text()
+#    registered = columns.DateTime(default=dt.datetime.utcnow)
+
 
 class User(ABase):
     """A user participates in the gamification, i.e. can get achievements, rewards, participate in leaderbaord etc."""
@@ -1144,7 +1239,28 @@ class Translation(ABase):
     @cache_translations.cache_on_arguments()                   
     def get_languages(cls):
         return DBSession.execute(t_languages.select()).fetchall()
-            
+
+mapper(AuthUser, t_auth_users, properties={
+
+})
+
+mapper(AuthToken, t_auth_tokens, properties={
+
+})
+
+mapper(AuthUserRole, t_auth_users_roles, properties={
+    'user' : relationship(AuthUser, backref="roles"),
+    'role' : relationship(AuthRole, backref="users")
+})
+
+mapper(AuthRole, t_auth_roles, properties={
+
+})
+
+mapper(AuthRolePermission, t_auth_roles_permissions, properties={
+    'role' : relationship(AuthRole, backref="permissions"),
+})
+
 mapper(User, t_users, properties={
     'friends': relationship(User, secondary=t_users_users, 
                                  primaryjoin=t_users.c.id==t_users_users.c.from_id,

@@ -2,6 +2,7 @@
 from pyramid.events import NewRequest
 
 from gengine.base.context import reset_context
+from gengine.base.errors import APIError
 
 __version__ = '0.2.0'
 
@@ -56,7 +57,35 @@ def main(global_config, **settings):
     
     urlcache_url = settings.get("urlcache_url","127.0.0.1:11211")
     urlcache_active = asbool(os.environ.get("URLCACHE_ACTIVE", settings.get("urlcache_active",True)))
-	
+
+	#auth
+    def get_user(request):
+        token = request.headers.get('token')
+        if token is not None:
+            from gengine.app.model import DBSession, AuthUser, AuthToken
+            tokenObj = DBSession.query(AuthToken).filter(AuthToken.token==token).first()
+            user = None
+            if tokenObj and tokenObj.valid_until<datetime.datetime.utcnow():
+                tokenObj.extend()
+            if tokenObj:
+                user = tokenObj.user
+            if not user:
+                raise APIError(401, "invalid_token", "Invalid token provided.")
+            if not user.active:
+                raise APIError(404, "user_is_not_activated", "Your user is not activated.")
+            return user
+        return None
+
+    def get_permissions(request):
+        from gengine.app.model import DBSession, t_auth_tokens, t_auth_users, t_auth_roles, t_auth_roles_permissions, t_auth_users_roles
+        from sqlalchemy.sql import select
+        j = t_auth_tokens.join(t_auth_users).join(t_auth_users_roles).join(t_auth_roles).join(t_auth_roles_permissions)
+        q = select([t_auth_roles_permissions.c.name],from_obj=j).where(t_auth_tokens.c.token==request.headers.get("AUTH_TOKEN"))
+        return [r["name"] for r in DBSession.execute(q).fetchall()]
+
+    config.add_request_method(get_user, 'user', reify=True)
+    config.add_request_method(get_permissions, 'permissions', reify=True)
+
     #routes
     from gengine.app.route import config_routes as config_tenant_routes
 

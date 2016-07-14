@@ -7,3 +7,5 @@ def config_routes(config):
     config.add_route('add_or_update_user', '/add_or_update_user/{user_id}')
     config.add_route('delete_user', '/delete_user/{user_id}')
     config.add_route('get_achievement_level', '/achievement/{achievement_id}/level/{level}')
+
+    config.add_route('auth_login', '/auth/login')

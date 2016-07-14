@@ -18,9 +18,13 @@ from gengine.app.model import (
     User,
     Achievement,
     Value,
-    Variable
-)
+    Variable,
+    AuthUser, AuthToken)
+from gengine.metadata import DBSession
 from gengine.wsgiutil import HTTPSProxied
+
+def require_perm(request, perm):
+    pass
 
 @view_config(route_name='add_or_update_user', renderer='string', request_method="POST")
 def add_or_update_user(request):
@@ -136,7 +140,6 @@ def get_progress(request):
     json_string, pmap = progress
     return json_string
 
-    
 @view_config(route_name='increase_value', renderer='json', request_method="POST")
 @view_config(route_name='increase_value_with_key', renderer='json', request_method="POST")
 def increase_value(request):
@@ -245,7 +248,42 @@ def get_achievement_level(request):
     request.response.content_type = 'application/json'
          
     return get_or_set(key,generate)
-    
+
+
+@view_config(route_name='auth_login', renderer='json', request_method="POST")
+def auth_login(request):
+    try:
+        doc = request.json_body
+    except:
+        raise APIError(400, "invalid_json", "no valid json body")
+
+    email = doc.get("email")
+    password = doc.get("password")
+
+    if not email or not password:
+        raise APIError(404, "login.email_and_password_required", "You need to send your email and password.")
+
+    user = DBSession.query(AuthUser).filter_by(email=email).first()
+
+    if not user or not user.verify_password(password):
+        raise APIError(404, "login.email_or_password_invalid", "Either the email address or the password is wrong.")
+
+    if not user.active:
+        raise APIError(404, "user_is_not_activated", "Your user is not activated.")
+
+    token = AuthToken.generate_token()
+    tokenObj = AuthToken(
+        user_id = user.id,
+        token = token
+    )
+
+    DBSession.add(tokenObj)
+    DBSession.commit()
+
+    return {
+        "token" : token
+    }
+
 @view_config(route_name='admin_tenant')
 @wsgiapp2
 def admin_tenant(environ, start_response):
