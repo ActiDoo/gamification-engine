@@ -9,3 +9,13 @@ pre {outline: 1px solid #ccc; padding: 5px; margin: 5px; }
 .boolean { color: blue; }
 .null { color: magenta; }
 .key { color: red; }
+
+.auth_active {
+    color:green;
+    font-weight:bold;
+}
+
+.auth_inactive {
+    color:red;
+    font-weight:bold;
+}

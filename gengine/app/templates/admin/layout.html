@@ -61,6 +61,10 @@
       </li>
     {% endif %}
   {% endfor %}
+  <li class="divider-vertical"></li>
+  <li class="navbar-text">
+    Authentication: {{ ('<span class="auth_active">active</span>' if settings_enable_authentication else '<span class="auth_inactive">inactive</span>') | safe }}
+  </li>
 {% endmacro %}
 
 {% macro messages() %}

@@ -10,6 +10,7 @@ from flask_admin.base import BaseView, expose
 from flask_admin.contrib.sqla.filters import IntEqualFilter
 from flask_admin.contrib.sqla.view import ModelView
 from flask_admin.model.form import InlineFormAdmin
+from pyramid.settings import asbool
 from wtforms import BooleanField
 from wtforms.form import Form
 
@@ -17,6 +18,7 @@ from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Ac
                            GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation, \
     AuthUser, AuthRole, AuthRolePermission
 from gengine.app.permissions import yield_all_perms
+from gengine.base.settings import get_settings
 
 adminapp=None
 admin=None
@@ -66,7 +68,8 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     
     @adminapp.context_processor
     def inject_version():
-        return { "gamification_engine_version" : pkg_resources.get_distribution("gamification-engine").version }
+        return { "gamification_engine_version" : pkg_resources.get_distribution("gamification-engine").version,
+                 "settings_enable_authentication" : asbool(get_settings().get("enable_user_authentication",False))}
     
     if not override_admin:
         admin = Admin(adminapp,

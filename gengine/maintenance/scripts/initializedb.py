@@ -13,7 +13,8 @@ from pyramid.scripts.common import parse_vars
 from sqlalchemy import engine_from_config
 from sqlalchemy.sql.schema import Table
 
-from gengine.app.permissions import perm_global_delete_user, perm_global_increase_value, perm_global_update_user_infos
+from gengine.app.permissions import perm_global_delete_user, perm_global_increase_value, perm_global_update_user_infos, \
+    perm_global_access_admin_ui
 
 
 def usage(argv):
@@ -245,16 +246,21 @@ def populate_demo(DBSession):
         DBSession.add(user1)
         DBSession.add(user2)
         DBSession.add(user3)
+        DBSession.flush()
 
-        auth_user = AuthUser(id=1,email="admin@gamification-software.com",password="test123",active=True)
+        auth_user = AuthUser(user_id=user1.id,email="admin@gamification-software.com",password="test123",active=True)
         DBSession.add(auth_user)
 
         auth_role = AuthRole(name="Global Admin")
         DBSession.add(auth_role)
 
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
         DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_user))
         DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
         DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_user_infos))
+
+        auth_user.roles.append(auth_role)
+        DBSession.add(auth_user)
 
 
 if __name__ == '__main__':
