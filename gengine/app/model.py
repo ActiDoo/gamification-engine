@@ -37,8 +37,19 @@ from gengine.metadata import Base, DBSession
 
 from gengine.app.formular import evaluate_condition, evaluate_value_expression, evaluate_string
 
+t_users = Table("users", Base.metadata,
+    Column('id', ty.BigInteger, primary_key = True),
+    Column("lat", ty.Float(Precision=64), nullable=True),
+    Column("lng", ty.Float(Precision=64), nullable=True),
+    Column("timezone", ty.String(), nullable=False, default="UTC"),
+    Column("country", ty.String(), nullable=True, default=None),
+    Column("region", ty.String(), nullable=True, default=None),
+    Column("city", ty.String(), nullable=True, default=None),
+    Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
+)
+
 t_auth_users = Table("auth_users", Base.metadata,
-    Column("id", ty.BigInteger, primary_key = True),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
     Column("email", ty.String, unique=True),
     Column("password_hash", ty.String, nullable=False),
     Column("password_salt", ty.Unicode, nullable=False),
@@ -51,7 +62,7 @@ def get_default_token_valid_time():
 
 t_auth_tokens = Table("auth_tokens", Base.metadata,
     Column("id", ty.BigInteger, primary_key=True),
-    Column("user_id", ty.BigInteger, ForeignKey("auth_users.id", ondelete="CASCADE"), nullable=False),
+    Column("user_id", ty.BigInteger, ForeignKey("auth_users.user_id", ondelete="CASCADE"), nullable=False),
     Column("token", ty.String, nullable=False),
     Column('valid_until', ty.DateTime, nullable = False, default=get_default_token_valid_time),
 )
@@ -62,7 +73,7 @@ t_auth_roles = Table("auth_roles", Base.metadata,
 )
 
 t_auth_users_roles = Table("auth_users_roles", Base.metadata,
-    Column("user_id", ty.BigInteger, ForeignKey("auth_users.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("user_id", ty.BigInteger, ForeignKey("auth_users.user_id", ondelete="CASCADE"), primary_key=True, nullable=False),
     Column("role_id", ty.BigInteger, ForeignKey("auth_roles.id", ondelete="CASCADE"), primary_key=True, nullable=False),
 )
 
@@ -73,15 +84,13 @@ t_auth_roles_permissions = Table("auth_roles_permissions", Base.metadata,
     UniqueConstraint("role_id", "name")
 )
 
-t_users = Table("users", Base.metadata,
+t_user_device = Table('user_devices', Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
-    Column("lat", ty.Float(Precision=64), nullable=True),
-    Column("lng", ty.Float(Precision=64), nullable=True),
-    Column("timezone", ty.String(), nullable=False, default="UTC"),
-    Column("country", ty.String(), nullable=True, default=None),
-    Column("region", ty.String(), nullable=True, default=None),
-    Column("city", ty.String(), nullable=True, default=None),
-    Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('device_os', ty.String, nullable=False),
+    Column('push_id', ty.String(), nullable=False),
+    Column('app_version', ty.String(), nullable=False),
+    Column('registered_at', ty.DateTime(), nullable=False, default=datetime.datetime.utcnow),
 )
 
 t_users_users = Table("users_users", Base.metadata,
@@ -235,6 +244,11 @@ t_translations = Table('translations', Base.metadata,
 )
 
 class AuthUser(ABase):
+
+    @hybrid_property
+    def id(self):
+        return self.user_id
+
     @hybrid_property
     def password(self):
         return self.password_hash
@@ -290,22 +304,9 @@ class AuthRole(ABase):
     def __unicode__(self, *args, **kwargs):
         return "Role %s" % (self.name,)
 
-#class AuthUserRole(ABase):
-#    def __unicode__(self, *args, **kwargs):
-#        return "UserRole %s" % (self.id,)
-
 class AuthRolePermission(ABase):
     def __unicode__(self, *args, **kwargs):
         return "%s" % (self.name,)
-
-#@total_ordering
-#class DeviceType(CUserType):
-#    device_id = columns.Text()
-#    device_os = columns.Text()
-#    push_id = columns.Text()
-#    app_version = columns.Text()
-#    registered = columns.DateTime(default=dt.datetime.utcnow)
-
 
 class User(ABase):
     """A user participates in the gamification, i.e. can get achievements, rewards, participate in leaderbaord etc."""
