@@ -84,15 +84,6 @@ t_auth_roles_permissions = Table("auth_roles_permissions", Base.metadata,
     UniqueConstraint("role_id", "name")
 )
 
-t_user_device = Table('user_devices', Base.metadata,
-    Column('id', ty.BigInteger, primary_key = True),
-    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
-    Column('device_os', ty.String, nullable=False),
-    Column('push_id', ty.String(), nullable=False),
-    Column('app_version', ty.String(), nullable=False),
-    Column('registered_at', ty.DateTime(), nullable=False, default=datetime.datetime.utcnow),
-)
-
 t_users_users = Table("users_users", Base.metadata,
     Column('from_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
     Column('to_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False)
@@ -243,6 +234,33 @@ t_translations = Table('translations', Base.metadata,
    Column('text', ty.Text(), nullable = False),
 )
 
+t_user_device = Table('user_devices', Base.metadata,
+    Column('device_id', ty.String(255), primary_key = True),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('device_os', ty.String, nullable=False),
+    Column('push_id', ty.String(255), nullable=False),
+    Column('app_version', ty.String(255), nullable=False),
+    Column('registered_at', ty.DateTime(), nullable=False, default=datetime.datetime.utcnow),
+)
+
+t_user_messages = Table('user_messages', Base.metadata,
+    Column('id', ty.BigInteger, primary_key = True),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index = True, nullable=False),
+    Column('translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = True),
+    Column('params', ty.JSON, nullable=True, default={}),
+    Column('is_read', ty.Boolean, index=True, default=False, nullable=False),
+    Column('created_at', ty.DateTime(), nullable=False, default=datetime.datetime.utcnow, index=True),
+)
+
+t_goal_triggers = Table('goal_triggers', Base.metadata,
+    Column('id', ty.Integer, primary_key = True),
+    Column('goal_id', ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column('condition_type', ty.Enum("percentage", name="goal_trigger_condition_types"), default="percentage"),
+    Column('condition_percentage', ty.Float, nullable=True),
+    Column('action_type', ty.Enum("user_message", name="goal_trigger_action_types"), default="user_message"),
+    Column('action_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = True),
+)
+
 class AuthUser(ABase):
 
     @hybrid_property
@@ -285,7 +303,6 @@ class AuthUser(ABase):
 
         return tokenObj
 
-
 class AuthToken(ABase):
 
     @staticmethod
@@ -307,6 +324,42 @@ class AuthRole(ABase):
 class AuthRolePermission(ABase):
     def __unicode__(self, *args, **kwargs):
         return "%s" % (self.name,)
+
+class UserDevice(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "Device: %s" % (self.id,)
+
+    @classmethod
+    def add_or_update_device(cls, user_id, device_id, push_id, device_os, app_version):
+        device = DBSession.execute(t_user_device.select().where(and_(
+            t_user_device.c.device_id == device_id,
+            t_user_device.c.user_id == user_id
+        ))).fetchone()
+
+        if device and (device["push_id"] != push_id
+            or device["device_os"] != device_os
+            or device["app_version"] != app_version
+        ):
+            uSession = update_connection()
+            q = t_user_device.update().values({
+                "push_id": push_id,
+                "device_os": device_os,
+                "app_version": app_version
+            }).where(and_(
+                t_user_device.c.device_id == device_id,
+                t_user_device.c.user_id == user_id
+            ))
+            uSession.execute(q)
+        elif not device:  # insert
+            uSession = update_connection()
+            q = t_user_device.insert().values({
+                "push_id": push_id,
+                "device_os": device_os,
+                "app_version": app_version,
+                "device_id": device_id,
+                "user_id": user_id
+            })
+            uSession.execute(q)
 
 class User(ABase):
     """A user participates in the gamification, i.e. can get achievements, rewards, participate in leaderbaord etc."""
@@ -1276,6 +1329,17 @@ class Translation(ABase):
     def get_languages(cls):
         return DBSession.execute(t_languages.select()).fetchall()
 
+class UserMessage(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "Message: %s" % (Translation.trs(self.translationvariable_id,self.params).get(_fallback_language),)
+
+    def get_text(self, row):
+        return Translation.trs(row["translationvariable_id"],row["params"])
+
+class GoalTrigger(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "GoalTrigger: %s" % (self.id,)
+
 mapper(AuthUser, t_auth_users, properties={
     'roles' : relationship(AuthRole, secondary=t_auth_users_roles, backref="users")
 })
@@ -1283,11 +1347,6 @@ mapper(AuthUser, t_auth_users, properties={
 mapper(AuthToken, t_auth_tokens, properties={
     'user' : relationship(AuthUser, backref="tokens")
 })
-
-#mapper(AuthUserRole, t_auth_users_roles, properties={
-#    'user' : relationship(AuthUser, backref="roles"),
-#    'role' : relationship(AuthRole, backref="users")
-#})
 
 mapper(AuthRole, t_auth_roles, properties={
 
@@ -1301,6 +1360,10 @@ mapper(User, t_users, properties={
     'friends': relationship(User, secondary=t_users_users, 
                                  primaryjoin=t_users.c.id==t_users_users.c.from_id,
                                  secondaryjoin=t_users.c.id==t_users_users.c.to_id)
+})
+
+mapper(UserDevice, t_user_device, properties={
+    'user' : relationship(User, backref="devices"),
 })
 
 mapper(Group, t_groups, properties={
@@ -1356,6 +1419,11 @@ mapper(GoalEvaluationCache, t_goal_evaluation_cache,properties={
    'goal' : relationship(Goal)
 })
 
+mapper(GoalTrigger,t_goal_triggers, properties={
+    'goal' : relationship(Goal,backref="triggers"),
+    'value_translation' : relationship(TranslationVariable)
+})
+
 mapper(Language, t_languages)
 mapper(TranslationVariable,t_translationvariables)
 mapper(Translation, t_translations, properties={
@@ -1372,5 +1440,3 @@ def insert_variable_for_property(mapper,connection,target):
             variable.name = target.name
             variable.group = "day"
             DBSession.add(variable)
-
-

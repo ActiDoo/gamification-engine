@@ -10,11 +10,12 @@ import datetime
 from pyramid.request import Request
 from pyramid.response import Response
 from pyramid.settings import asbool
-from sqlalchemy.sql.expression import select
+from sqlalchemy.sql.expression import select, and_
 
 from gengine.app.permissions import perm_own_update_user_infos, perm_global_update_user_infos, perm_global_delete_user, perm_own_delete_user, \
-    perm_global_access_admin_ui
-from gengine.base.model import valid_timezone, exists_by_expr
+    perm_global_access_admin_ui, perm_global_register_device, perm_own_register_device, perm_global_read_messages, \
+    perm_own_read_messages
+from gengine.base.model import valid_timezone, exists_by_expr, update_connection
 from gengine.base.errors import APIError
 from pyramid.exceptions import NotFound
 from pyramid.renderers import render
@@ -29,7 +30,8 @@ from gengine.app.model import (
     Achievement,
     Value,
     Variable,
-    AuthUser, AuthToken, t_users, t_auth_users, t_auth_users_roles, t_auth_roles, t_auth_roles_permissions)
+    AuthUser, AuthToken, t_users, t_auth_users, t_auth_users_roles, t_auth_roles, t_auth_roles_permissions, UserDevice,
+    t_user_device, t_user_messages, UserMessage)
 from gengine.base.settings import get_settings
 from gengine.metadata import DBSession
 from gengine.wsgiutil import HTTPSProxied
@@ -288,15 +290,15 @@ def auth_login(request):
     password = doc.get("password")
 
     if not email or not password:
-        raise APIError(404, "login.email_and_password_required", "You need to send your email and password.")
+        raise APIError(400, "login.email_and_password_required", "You need to send your email and password.")
 
     user = DBSession.query(AuthUser).filter_by(email=email).first()
 
     if not user or not user.verify_password(password):
-        raise APIError(404, "login.email_or_password_invalid", "Either the email address or the password is wrong.")
+        raise APIError(401, "login.email_or_password_invalid", "Either the email address or the password is wrong.")
 
     if not user.active:
-        raise APIError(404, "user_is_not_activated", "Your user is not activated.")
+        raise APIError(400, "user_is_not_activated", "Your user is not activated.")
 
     token = AuthToken.generate_token()
     tokenObj = AuthToken(
@@ -309,6 +311,111 @@ def auth_login(request):
 
     return {
         "token" : token
+    }
+
+@view_config(route_name='register_device', renderer='json', request_method="POST")
+def register_device(request):
+    try:
+        doc = request.json_body
+    except:
+        raise APIError(400, "invalid_json", "no valid json body")
+
+    user_id = int(request.matchdict["user_id"])
+
+    device_id = doc.get("device_id")
+    push_id = doc.get("push_id")
+    device_os = doc.get("device_os")
+    app_version = doc.get("app_version")
+
+    if not device_id \
+            or not push_id \
+            or not user_id \
+            or not device_os \
+            or not app_version:
+        raise APIError(400, "register_device.required_fields",
+                       "Required fields: device_id, push_id, device_os, app_version")
+
+    if asbool(get_settings().get("enable_user_authentication", False)):
+        may_register = request.has_perm(perm_global_register_device) or request.has_perm(
+            perm_own_register_device) and str(request.user.id) == str(user_id)
+        if not may_register:
+            raise APIError(403, "forbidden", "You may not register devices for this user.")
+
+    if not exists_by_expr(t_users, t_users.c.id==user_id):
+        raise APIError(404, "register_device.user_not_found",
+                       "There is no user with this id.")
+
+    UserDevice.add_or_update_device(user_id = user_id, device_id = device_id, push_id = push_id, device_os = device_os, app_version = app_version)
+
+    return {
+        "status" : "ok"
+    }
+
+@view_config(route_name='get_messages', renderer='json', request_method="GET")
+def get_messages(request):
+    user_id = int(request.matchdict["user_id"])
+    offset = int(request.GET.get("offset",0))
+    limit = 100
+
+    if asbool(get_settings().get("enable_user_authentication", False)):
+        may_read_messages = request.has_perm(perm_global_read_messages) or request.has_perm(
+            perm_own_read_messages) and str(request.user.id) == str(user_id)
+        if not may_read_messages:
+            raise APIError(403, "forbidden", "You may not read the messages of this user.")
+
+    if not exists_by_expr(t_users, t_users.c.id == user_id):
+        raise APIError(404, "get_messages.user_not_found",
+                       "There is no user with this id.")
+
+    q = t_user_messages.select().where(t_user_messages.c.user_id==user_id).order_by(t_user_messages.c.created_at.desc()).limit(limit).offset(offset)
+    rows = DBSession.execute(q).fetchall()
+
+    return {
+        "messages" : [{
+            "id" : message["id"],
+            "text" : UserMessage.get_text(message),
+            "is_read" : message["is_read"],
+            "created_at" : message["created_at"]
+        } for message in rows]
+    }
+
+
+@view_config(route_name='read_messages', renderer='json', request_method="POST")
+def set_messages_read(request):
+    try:
+        doc = request.json_body
+    except:
+        raise APIError(400, "invalid_json", "no valid json body")
+
+    user_id = int(request.matchdict["user_id"])
+
+    if asbool(get_settings().get("enable_user_authentication", False)):
+        may_read_messages = request.has_perm(perm_global_read_messages) or request.has_perm(
+            perm_own_read_messages) and str(request.user.id) == str(user_id)
+        if not may_read_messages:
+            raise APIError(403, "forbidden", "You may not read the messages of this user.")
+
+    if not exists_by_expr(t_users, t_users.c.id == user_id):
+        raise APIError(404, "set_messages_read.user_not_found", "There is no user with this id.")
+
+    message_id = doc.get("message_id")
+    q = select([t_user_messages.c.id,
+        t_user_messages.c.created_at], from_obj=message_id).where(and_(t_user_messages.c.id==message_id,
+                                                                       t_user_messages.c.user_id==user_id))
+    msg = DBSession.execute(q).fetchone()
+    if not msg:
+        raise APIError(404, "set_messages_read.message_not_found", "There is no message with this id.")
+
+    uS = update_connection()
+    uS.execute(t_user_messages.update().values({
+        "is_read" : True
+    }).where(and_(
+        t_user_messages.c.user_id == user_id,
+        t_user_messages.c.created_at <= msg["created_at"]
+    )))
+
+    return {
+        "status" : "ok"
     }
 
 @view_config(route_name='admin_app')
