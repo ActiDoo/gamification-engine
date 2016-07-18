@@ -31,7 +31,9 @@ requires = [
     'jsl',
     'jsonschema',
     'pyparsing',
-    'argon2'
+    'argon2',
+    'apns',
+    'python-gcm'
     ]
 
 version = ''
@@ -75,4 +77,7 @@ setup(name='gamification-engine',
       [redgalaxy.plugins]
       gengine = gengine:redgalaxy
       """,
+      dependency_links=[
+          "https://github.com/ActiDoo/PyAPNs/archive/master.zip#egg=apns",
+      ],
      )

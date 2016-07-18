@@ -2,14 +2,17 @@
 """models including business logic"""
 
 import datetime
+import logging
 from datetime import timedelta
 
 import hashlib
 import pytz
 import sqlalchemy.types as ty
+import sys
+
 from pyramid.settings import asbool
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.sql.schema import UniqueConstraint
+from sqlalchemy.sql.schema import UniqueConstraint, Index
 
 from gengine.app.permissions import perm_global_increase_value
 from gengine.base.model import ABase, exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
@@ -36,6 +39,8 @@ from gengine.base.settings import get_settings
 from gengine.metadata import Base, DBSession
 
 from gengine.app.formular import evaluate_condition, evaluate_value_expression, evaluate_string
+
+log = logging.getLogger(__name__)
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
@@ -254,11 +259,29 @@ t_user_messages = Table('user_messages', Base.metadata,
 
 t_goal_triggers = Table('goal_triggers', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
+    Column("name", ty.String(100), nullable=False),
     Column('goal_id', ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True),
+)
+
+t_goal_trigger_steps = Table('goal_trigger_steps', Base.metadata,
+    Column('id', ty.Integer, primary_key = True),
+    Column('goal_trigger_id', ty.Integer, ForeignKey("goal_triggers.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column('step', ty.Integer, nullable=False, default=0),
     Column('condition_type', ty.Enum("percentage", name="goal_trigger_condition_types"), default="percentage"),
     Column('condition_percentage', ty.Float, nullable=True),
     Column('action_type', ty.Enum("user_message", name="goal_trigger_action_types"), default="user_message"),
     Column('action_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = True),
+
+    UniqueConstraint("goal_trigger_id", "step")
+)
+
+t_goal_trigger_step_executions = Table('goal_trigger_executions', Base.metadata,
+    Column('id', ty.BigInteger, primary_key = True),
+    Column('trigger_step_id', ty.Integer, ForeignKey("goal_trigger_steps.id", ondelete="CASCADE"), nullable=False),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column('execution_level', ty.Integer, nullable = False, default=0),
+    Column('execution_date', ty.DateTime(), nullable=False, default=datetime.datetime.utcnow, index=True),
+    Index("ix_goal_trigger_executions_combined", "trigger_step_id","user_id","execution_level")
 )
 
 class AuthUser(ABase):
@@ -761,7 +784,7 @@ class Achievement(ABase):
                         "value" : evaluate_string(r["value"], {"level":i}),
                         "value_translated" : Translation.trs(r["value_translation_id"], {"level":i}),
                     } for r in Achievement.get_achievement_properties(achievement["id"],i)}
-            } for i in range(0,max_level_included+1)}
+            } for i in range(1,max_level_included+1)}
         return out
 
     @classmethod
@@ -993,7 +1016,7 @@ class Goal(ABase):
     """A Goal defines a rule on variables that needs to be reached to get achievements"""
 
     def __unicode__(self, *args, **kwargs):
-        if self.name_translation!=None:
+        if self.name_translation_id!=None:
             name = Translation.trs(self.name_translation.id, {"level":1, "goal":'0'})[_fallback_language]
             return str(name) + " (ID: %s)" % (self.id,)
         else:
@@ -1134,12 +1157,58 @@ class Goal(ABase):
                 goal_achieved = True
                 new = max(new,goal_goal)
 
+            # Evaluate triggers
+            Goal.select_and_execute_triggers(goal = goal, user_id = user_id, level = level, goal_goal = goal_goal, value = new)
+
             return Goal.set_goal_eval_cache(goal=goal,
                                             user_id=user_id,
                                             value=new,
                                             achieved = goal_achieved)
         else:
             return Goal.get_goal_eval_cache(goal["id"], user_id)
+
+    @classmethod
+    def select_and_execute_triggers(cls, goal, user_id, level, goal_goal, value):
+        j = t_goal_trigger_step_executions.join(t_goal_trigger_steps)
+        executions = {r["goal_trigger_id"] : r["step"] for r in
+                      DBSession.execute(
+                          select([t_goal_trigger_steps.c.id.label("step_id"),
+                                  t_goal_trigger_steps.c.goal_trigger_id,
+                                  t_goal_trigger_steps.c.step], from_obj=j).\
+                          where(and_(t_goal_triggers.c.goal_id == goal["id"],
+                                     t_goal_trigger_step_executions.c.user_id == user_id,
+                                     t_goal_trigger_step_executions.c.execution_level == level))).fetchall()
+                      }
+
+        j = t_goal_trigger_steps.join(t_goal_triggers)
+        trigger_steps = DBSession.execute(t_goal_trigger_steps.select(from_obj=j).\
+                                  where(t_goal_triggers.c.goal_id == goal["id"],)).\
+                                  fetchall()
+        trigger_steps = [s for s in trigger_steps if s["step"]>executions.get(s["goal_trigger_id"],-sys.maxsize)]
+        if len(trigger_steps)>0:
+            operator = goal["operator"]
+
+            goal_properties = {
+                p["name"]: (p["value_translated"] if p["value_translated"] else p["value"])
+                for p in Goal.basic_goal_output(goal, level).get("properties").values()
+            }
+
+            for step in trigger_steps:
+                if step["condition_type"] == "percentage" and step["condition_percentage"]:
+                    current_percentage = float(value) / float(goal_goal)
+                    required_percentage = step["condition_percentage"]
+                    if (operator == "geq" and current_percentage >= required_percentage) \
+                        or (operator == "leq" and current_percentage <= required_percentage):
+                        GoalTriggerStep.execute(
+                            trigger_step = step,
+                            user_id = user_id,
+                            current_percentage = current_percentage,
+                            value = value,
+                            goal_goal = goal_goal,
+                            goal_level = level,
+                            goal_properties = goal_properties
+                        )
+
 
     @classmethod
     def get_goal_eval_cache(cls,goal_id,user_id):
@@ -1303,9 +1372,12 @@ class Translation(ABase):
         if translation_id is None:
             return None
         try:
+            # TODO support params which are results of this function itself (dicts of lang -> value)
+            # maybe even better: add possibility to refer to other translationvariables directly (so they can be modified later on)
             ret = {str(x["name"]) : evaluate_string(x["text"],params) for x in cls.get_translation_variable(translation_id)}
-        except:
+        except Exception as e:
             ret = {str(x["name"]) : x["text"] for x in cls.get_translation_variable(translation_id)}
+            log.exception("Evaluation of string-forumlar failed: %s" % (ret.get(_fallback_language,translation_id),))
             
         if not _fallback_language in ret:
             ret[_fallback_language] = "[not_translated]_"+str(translation_id) 
@@ -1331,14 +1403,45 @@ class Translation(ABase):
 
 class UserMessage(ABase):
     def __unicode__(self, *args, **kwargs):
-        return "Message: %s" % (Translation.trs(self.translationvariable_id,self.params).get(_fallback_language),)
+        return "Message: %s" % (Translation.trs(self.translation_id,self.params).get(_fallback_language),)
 
-    def get_text(self, row):
-        return Translation.trs(row["translationvariable_id"],row["params"])
+    @classmethod
+    def get_text(cls, row):
+        return Translation.trs(row["translation_id"],row["params"])
+
+    @property
+    def text(self):
+        return Translation.trs(self.translation_id, self.params)
 
 class GoalTrigger(ABase):
     def __unicode__(self, *args, **kwargs):
         return "GoalTrigger: %s" % (self.id,)
+
+class GoalTriggerStep(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "GoalTriggerStep: %s" % (self.id,)
+
+    @classmethod
+    def execute(cls, trigger_step, user_id, current_percentage, value, goal_goal, goal_level, goal_properties):
+        uS = update_connection()
+        uS.execute(t_goal_trigger_step_executions.insert().values({
+            'user_id' : user_id,
+            'trigger_step_id' : trigger_step["id"],
+            'execution_level' : goal_level,
+        }))
+        if trigger_step["action_type"] == "user_message":
+            m = UserMessage(
+                user_id = user_id,
+                translation_id = trigger_step["action_translation_id"],
+                params = dict({
+                    'value' : value,
+                    'goal' : goal_goal,
+                    'percentage' : current_percentage
+                },**goal_properties),
+                is_read = False,
+            )
+            uS.add(m)
+
 
 mapper(AuthUser, t_auth_users, properties={
     'roles' : relationship(AuthRole, secondary=t_auth_users_roles, backref="users")
@@ -1421,7 +1524,10 @@ mapper(GoalEvaluationCache, t_goal_evaluation_cache,properties={
 
 mapper(GoalTrigger,t_goal_triggers, properties={
     'goal' : relationship(Goal,backref="triggers"),
-    'value_translation' : relationship(TranslationVariable)
+})
+mapper(GoalTriggerStep,t_goal_trigger_steps, properties={
+    'trigger' : relationship(GoalTrigger,backref="steps"),
+    'action_translation' : relationship(TranslationVariable)
 })
 
 mapper(Language, t_languages)
@@ -1429,6 +1535,11 @@ mapper(TranslationVariable,t_translationvariables)
 mapper(Translation, t_translations, properties={
    'language' : relationship(Language),
    'translationvariable' : relationship(TranslationVariable, backref="translations"),
+})
+
+mapper(UserMessage, t_user_messages, properties = {
+    'user' : relationship(User, backref="user_messages"),
+    'translationvariable' : relationship(TranslationVariable),
 })
 
 @event.listens_for(AchievementProperty, "after_insert")

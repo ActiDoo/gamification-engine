@@ -1,6 +1,7 @@
 import pytz
 from pytz.exceptions import UnknownTimeZoneError
 from sqlalchemy.inspection import inspect
+from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.functions import func
 from zope.sqlalchemy.datamanager import mark_changed
@@ -11,6 +12,17 @@ from gengine.base.cache import cache_general
 class ABaseMeta(type):
     def __init__(cls, name, bases, nmspc):
         super(ABaseMeta, cls).__init__(name, bases, nmspc)
+
+        # monkey patch __unicode__
+        # this is required to give show the SQL error to the user in flask admin if constraints are violated
+        if hasattr(cls,"__unicode__"):
+            old_unicode = cls.__unicode__
+            def patched(self):
+                try:
+                    return old_unicode(self)
+                except DetachedInstanceError:
+                    return "(DetachedInstance)"
+            cls.__unicode__ = patched
 
     def __getattr__(cls, item):
         if item == "__table__":

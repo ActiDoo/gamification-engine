@@ -9,7 +9,7 @@ class MySession(Session):
     """This allow us to use the flask-admin sqla extension, which uses DBSession.commit() rather than transaction.commit()"""
     def commit(self,*args,**kw):
         transaction.commit(*args,**kw)
-        
+
     def rollback(self,*args,**kw):
         transaction.abort(*args,**kw)
 
@@ -20,7 +20,13 @@ def init_session(override_session=None):
     if override_session:
         DBSession = override_session
     else:
-        DBSession = scoped_session(sessionmaker(extension=ZopeTransactionExtension(), class_=MySession)) 
+        DBSession = scoped_session(
+            sessionmaker(
+                extension=ZopeTransactionExtension(),
+                class_=MySession,
+                expire_on_commit=False
+            )
+        )
 
 Base=None
 

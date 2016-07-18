@@ -11,3 +11,5 @@ def config_routes(config):
     config.add_route('auth_login', '/auth/login')
 
     config.add_route('register_device', '/register_device/{user_id}')
+    config.add_route('get_messages', '/messages/{user_id}')
+    config.add_route('read_messages', '/read_messages/{user_id}')

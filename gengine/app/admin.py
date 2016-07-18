@@ -16,7 +16,7 @@ from wtforms.form import Form
 
 from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
                            GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation, \
-    AuthUser, AuthRole, AuthRolePermission
+    AuthUser, AuthRole, AuthRolePermission, GoalTrigger, GoalTriggerStep, UserMessage
 from gengine.app.permissions import yield_all_perms
 from gengine.base.settings import get_settings
 
@@ -82,6 +82,8 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             
     admin.add_view(ModelViewAchievement(DBSession, category="Rules"))
     admin.add_view(ModelViewGoal(DBSession, category="Rules"))
+    admin.add_view(ModelViewGoalTrigger(DBSession, category="Rules"))
+
     admin.add_view(ModelView(AchievementAchievementProperty, DBSession, category="Rules", name="Achievement Property Values"))
     admin.add_view(ModelView(AchievementReward, DBSession, category="Rules", name="Achievement Reward Values"))
     admin.add_view(ModelView(GoalGoalProperty, DBSession, category="Rules", name="Goal Property Values"))
@@ -103,6 +105,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
     admin.add_view(ModelViewUser(DBSession, category="Debug"))
     admin.add_view(ModelView(AchievementUser, DBSession, category="Debug"))
+    admin.add_view(ModelViewUserMessage(DBSession, category="Debug"))
 
 class TranslationInlineModelForm(InlineFormAdmin):
     form_columns = ('id','language','text')
@@ -139,9 +142,30 @@ class ModelViewVariable(ModelView):
     def __init__(self, session, **kwargs):
         super(ModelViewVariable, self).__init__(Variable, session, **kwargs)
 
+class GoalTriggerStepInlineModelForm(InlineFormAdmin):
+    form_columns = (
+        'id',
+        'step',
+        'condition_type',
+        'condition_percentage',
+        'action_type',
+        'action_translation',
+    )
+
+class ModelViewGoalTrigger(ModelView):
+    form_columns = (
+        'name',
+        'goal',
+        'steps',
+    )
+    inline_models = (GoalTriggerStepInlineModelForm(GoalTriggerStep),)
+
+    def __init__(self, session, **kwargs):
+        super(ModelViewGoalTrigger, self).__init__(GoalTrigger, session, **kwargs)
+
 class ModelViewGoal(ModelView):
     column_list = ('condition','evaluation','operator','goal','timespan','priority','achievement','updated_at')
-    form_excluded_columns =('properties',)
+    form_excluded_columns =('properties','triggers')
     #column_searchable_list = ('name',)
     column_filters = (Achievement.id,)
     fast_mass_delete = True
@@ -248,3 +272,13 @@ class ModelViewAuthRole(ModelView):
 
     def __init__(self, session, **kwargs):
         super(ModelViewAuthRole, self).__init__(AuthRole, session, **kwargs)
+
+
+class ModelViewUserMessage(ModelView):
+    column_list = ('user','text','created_at','is_read')
+    column_details_list = ('user', 'text', 'created_at', 'is_read', 'params')
+    can_edit = False
+    can_view_details = True
+
+    def __init__(self, session, **kwargs):
+        super(ModelViewUserMessage, self).__init__(UserMessage, session, **kwargs)

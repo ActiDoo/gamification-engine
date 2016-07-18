@@ -152,19 +152,16 @@ def _get_progress(achievements_for_user, requesting_user):
     return ret
 
 
-@view_config(route_name='get_progress', renderer='string')
+@view_config(route_name='get_progress', renderer='json', request_method="GET")
 def get_progress(request):
     """get all relevant data concerning the user's progress"""
     user_id = int(request.matchdict["user_id"])
     
     user = User.get_user(user_id)
     if not user:
-        raise NotFound("user not found")
+        raise APIError(404, "user_not_found", "user not found")
 
-    request.response.content_type = "application/json"
-    progress = _get_progress(achievements_for_user=user, requesting_user=request.user)
-    json_string, pmap = progress
-    return json_string
+    return _get_progress(achievements_for_user=user, requesting_user=request.user)
 
 @view_config(route_name='increase_value', renderer='json', request_method="POST")
 @view_config(route_name='increase_value_with_key', renderer='json', request_method="POST")
@@ -422,17 +419,18 @@ def set_messages_read(request):
 @wsgiapp2
 def admin_tenant(environ, start_response):
 
-    def admin_app():
-        return HTTPSProxied(DebuggedApplication(adminapp.wsgi_app, True))(environ, start_response)
+    def admin_app(environ, start_response):
+        #return HTTPSProxied(DebuggedApplication(adminapp.wsgi_app, True))(environ, start_response)
+        return HTTPSProxied(adminapp.wsgi_app)(environ, start_response)
 
-    def request_auth():
+    def request_auth(environ, start_response):
         resp = Response()
         resp.status_code = 401
         resp.www_authenticate = 'Basic realm="%s"' % ("Gamification Engine Admin",)
         return resp(environ, start_response)
 
     if not asbool(get_settings().get("enable_user_authentication", False)):
-        return admin_app()
+        return admin_app(environ, start_response)
 
     req = Request(environ)
 
@@ -469,20 +467,24 @@ def admin_tenant(environ, start_response):
         if cred:
             user = DBSession.query(AuthUser).filter_by(email=cred["login"]).first()
         if not user or not user.verify_password(cred["password"]):
-            return request_auth()
+            return request_auth(environ, start_response)
 
     if user:
         j = t_auth_users.join(t_auth_users_roles).join(t_auth_roles).join(t_auth_roles_permissions)
         q = select([t_auth_roles_permissions.c.name], from_obj=j).where(t_auth_users.c.user_id==user.user_id)
         permissions = [r["name"] for r in DBSession.execute(q).fetchall()]
         if not perm_global_access_admin_ui in permissions:
-            return request_auth()
+            return request_auth(environ, start_response)
         else:
-            cookie = SimpleCookie()
-            cookie['X-Auth-Token'] = user.get_or_create_token().token
-            cookie['X-Auth-Token']['path'] = get_settings().get("urlprefix","").rstrip("/")+"/"
 
-            cookieheaders = ('Set-Cookie', cookie['X-Auth-Token'].OutputString())
-            start_response(200,[cookieheaders,])
+            def start_response_with_headers(status, headers, exc_info=None):
 
-            return admin_app()
+                cookie = SimpleCookie()
+                cookie['X-Auth-Token'] = user.get_or_create_token().token
+                cookie['X-Auth-Token']['path'] = get_settings().get("urlprefix", "").rstrip("/") + "/"
+
+                headers.append(('Set-Cookie', cookie['X-Auth-Token'].OutputString()),)
+
+                return start_response(status, headers, exc_info)
+
+            return admin_app(environ, start_response_with_headers)
