@@ -133,7 +133,7 @@ def evaluate_value_expression(expression, params={}):
 
 def render_string(tpl, params):
     """Substitute text in <> with corresponding variable value."""
-    regex = re.compile('\${(.+)}')
+    regex = re.compile('\${(.+?)}')
     def repl(m):
         group = m.group(1)
         value = evaluate_value_expression(group, params)
