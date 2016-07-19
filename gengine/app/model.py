@@ -31,7 +31,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlalchemy.orm import (
     mapper,
-    relationship
+    relationship as sa_relationship,
+    backref as sa_backref
 )
 from sqlalchemy.sql import bindparam
 
@@ -261,6 +262,7 @@ t_goal_triggers = Table('goal_triggers', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column("name", ty.String(100), nullable=False),
     Column('goal_id', ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column('execute_when_complete', ty.Boolean, nullable=False, server_default='0', default=False),
 )
 
 t_goal_trigger_steps = Table('goal_trigger_steps', Base.metadata,
@@ -1124,7 +1126,7 @@ class Goal(ABase):
         return DBSession.execute(q, {'user_id' : user_id})
 
     @classmethod
-    def evaluate(cls, goal, user_id, level, goal_eval_cache_before=False):
+    def evaluate(cls, goal, user_id, level, goal_eval_cache_before=False, execute_triggers=True):
         """evaluate the goal for the user_ids and the level"""
 
         operator = goal["operator"]
@@ -1157,8 +1159,11 @@ class Goal(ABase):
                 goal_achieved = True
                 new = max(new,goal_goal)
 
+            previous_goal = Goal.basic_goal_output(goal, level-1).get("goal_goal",0)
+
             # Evaluate triggers
-            Goal.select_and_execute_triggers(goal = goal, user_id = user_id, level = level, goal_goal = goal_goal, value = new)
+            if execute_triggers:
+                Goal.select_and_execute_triggers(goal = goal, user_id = user_id, level = level, current_goal = goal_goal, previous_goal = previous_goal, value = new)
 
             return Goal.set_goal_eval_cache(goal=goal,
                                             user_id=user_id,
@@ -1168,7 +1173,7 @@ class Goal(ABase):
             return Goal.get_goal_eval_cache(goal["id"], user_id)
 
     @classmethod
-    def select_and_execute_triggers(cls, goal, user_id, level, goal_goal, value):
+    def select_and_execute_triggers(cls, goal, user_id, level, current_goal, value, previous_goal):
         j = t_goal_trigger_step_executions.join(t_goal_trigger_steps)
         executions = {r["goal_trigger_id"] : r["step"] for r in
                       DBSession.execute(
@@ -1181,33 +1186,52 @@ class Goal(ABase):
                       }
 
         j = t_goal_trigger_steps.join(t_goal_triggers)
-        trigger_steps = DBSession.execute(t_goal_trigger_steps.select(from_obj=j).\
-                                  where(t_goal_triggers.c.goal_id == goal["id"],)).\
-                                  fetchall()
+
+        trigger_steps = DBSession.execute(select([
+            t_goal_trigger_steps.c.id,
+            t_goal_trigger_steps.c.goal_trigger_id,
+            t_goal_trigger_steps.c.step,
+            t_goal_trigger_steps.c.condition_type,
+            t_goal_trigger_steps.c.condition_percentage,
+            t_goal_trigger_steps.c.action_type,
+            t_goal_trigger_steps.c.action_translation_id,
+            t_goal_triggers.c.execute_when_complete,
+        ],from_obj=j).\
+        where(t_goal_triggers.c.goal_id == goal["id"],)).fetchall()
+
         trigger_steps = [s for s in trigger_steps if s["step"]>executions.get(s["goal_trigger_id"],-sys.maxsize)]
+
+        exec_queue = {}
+
+        #When editing things here, check the insert_trigger_step_executions_after_step_upsert event listener too!!!!!!!
         if len(trigger_steps)>0:
             operator = goal["operator"]
 
-            goal_properties = {
-                p["name"]: (p["value_translated"] if p["value_translated"] else p["value"])
-                for p in Goal.basic_goal_output(goal, level).get("properties").values()
-            }
+            goal_properties = Goal.get_properties(goal,level)
 
             for step in trigger_steps:
                 if step["condition_type"] == "percentage" and step["condition_percentage"]:
-                    current_percentage = float(value) / float(goal_goal)
+                    current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
                     required_percentage = step["condition_percentage"]
+                    if current_percentage>=1.0 and required_percentage!=1.0 and not step["execute_when_complete"]:
+                        # When the user reaches the full goal, and there is a trigger at e.g. 90%, we don't want it to be executed anymore.
+                        continue
                     if (operator == "geq" and current_percentage >= required_percentage) \
                         or (operator == "leq" and current_percentage <= required_percentage):
-                        GoalTriggerStep.execute(
-                            trigger_step = step,
-                            user_id = user_id,
-                            current_percentage = current_percentage,
-                            value = value,
-                            goal_goal = goal_goal,
-                            goal_level = level,
-                            goal_properties = goal_properties
-                        )
+                        if exec_queue.get(step["goal_trigger_id"],{"step" : -sys.maxsize})["step"] < step["step"]:
+                            exec_queue[step["goal_trigger_id"]] = step
+
+            for step in exec_queue.values():
+                current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
+                GoalTriggerStep.execute(
+                    trigger_step = step,
+                    user_id = user_id,
+                    current_percentage = current_percentage,
+                    value = value,
+                    goal_goal = current_goal,
+                    goal_level = level,
+                    goal_properties = goal_properties
+                )
 
 
     @classmethod
@@ -1350,6 +1374,13 @@ class Goal(ABase):
             #"updated_at" : goal["updated_at"]
         }
 
+    @classmethod
+    @cache_general.cache_on_arguments()
+    def get_properties(cls, goal, level):
+        return {
+            p["name"]: (p["value_translated"] if p["value_translated"] else p["value"])
+            for p in Goal.basic_goal_output(goal, level).get("properties").values()
+        }
 
 class Language(ABase):
     def __unicode__(self, *args, **kwargs):
@@ -1422,26 +1453,71 @@ class GoalTriggerStep(ABase):
         return "GoalTriggerStep: %s" % (self.id,)
 
     @classmethod
-    def execute(cls, trigger_step, user_id, current_percentage, value, goal_goal, goal_level, goal_properties):
+    def execute(cls, trigger_step, user_id, current_percentage, value, goal_goal, goal_level, goal_properties, suppress_actions=False):
         uS = update_connection()
         uS.execute(t_goal_trigger_step_executions.insert().values({
             'user_id' : user_id,
             'trigger_step_id' : trigger_step["id"],
             'execution_level' : goal_level,
         }))
-        if trigger_step["action_type"] == "user_message":
-            m = UserMessage(
-                user_id = user_id,
-                translation_id = trigger_step["action_translation_id"],
-                params = dict({
-                    'value' : value,
-                    'goal' : goal_goal,
-                    'percentage' : current_percentage
-                },**goal_properties),
-                is_read = False,
-            )
-            uS.add(m)
+        if not suppress_actions:
+            if trigger_step["action_type"] == "user_message":
+                m = UserMessage(
+                    user_id = user_id,
+                    translation_id = trigger_step["action_translation_id"],
+                    params = dict({
+                        'value' : value,
+                        'goal' : goal_goal,
+                        'percentage' : current_percentage
+                    },**goal_properties),
+                    is_read = False,
+                )
+                uS.add(m)
 
+@event.listens_for(GoalTriggerStep, "after_insert")
+@event.listens_for(GoalTriggerStep, 'after_update')
+def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
+    """When we create a new Trigger-Step, we must ensure, that is will not be executed for the users who already met the conditions before."""
+
+    user_ids = [x["id"] for x in DBSession.execute(select([t_users.c.id,],from_obj=t_users)).fetchall()]
+    goal = target.trigger.goal
+    achievement = goal.achievement
+
+    for user_id in user_ids:
+        user_has_level = Achievement.get_level_int(user_id, achievement["id"])
+        user_wants_level = min((user_has_level or 0) + 1, achievement["maxlevel"])
+        goal_eval = Goal.evaluate(goal, user_id, user_wants_level, None, execute_triggers=False)
+
+        previous_goal = Goal.basic_goal_output(goal, user_wants_level - 1).get("goal_goal", 0)
+        current_percentage = float(goal_eval["value"]-previous_goal) / float(goal_eval["goal_goal"]-previous_goal)
+        operator = goal["operator"]
+        required_percentage = target["condition_percentage"]
+
+        if (operator == "geq" and current_percentage >= required_percentage) \
+                or (operator == "leq" and current_percentage <= required_percentage):
+            GoalTriggerStep.execute(
+                trigger_step=target,
+                user_id=user_id,
+                current_percentage=current_percentage,
+                value=goal_eval["value"],
+                goal_goal=goal_eval["goal_goal"],
+                goal_level=user_wants_level,
+                goal_properties=Goal.get_properties(goal,user_wants_level),
+                suppress_actions = True
+            )
+
+def backref(*args,**kw):
+    if not "passive_deletes" in kw:
+        kw["passive_deletes"] = True
+    return sa_backref(*args,**kw)
+
+def relationship(*args,**kw):
+    if not "passive_deletes" in kw:
+        kw["passive_deletes"] = True
+    if "backref" in kw:
+        if type(kw["backref"]=="str"):
+            kw["backref"] = backref(kw["backref"])
+    return sa_relationship(*args,**kw)
 
 mapper(AuthUser, t_auth_users, properties={
     'roles' : relationship(AuthRole, secondary=t_auth_users_roles, backref="users")
@@ -1470,7 +1546,7 @@ mapper(UserDevice, t_user_device, properties={
 })
 
 mapper(Group, t_groups, properties={
-    'users' : relationship(User, secondary=t_users_groups, backref="groups"), 
+    'users' : relationship(User, secondary=t_users_groups, backref="groups"),
 })
 
 mapper(Variable, t_variables, properties={

@@ -48,8 +48,8 @@ def add_or_update_user(request):
         if not may_update:
             raise APIError(403, "forbidden", "You may not edit this user.")
 
-        if not exists_by_expr(t_users,t_users.c.id==user_id):
-            raise APIError(403, "forbidden", "The user does not exist. As the user authentication is enabled, you need to create the AuthUser first.")
+        #if not exists_by_expr(t_users,t_users.c.id==user_id):
+        #    raise APIError(403, "forbidden", "The user does not exist. As the user authentication is enabled, you need to create the AuthUser first.")
 
 
     lat=None

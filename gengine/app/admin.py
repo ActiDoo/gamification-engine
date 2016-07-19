@@ -157,6 +157,7 @@ class ModelViewGoalTrigger(ModelView):
         'name',
         'goal',
         'steps',
+        'execute_when_complete'
     )
     inline_models = (GoalTriggerStepInlineModelForm(GoalTriggerStep),)
 
@@ -252,8 +253,8 @@ class MaintenanceView(BaseView):
         return self.render(template="admin_maintenance.html")
 
 class ModelViewAuthUser(ModelView):
-    column_list = ('id', 'email', 'active', 'created_at')
-    form_columns = ('email', 'password', 'active', 'roles')
+    column_list = ('user_id', 'email', 'active', 'created_at')
+    form_columns = ('user_id','email', 'password', 'active', 'roles')
     column_labels = {'password': 'Password'}
 
     def __init__(self, session, **kwargs):
