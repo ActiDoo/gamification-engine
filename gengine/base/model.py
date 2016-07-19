@@ -29,6 +29,7 @@ class ABaseMeta(type):
             return inspect(cls).local_table
         raise AttributeError(item)
 
+
 class ABase(object, metaclass=ABaseMeta):
     """abstract base class which introduces a nice constructor for the model classes."""
 
@@ -44,6 +45,13 @@ class ABase(object, metaclass=ABaseMeta):
     def __str__(self):
         if hasattr(self, "__unicode__"):
             return self.__unicode__()
+
+    def __getitem__(self, key):
+        return getattr(self,key)
+
+    def __setitem__(self, key, item):
+        return setattr(self,key,item)
+
 
 def calc_distance(latlong1, latlong2):
     """generates a sqlalchemy expression for distance query in km
