@@ -74,6 +74,7 @@ setup(name='gamification-engine',
       initialize_gengine_db = gengine.maintenance.scripts.initializedb:main
       gengine_quickstart = gengine.maintenance.scripts.quickstart:main
       generate_gengine_erd = gengine.maintenance.scripts.generate_erd:main
+      generate_gengine_revision = gengine.maintenance.scripts.generate_revision:main
       [redgalaxy.plugins]
       gengine = gengine:redgalaxy
       """,
