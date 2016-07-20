@@ -39,19 +39,23 @@ var setupAPIForm = function($, defaultcall, fields, api_funcs) {
 
 	var api_settings_url;
 	var api_settings_method;
-	var api_settings_postparams; 
+	var api_settings_postparams;
+	var api_settings_jsonparams;
+	var api_settings_getparams;
 	
-	var setURL = function(url,method,postparams) {
+	var setURL = function(url, method, postparams, jsonparams, getparams) {
 		api_settings_url = API_BASE_URL ? API_BASE_URL+url : url;
 		api_settings_method=method;
 		api_settings_postparams = postparams;
+		api_settings_jsonparams = jsonparams;
+		api_settings_getparams = getparams;
 	};
 	
 	var activationfuncs = {};
 	$.each(api_funcs,function(k,f) {
 	   activationfuncs[k] = function() {
 	       setActiveFields(f["fields"]);
-           setURL(f["url"],f["method"],f["postparams"]);
+           setURL(f["url"],f["method"],f["postparams"],f["jsonparams"],f["getparams"]);
 	   };
 	});
 	
@@ -83,9 +87,14 @@ var setupAPIForm = function($, defaultcall, fields, api_funcs) {
 		var url = api_settings_url;
 		var method = api_settings_method;
 		var postparams = api_settings_postparams;
+		var jsonparams = api_settings_jsonparams;
+		var getparams = api_settings_getparams;
 		var ajax_options={};
 		
 		ajax_options["data"] = {};
+		jsondata = {};
+		encoded_get_params = [];
+
 		for(var i=0; i<fields.length; i++) {
 			var f	= fields[i];
 			var val = container_fields[f].find("input").val();
@@ -98,13 +107,25 @@ var setupAPIForm = function($, defaultcall, fields, api_funcs) {
 			} else {
 				url = url.replace("{/"+f+"}","");
 			}
-			
-			if(postparams!=undefined && $.inArray(f,postparams)!=-1) {
+
+			if(typeof(postparams)!=undefined && $.inArray(f,postparams)!=-1) {
 				ajax_options["data"][f] = val;
 			}
+
+			if(typeof(jsonparams)!=undefined && $.inArray(f,jsonparams)!=-1) {
+				jsondata[f] = val;
+			}
+
+			if(typeof(getparams)!=undefined && $.inArray(f,getparams)!=-1) {
+				encoded_get_params.push(f+"="+encodeURIComponent(val));
+			}
 		}
-		ajax_options["url"] = url;
+		ajax_options["url"] = url + "?" + encoded_get_params.join("&");
 		ajax_options["method"] = method;
+
+		if(Object.keys(jsondata).length>0) {
+		    ajax_options["data"] = JSON.stringify(jsondata)
+		}
 		
 		var request = $.ajax(ajax_options);
 		

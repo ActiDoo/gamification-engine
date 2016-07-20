@@ -42,6 +42,12 @@
 			    		<option>add_or_update_user</option>
 			    		<option>delete_user</option>
 			    		<option>achievement_level</option>
+						{%if settings_enable_authentication %}
+						<option>auth_login</option>
+						{% endif %}
+						<option>register_device</option>
+						<option>get_messages</option>
+						<option>set_messages_read</option>
 		    		</select>
 		    		
 		    		<div id="api_field_userid">
@@ -113,7 +119,47 @@
 		    			<label>City</label>
 		    			<input type="text" placeholder="Enter City">
 		    		</div>
-		    		
+
+					<div id="api_field_email">
+		    			<label>Email</label>
+		    			<input type="text" placeholder="Enter Email">
+		    		</div>
+
+					<div id="api_field_password">
+		    			<label>Password</label>
+		    			<input type="text" placeholder="Enter Password">
+		    		</div>
+
+					<div id="api_field_device_id">
+		    			<label>Device-ID</label>
+		    			<input type="text" placeholder="Device-ID">
+		    		</div>
+
+					<div id="api_field_device_os">
+		    			<label>Device-OS</label>
+		    			<input type="text" placeholder="Device-OS">
+		    		</div>
+
+					<div id="api_field_push_id">
+		    			<label>Push-ID</label>
+		    			<input type="text" placeholder="Push-ID">
+		    		</div>
+
+					<div id="api_field_app_version">
+		    			<label>App-Version</label>
+		    			<input type="text" placeholder="App-Version">
+		    		</div>
+
+					<div id="api_field_offset">
+		    			<label>Offset</label>
+		    			<input type="text" placeholder="Offset">
+		    		</div>
+
+					<div id="api_field_message_id">
+		    			<label>Message-ID</label>
+		    			<input type="text" placeholder="Message-ID">
+		    		</div>
+
 		    		<label>Submit</label>
 		    		<button type="submit" id="api_submit" class="btn">Submit</button>
 		  		</fieldset>
@@ -147,6 +193,28 @@
 					<b>Get Achievement Level</b>
 					<p>
 						GET to "/achievement/{achievement_id}/level/{level}"
+					</p>
+
+					{%if settings_enable_authentication %}
+					<b>Login</b>
+					<p>
+						POST to "/auth/login"
+					</p>
+					{% endif %}
+
+					<b>Register Device</b>
+					<p>
+						POST to "/register_device/{user_id}"
+					</p>
+
+					<b>Get Messages</b>
+					<p>
+						GET to "/messages/{user_id}"
+					</p>
+
+					<b>Set Messages Read</b>
+					<p>
+						POST to "/read_messages/{user_id}"
 					</p>
 				</fieldset>
 			</form>

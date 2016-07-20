@@ -352,8 +352,16 @@ def register_device(request):
 
 @view_config(route_name='get_messages', renderer='json', request_method="GET")
 def get_messages(request):
-    user_id = int(request.matchdict["user_id"])
-    offset = int(request.GET.get("offset",0))
+    try:
+        user_id = int(request.matchdict["user_id"])
+    except:
+        user_id = None
+
+    try:
+        offset = int(request.GET.get("offset",0))
+    except:
+        offset = 0
+
     limit = 100
 
     if asbool(get_settings().get("enable_user_authentication", False)):
@@ -399,7 +407,7 @@ def set_messages_read(request):
 
     message_id = doc.get("message_id")
     q = select([t_user_messages.c.id,
-        t_user_messages.c.created_at], from_obj=message_id).where(and_(t_user_messages.c.id==message_id,
+        t_user_messages.c.created_at], from_obj=t_user_messages).where(and_(t_user_messages.c.id==message_id,
                                                                        t_user_messages.c.user_id==user_id))
     msg = DBSession.execute(q).fetchone()
     if not msg:
