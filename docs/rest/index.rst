@@ -78,3 +78,51 @@ Get a single achievement Level
    - GET to "/increase_value/{variable_name}/{userId}"
 
    - can be used to check if a user is allowed to use a reward
+
+Authentication
+==============================
+   - POST to "/auth/login"
+   - Parameters in JSON-Body: email, password
+   - Returns a json body with a token:
+        .. code:: json
+        {
+            "token" : "foobar...."
+        }
+
+Register Device (for Push-Messages)
+==============================
+   - POST to "/register_device/{user_id}"
+   - Parameters in JSON-Body: device_id, push_id, device_os, app_version
+   - Returns a json body with an ok status, or an error:
+        .. code:: json
+        {
+            "status" : "ok"
+        }
+
+Get Messages
+==============================
+   - GET to "/messages/{user_id}"
+   - Possible GET Parameters: offset
+   - Limit is always 100
+   - Returns a json body with the messages:
+        .. code:: json
+        {
+            "messages" : [{
+                "id" : "....",
+                "text" : "....",
+                "is_read" : false,
+                "created_at" : "...."
+            }]
+        }
+
+Set Messages Read
+==============================
+   - POST to "/read_messages/{user_id}"
+   - Parameters in JSON-Body: message_id
+   - Sets all messages as read which are at least as old, as the given message
+   - Returns a json body with an ok status, or an error:
+        .. code:: json
+        {
+            "status" : "ok"
+        }
+
