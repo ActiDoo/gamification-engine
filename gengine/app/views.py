@@ -192,6 +192,8 @@ def increase_value(request):
     Value.increase_value(variable_name, user, value, key) 
     
     output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+    output = copy.deepcopy(output)
+
     for aid in list(output["achievements"].keys()):
         if len(output["achievements"][aid]["new_levels"])>0:
             if "levels" in output["achievements"][aid]:
