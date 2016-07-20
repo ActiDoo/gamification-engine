@@ -112,25 +112,26 @@ def create_user(DBSession, user, password):
         AuthRole,
         AuthRolePermission
     )
-    user1 = User(id=1, lat=10, lng=50, timezone="Europe/Berlin")
-    DBSession.add(user1)
-    DBSession.flush()
+    with transaction.manager:
+        user1 = User(id=1, lat=10, lng=50, timezone="Europe/Berlin")
+        DBSession.add(user1)
+        DBSession.flush()
 
-    auth_user = AuthUser(user_id=user1.id, email=user, password=password, active=True)
-    DBSession.add(auth_user)
+        auth_user = AuthUser(user_id=user1.id, email=user, password=password, active=True)
+        DBSession.add(auth_user)
 
-    auth_role = AuthRole(name="Global Admin")
-    DBSession.add(auth_role)
+        auth_role = AuthRole(name="Global Admin")
+        DBSession.add(auth_role)
 
-    DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
-    DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_user))
-    DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
-    DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_user_infos))
-    DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_read_messages))
-    DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_register_device))
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_user))
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_user_infos))
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_read_messages))
+        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_register_device))
 
-    auth_user.roles.append(auth_role)
-    DBSession.add(auth_user)
+        auth_user.roles.append(auth_role)
+        DBSession.add(auth_user)
 
 def populate_demo(DBSession):
 
