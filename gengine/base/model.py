@@ -6,7 +6,8 @@ from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.functions import func
 from zope.sqlalchemy.datamanager import mark_changed
 
-from gengine.metadata import DBSession
+import gengine.metadata as meta
+
 from gengine.base.cache import cache_general
 
 class ABaseMeta(type):
@@ -89,7 +90,7 @@ def get_insert_ids_by_result(r):
 def exists_by_expr(t, expr):
     # TODO: use exists instead of count
     q = select([func.count("*").label("c")], from_obj=t).where(expr)
-    r = DBSession.execute(q).fetchone()
+    r = meta.DBSession.execute(q).fetchone()
     if r.c > 0:
         return True
     else:
@@ -113,6 +114,6 @@ def valid_timezone(timezone):
     return True
 
 def update_connection():
-    session = DBSession()
+    session = meta.DBSession()
     mark_changed(session)
     return session
