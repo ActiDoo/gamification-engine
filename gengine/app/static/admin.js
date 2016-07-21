@@ -4,7 +4,7 @@ jQuery().ready(function($) {
     var fields=["userid","variable","value","key","achievementid","level",
                 "lat","lon","friends","groups","timezone","country","region","city",
                 "email","password","device_id","push_id","device_os","app_version",
-                "offset","message_id"];
+                "offset","message_id","additional_public_data"];
     
     var api_funcs = {
         "progress" : {
@@ -19,10 +19,10 @@ jQuery().ready(function($) {
             "postparams":["value"]
         },
         "add_or_update_user" : {
-            "fields":["userid","lat","lon","friends","groups","timezone","country","region","city"],
+            "fields":["userid","lat","lon","friends","groups","timezone","country","region","city","additional_public_data"],
             "url":"/add_or_update_user/{userid}",
             "method":"POST",
-            "postparams":["lat","lon","friends","groups","timezone","country","region","city"]
+            "postparams":["lat","lon","friends","groups","timezone","country","region","city","additional_public_data"]
         },
         "delete_user" : {
             "fields":["userid"],
