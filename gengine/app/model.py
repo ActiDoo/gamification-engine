@@ -51,6 +51,7 @@ t_users = Table("users", Base.metadata,
     Column("country", ty.String(), nullable=True, default=None),
     Column("region", ty.String(), nullable=True, default=None),
     Column("city", ty.String(), nullable=True, default=None),
+    Column("additional_public_data", ty.JSON(), nullable=True, default=None),
     Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
 )
 
@@ -418,7 +419,7 @@ class User(ABase):
         return int((tomorrow-today).total_seconds())
 
     @classmethod
-    def set_infos(cls,user_id,lat,lng,timezone,country,region,city,friends, groups):
+    def set_infos(cls,user_id,lat,lng,timezone,country,region,city,friends, groups, additional_public_data):
         """set the user's metadata like friends,location and timezone"""
 
 
@@ -449,6 +450,7 @@ class User(ABase):
         user.country = country
         user.region = region
         user.city = city
+        user.additional_public_data = additional_public_data
 
         DBSession.add(user)
         DBSession.flush()
@@ -494,9 +496,56 @@ class User(ABase):
         update_connection().execute(t_values.delete().where(t_values.c.user_id==user_id))
         update_connection().execute(t_users.delete().where(t_users.c.id==user_id))
 
+    @classmethod
+    def basic_output(cls, user):
+        return {
+            "id" : user["id"],
+            "additional_public_data" : user["additional_public_data"]
+        }
+
+    @classmethod
+    def full_output(cls, user_id):
+
+        user = DBSession.execute(t_users.select().where(t_users.c.id == user_id)).fetchone()
+
+        j = t_users.join(t_users_users,t_users_users.c.to_id == t_users.c.id)
+        friends = DBSession.execute(t_users.select(from_obj=j).where(t_users_users.c.from_id == user_id)).fetchall()
+
+        j = t_groups.join(t_users_groups)
+        groups = DBSession.execute(t_groups.select(from_obj=j).where(t_users_groups.c.user_id== user_id)).fetchall()
+
+        ret = {
+            "id" : user["id"],
+            "lat" : user["lat"],
+            "lng" : user["lng"],
+            "timezone" : user["timezone"],
+            "country": user["country"],
+            "region": user["region"],
+            "city": user["city"],
+            "created_at": user["created_at"],
+            "additional_public_data": user["additional_public_data"],
+            "friends" : [User.basic_output(f) for f in friends],
+            "groups": [Group.basic_output(g) for g in groups],
+        }
+
+        if get_settings().get("enable_user_authentication"):
+            auth_user = DBSession.execute(t_auth_users.select().where(t_auth_users.c.user_id == user_id)).fetchone()
+
+            ret.update({
+                "email" : auth_user["email"]
+            })
+
+        return ret
+
 class Group(ABase):
     def __unicode__(self, *args, **kwargs):
         return "(ID: %s)" % (self.id,)
+
+    @classmethod
+    def basic_output(cls, group):
+        return {
+            "id" : group["id"]
+        }
 
 class Variable(ABase):
     """A Variable is anything that should be meassured in your application and be used in :class:`.Goal`.

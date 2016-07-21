@@ -7,6 +7,9 @@ from http.cookies import SimpleCookie
 import base64
 import copy
 import datetime
+
+import json
+
 from pyramid.request import Request
 from pyramid.response import Response
 from pyramid.settings import asbool
@@ -86,7 +89,15 @@ def add_or_update_user(request):
     city=None
     if len(request.POST.get("city",""))>0:
         city = request.POST["city"]
-    
+
+    additional_public_data = {}
+    if len(request.POST.get("additional_public_data", "")) > 0:
+        try:
+            additional_public_data = json.loads(request.POST["additional_public_data"])
+        except:
+            additional_public_data = {}
+
+
     User.set_infos(user_id=user_id,
                    lat=lat,
                    lng=lon,
@@ -95,9 +106,10 @@ def add_or_update_user(request):
                    region=region,
                    city=city,
                    friends=friends,
-                   groups=groups)
+                   groups=groups,
+                   additional_public_data = additional_public_data)
     
-    return {"status" : "OK"}
+    return {"status" : "OK", "user" : User.full_output(user_id)}
 
 @view_config(route_name='delete_user', renderer='string', request_method="DELETE")
 def delete_user(request):
@@ -161,7 +173,14 @@ def get_progress(request):
     if not user:
         raise APIError(404, "user_not_found", "user not found")
 
-    return _get_progress(achievements_for_user=user, requesting_user=request.user)
+    output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+    output = copy.deepcopy(output)
+
+    for aid in list(output["achievements"].keys()):
+        if "new_levels" in output["achievements"][aid]:
+            del output["achievements"][aid]["new_levels"]
+
+    return output
 
 @view_config(route_name='increase_value', renderer='json', request_method="POST")
 @view_config(route_name='increase_value_with_key', renderer='json', request_method="POST")
@@ -238,6 +257,7 @@ def increase_multi_values(request):
                 Value.increase_value(variable_name, user, value, key)
 
         output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+        output = copy.deepcopy(output)
 
         for aid in list(output["achievements"].keys()):
             if len(output["achievements"][aid]["new_levels"])>0:
@@ -309,7 +329,8 @@ def auth_login(request):
     DBSession.commit()
 
     return {
-        "token" : token
+        "token" : token,
+        "user" : User.full_output(user.user_id),
     }
 
 @view_config(route_name='register_device', renderer='json', request_method="POST")
