@@ -17,6 +17,8 @@ DBSession=None
 
 def init_session(override_session=None):
     global DBSession
+    if DBSession:
+        return
     if override_session:
         DBSession = override_session
     else:
@@ -31,6 +33,8 @@ Base=None
 
 def init_declarative_base(override_base=None):
     global Base
+    if Base:
+        return
     if override_base:
         Base=override_base
     else:
@@ -47,5 +51,4 @@ def init_declarative_base(override_base=None):
 def init_db(engine):
     DBSession.configure(bind=engine)
     Base.metadata.bind = engine
-    
     
