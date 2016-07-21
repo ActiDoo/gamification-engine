@@ -23,8 +23,7 @@ def init_session(override_session=None):
         DBSession = scoped_session(
             sessionmaker(
                 extension=ZopeTransactionExtension(),
-                class_=MySession,
-                expire_on_commit=False
+                class_=MySession
             )
         )
 
