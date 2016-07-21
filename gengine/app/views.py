@@ -326,7 +326,6 @@ def auth_login(request):
     )
 
     DBSession.add(tokenObj)
-    DBSession.commit()
 
     return {
         "token" : token,
