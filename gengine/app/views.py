@@ -90,6 +90,10 @@ def add_or_update_user(request):
     if len(request.POST.get("city",""))>0:
         city = request.POST["city"]
 
+    language = None
+    if len(request.POST.get("language", "")) > 0:
+        language= request.POST["language"]
+
     additional_public_data = {}
     if len(request.POST.get("additional_public_data", "")) > 0:
         try:
@@ -105,6 +109,7 @@ def add_or_update_user(request):
                    country=country,
                    region=region,
                    city=city,
+                   language=language,
                    friends=friends,
                    groups=groups,
                    additional_public_data = additional_public_data)

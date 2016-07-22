@@ -47,6 +47,7 @@ t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
     Column("lat", ty.Float(Precision=64), nullable=True),
     Column("lng", ty.Float(Precision=64), nullable=True),
+    Column("language_id", ty.Integer, ForeignKey("languages.id"), nullable=True),
     Column("timezone", ty.String(), nullable=False, default="UTC"),
     Column("country", ty.String(), nullable=True, default=None),
     Column("region", ty.String(), nullable=True, default=None),
@@ -226,12 +227,12 @@ t_denials = Table('denials', Base.metadata,
 
 t_languages = Table('languages', Base.metadata,
    Column('id', ty.Integer, primary_key = True),
-   Column('name', ty.String(255), nullable = False),
+   Column('name', ty.String(255), nullable = False, index=True),
 )
 
 t_translationvariables = Table('translationvariables', Base.metadata,
    Column('id', ty.Integer, primary_key = True),
-   Column('name', ty.String(255), nullable = False),
+   Column('name', ty.String(255), nullable = False, index=True),
 )
 
 t_translations = Table('translations', Base.metadata,
@@ -419,7 +420,7 @@ class User(ABase):
         return int((tomorrow-today).total_seconds())
 
     @classmethod
-    def set_infos(cls,user_id,lat,lng,timezone,country,region,city,friends, groups, additional_public_data):
+    def set_infos(cls,user_id,lat,lng,timezone,country,region,city,language,friends, groups, additional_public_data):
         """set the user's metadata like friends,location and timezone"""
 
 
@@ -451,6 +452,12 @@ class User(ABase):
         user.region = region
         user.city = city
         user.additional_public_data = additional_public_data
+
+        language = DBSession.execute(t_languages.select().where(t_languages.c.name == language)).fetchone()
+        if language:
+            user.language_id = language["id"]
+        else:
+            user.language_id = None
 
         DBSession.add(user)
         DBSession.flush()
@@ -519,6 +526,7 @@ class User(ABase):
             "lat" : user["lat"],
             "lng" : user["lng"],
             "timezone" : user["timezone"],
+            "language": user["language"],
             "country": user["country"],
             "region": user["region"],
             "city": user["city"],
@@ -1068,7 +1076,7 @@ class Goal(ABase):
 
     def __unicode__(self, *args, **kwargs):
         if self.name_translation_id!=None:
-            name = Translation.trs(self.name_translation.id, {"level":1, "goal":'0'})[_fallback_language]
+            name = Translation.trs(self.name_translation.id, {"level":1, "goal":'0'})[get_settings().get("fallback_language","en")]
             return str(name) + " (ID: %s)" % (self.id,)
         else:
             return self.name + " (ID: %s)" % (self.id,)
@@ -1439,7 +1447,6 @@ class TranslationVariable(ABase):
     def __unicode__(self, *args, **kwargs):
         return "%s" % (self.name,)
 
-_fallback_language="en"
 class Translation(ABase):
     def __unicode__(self, *args, **kwargs):
         return "%s" % (self.text,)
@@ -1457,14 +1464,14 @@ class Translation(ABase):
             ret = {str(x["name"]) : evaluate_string(x["text"],params) for x in cls.get_translation_variable(translation_id)}
         except Exception as e:
             ret = {str(x["name"]) : x["text"] for x in cls.get_translation_variable(translation_id)}
-            log.exception("Evaluation of string-forumlar failed: %s" % (ret.get(_fallback_language,translation_id),))
+            log.exception("Evaluation of string-forumlar failed: %s" % (ret.get(get_settings().get("fallback_language","en"),translation_id),))
             
-        if not _fallback_language in ret:
-            ret[_fallback_language] = "[not_translated]_"+str(translation_id) 
+        if not get_settings().get("fallback_language","en") in ret:
+            ret[get_settings().get("fallback_language","en")] = "[not_translated]_"+str(translation_id)
         
         for lang in cls.get_languages():
             if not str(lang["name"]) in ret:
-                ret[str(lang["name"])] = ret[_fallback_language]
+                ret[str(lang["name"])] = ret[get_settings().get("fallback_language","en")]
         
         return ret    
     
@@ -1483,7 +1490,7 @@ class Translation(ABase):
 
 class UserMessage(ABase):
     def __unicode__(self, *args, **kwargs):
-        return "Message: %s" % (Translation.trs(self.translation_id,self.params).get(_fallback_language),)
+        return "Message: %s" % (Translation.trs(self.translation_id,self.params).get(get_settings().get("fallback_language","en")),)
 
     @classmethod
     def get_text(cls, row):
@@ -1497,9 +1504,17 @@ class UserMessage(ABase):
     def deliver(cls, message):
         from gengine.app.push import send_push_message
 
+        text = UserMessage.get_text(message)
+        language = get_settings().get("fallback_language", "en")
+        j = t_users.join(t_languages)
+        user_language = DBSession.execute(select([t_languages.c.name],from_obj=j).where(t_users.c.id==message["user_id"])).fetchone()
+        if user_language:
+             language = user_language["name"]
+        translated_text = text[language]
+
         send_push_message(
             user_id = message["user_id"],
-            text = UserMessage.get_text(message),
+            text = translated_text,
             custom_payload = {},
             title = get_settings().get("push_title","Gamification-Engine")
         )
