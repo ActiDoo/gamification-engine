@@ -69,13 +69,14 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     @adminapp.context_processor
     def inject_version():
         return { "gamification_engine_version" : pkg_resources.get_distribution("gamification-engine").version,
-                 "settings_enable_authentication" : asbool(get_settings().get("enable_user_authentication",False))}
+                 "settings_enable_authentication" : asbool(get_settings().get("enable_user_authentication",False)),
+                 "urlprefix" : get_settings().get("urlprefix","/")}
     
     if not override_admin:
         admin = Admin(adminapp,
                       name="Gamification Engine - Admin Control Panel",
                       base_template='admin_layout.html',
-                      url=urlprefix+"/admin"
+                      url=urlprefix+""
                       )
     else:
         admin = override_admin

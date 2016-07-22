@@ -103,7 +103,7 @@ def main(global_config, **settings):
 
     config.include(config_app_routes, route_prefix=urlprefix)
 
-    config.add_route('admin_app', '/*subpath') #prefix is set in flaskadmin.py
+    config.add_route('admin_app', '/admin/*subpath')
 
     from gengine.app.admin import init_admin as init_tenantadmin
     init_tenantadmin(urlprefix=urlprefix,

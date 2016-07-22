@@ -1493,6 +1493,17 @@ class UserMessage(ABase):
     def text(self):
         return Translation.trs(self.translation_id, self.params)
 
+    @classmethod
+    def deliver(cls, message):
+        from gengine.app.push import send_push_message
+
+        send_push_message(
+            user_id = message["user_id"],
+            text = UserMessage.get_text(message),
+            custom_payload = {},
+            title = get_settings().get("push_title","Gamification-Engine")
+        )
+
 class GoalTrigger(ABase):
     def __unicode__(self, *args, **kwargs):
         return "GoalTrigger: %s" % (self.id,)
@@ -1522,6 +1533,7 @@ class GoalTriggerStep(ABase):
                     is_read = False,
                 )
                 uS.add(m)
+                UserMessage.deliver(m)
 
 @event.listens_for(GoalTriggerStep, "after_insert")
 @event.listens_for(GoalTriggerStep, 'after_update')
