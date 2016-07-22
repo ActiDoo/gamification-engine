@@ -183,7 +183,7 @@ def send_push_message(
     if not android_text:
         android_text = text
 
-    rows = DBSession.execute(t_user_device.select().where(t_user_device.c.user_id==user_id)).fetchall()
+    rows = DBSession.execute(select([t_user_device.c.push_id, t_user_device.c.device_os], from_obj=t_user_device).distinct().where(t_user_device.c.user_id==user_id)).fetchall()
 
     for device in rows:
 
