@@ -521,12 +521,18 @@ class User(ABase):
         j = t_groups.join(t_users_groups)
         groups = DBSession.execute(t_groups.select(from_obj=j).where(t_users_groups.c.user_id== user_id)).fetchall()
 
+        language = get_settings().get("fallback_language","en")
+        j = t_users.join(t_languages)
+        user_language = DBSession.execute(select([t_languages.c.name], from_obj=j).where(t_users.c.id == user_id)).fetchone()
+        if user_language:
+            language = user_language["name"]
+
         ret = {
             "id" : user["id"],
             "lat" : user["lat"],
             "lng" : user["lng"],
             "timezone" : user["timezone"],
-            "language": user["language"],
+            "language": language,
             "country": user["country"],
             "region": user["region"],
             "city": user["city"],
