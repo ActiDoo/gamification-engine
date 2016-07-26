@@ -544,10 +544,10 @@ class User(ABase):
 
         if get_settings().get("enable_user_authentication"):
             auth_user = DBSession.execute(t_auth_users.select().where(t_auth_users.c.user_id == user_id)).fetchone()
-
-            ret.update({
-                "email" : auth_user["email"]
-            })
+            if auth_user:
+                ret.update({
+                    "email" : auth_user["email"]
+                })
 
         return ret
 
