@@ -128,20 +128,8 @@ def gcm_feedback(response):
             if error in ['NotRegistered', 'InvalidRegistration']:
                 # Remove reg_ids from database
                 for reg_id in reg_ids:
-
-                    q = t_user_device.select().where(t_user_device.c.push_id == reg_id)
-                    rows = uS.execute(q).fetchall()
-
-                    for device in rows:
-                        if not isinstance(reg_id, str):
-                            reg_id = reg_id.decode("utf8")
-
-                        log.debug("Removing reg_id: {0} from db".format(reg_id))
-
-                        uS.execute(t_user_device.delete().where(
-                            t_user_device.c.device_id == device["device_id"],
-                            t_user_device.c.user_id == device["user_id"],
-                        ))
+                    q = t_user_device.delete().where(t_user_device.c.push_id == reg_id)
+                    uS.execute(q)
 
     # Repace reg_id with canonical_id in your database
     if 'canonical' in response:
@@ -153,9 +141,7 @@ def gcm_feedback(response):
 
             q = t_user_device.update().values({
                 "push_id" : canonical_id
-            }).where(and_(
-                t_user_device.c.push_id == reg_id,
-            ))
+            }).where(t_user_device.c.push_id == reg_id)
 
             uS.execute(q)
 
