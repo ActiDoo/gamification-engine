@@ -1125,9 +1125,8 @@ class Goal(ABase):
 
             j = t_values.join(t_variables)
 
-            if evaluation_type in ("daily","weekly","monthly","yearly"):
-                # We need to access the user's timezone later
-                j = j.join(t_users)
+            #    # We need to access the user's timezone later
+            j = j.join(t_users)
 
             datetime_col=None
             if group_by_dateformat:
@@ -1162,11 +1161,11 @@ class Goal(ABase):
                 elif evaluation_type=="yearly":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
 
-            if datetime_col or group_by_key:
-                if datetime_col:
+            if datetime_col is not None or group_by_key is not None:
+                if datetime_col is not None:
                     q = q.group_by(datetime_col)
 
-                if group_by_key:
+                if group_by_key is not None:
                     q = q.group_by(t_values.c.key)
 
                 query_with_groups = q.alias()
@@ -1571,6 +1570,9 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
         goal_eval = Goal.evaluate(goal, user_id, user_wants_level, None, execute_triggers=False)
 
         previous_goal = Goal.basic_goal_output(goal, user_wants_level - 1).get("goal_goal", 0)
+        if previous_goal == goal_eval["goal_goal"]:
+            previous_goal = 0.0
+
         current_percentage = float(goal_eval["value"]-previous_goal) / float(goal_eval["goal_goal"]-previous_goal)
         operator = goal["operator"]
         required_percentage = target["condition_percentage"]
