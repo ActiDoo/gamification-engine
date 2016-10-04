@@ -24,13 +24,15 @@ adminapp=None
 admin=None
 
 
-def resole_uri(uri):
+def resolve_uri(uri):
     from pyramid.path import PkgResourcesAssetDescriptor
     pkg_name,path=uri.split(":",1)
     a = PkgResourcesAssetDescriptor(pkg_name,path)
     absolute = a.abspath() #this is sometimes not absolute :-/
     absolute = os.path.abspath(absolute) #so we make it absolute
     return absolute
+
+resole_uri = resolve_uri # there was a typing error once...
 
 def get_static_view(folder,flaskadminapp):
     folder=resole_uri(folder)
