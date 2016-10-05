@@ -252,7 +252,7 @@ def increase_value(request):
     
     output = _get_progress(achievements_for_user=user, requesting_user=request.user)
     output = copy.deepcopy(output)
-
+    to_delete = list()
     for i in range(len(output["achievements"])):
         if len(output["achievements"][i]["new_levels"])>0:
             if "levels" in output["achievements"][i]:
@@ -262,10 +262,10 @@ def increase_value(request):
             if "goals" in output["achievements"][i]:
                 del output["achievements"][i]["goals"]
         else:
-            del output["achievements"][i]
-            i -= 1
-            if i==len(output["achievements"])-1:
-                break
+            to_delete.append(i)
+
+    for i in sorted(to_delete,reverse=True):
+        del output["achievements"][i]
 
     return output
 
@@ -302,7 +302,7 @@ def increase_multi_values(request):
 
         output = _get_progress(achievements_for_user=user, requesting_user=request.user)
         output = copy.deepcopy(output)
-
+        to_delete = list()
         for i in range(len(output["achievements"])):
             if len(output["achievements"][i]["new_levels"])>0:
                 if "levels" in output["achievements"][i]:
@@ -312,10 +312,10 @@ def increase_multi_values(request):
                 if "goals" in output["achievements"][i]:
                     del output["achievements"][i]["goals"]
             else:
-                del output["achievements"][i]
-                i -= 1
-                if i == len(output["achievements"]) - 1:
-                    break
+                to_delete.append(i)
+
+        for i in sorted(to_delete, reverse=True):
+            del output["achievements"][i]
 
         if len(output["achievements"])>0 :
             ret[user_id]=output
