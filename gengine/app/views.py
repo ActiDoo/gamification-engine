@@ -263,6 +263,9 @@ def increase_value(request):
                 del output["achievements"][i]["goals"]
         else:
             del output["achievements"][i]
+            i -= 1
+            if i==len(output["achievements"])-1:
+                break
 
     return output
 
@@ -310,6 +313,9 @@ def increase_multi_values(request):
                     del output["achievements"][i]["goals"]
             else:
                 del output["achievements"][i]
+                i -= 1
+                if i == len(output["achievements"]) - 1:
+                    break
 
         if len(output["achievements"])>0 :
             ret[user_id]=output
