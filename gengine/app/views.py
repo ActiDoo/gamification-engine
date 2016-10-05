@@ -10,6 +10,7 @@ import datetime
 
 import json
 
+import pytz
 from pyramid.request import Request
 from pyramid.response import Response
 from pyramid.settings import asbool
@@ -134,9 +135,9 @@ def _get_progress(achievements_for_user, requesting_user):
 
     achievements = Achievement.get_achievements_by_user_for_today(achievements_for_user)
 
-    def ea(achievement):
+    def ea(achievement, achievement_date):
         try:
-            return Achievement.evaluate(achievements_for_user, achievement["id"])
+            return Achievement.evaluate(achievements_for_user, achievement["id"], achievement_date)
         except FormularEvaluationException as e:
             return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
         except Exception as e:
@@ -155,15 +156,49 @@ def _get_progress(achievements_for_user, requesting_user):
             return True
         return False
 
-    evaluatelist = [ea(achievement) for achievement in achievements if may_view(achievement, requesting_user)]
+    evaluatelist = []
+    now = datetime.datetime.now(pytz.timezone(achievements_for_user["timezone"]))
+    for achievement in achievements:
+        if may_view(achievement, requesting_user):
+            achievement_dates = set()
+            d = Achievement.get_datetime_for_evaluation_type(
+                achievements_for_user["timezone"],
+                achievement["evaluation"],
+                dt=max(achievement["created_at"],achievements_for_user["created_at"]).replace(tzinfo=pytz.utc)
+            )
+            if d == None:
+                achievement_dates.add(d)
+            else:
+                while d<=now:
+                    achievement_dates.add(d)
+
+                    if achievement["evaluation"] == "yearly":
+                        d += datetime.timedelta(days=365)
+                    elif achievement["evaluation"] == "monthly":
+                        d += datetime.timedelta(days=28)
+                    elif achievement["evaluation"] == "weekly":
+                        d += datetime.timedelta(days=7)
+                    elif achievement["evaluation"] == "daily":
+                        d += datetime.timedelta(days=1)
+                    else:
+                        break # should not happen
+
+                    d = Achievement.get_datetime_for_evaluation_type(
+                        achievements_for_user["timezone"],
+                        achievement["evaluation"],
+                        dt=d
+                    )
+
+            for achievement_date in achievement_dates:
+                evaluatelist.append(ea(achievement, achievement_date))
 
     ret = {
-        "achievements" : {
-            x["id"] : x for x in evaluatelist if check(x)
-        },
-        "achievement_errors" : {
-            x["id"] : x for x in evaluatelist if x!=None and "error" in x
-        }
+        "achievements" : [
+            x for x in evaluatelist if check(x)
+        ],
+        "achievement_errors" : [
+            x for x in evaluatelist if x!=None and "error" in x
+        ]
     }
 
     return ret
@@ -181,9 +216,9 @@ def get_progress(request):
     output = _get_progress(achievements_for_user=user, requesting_user=request.user)
     output = copy.deepcopy(output)
 
-    for aid in list(output["achievements"].keys()):
-        if "new_levels" in output["achievements"][aid]:
-            del output["achievements"][aid]["new_levels"]
+    for i in range(len(output["achievements"])):
+        if "new_levels" in output["achievements"][i]:
+            del output["achievements"][i]["new_levels"]
 
     return output
 
@@ -218,16 +253,17 @@ def increase_value(request):
     output = _get_progress(achievements_for_user=user, requesting_user=request.user)
     output = copy.deepcopy(output)
 
-    for aid in list(output["achievements"].keys()):
-        if len(output["achievements"][aid]["new_levels"])>0:
-            if "levels" in output["achievements"][aid]:
-                del output["achievements"][aid]["levels"]
-            if "priority" in output["achievements"][aid]:
-                del output["achievements"][aid]["priority"]
-            if "goals" in output["achievements"][aid]:
-                del output["achievements"][aid]["goals"]
+    for i in range(len(output["achievements"])):
+        if len(output["achievements"][i]["new_levels"])>0:
+            if "levels" in output["achievements"][i]:
+                del output["achievements"][i]["levels"]
+            if "priority" in output["achievements"][i]:
+                del output["achievements"][i]["priority"]
+            if "goals" in output["achievements"][i]:
+                del output["achievements"][i]["goals"]
         else:
-            del output["achievements"][aid]
+            del output["achievements"][i]
+
     return output
 
 @view_config(route_name="increase_multi_values", renderer="json", request_method="POST")
@@ -264,16 +300,16 @@ def increase_multi_values(request):
         output = _get_progress(achievements_for_user=user, requesting_user=request.user)
         output = copy.deepcopy(output)
 
-        for aid in list(output["achievements"].keys()):
-            if len(output["achievements"][aid]["new_levels"])>0:
-                if "levels" in output["achievements"][aid]:
-                    del output["achievements"][aid]["levels"]
-                if "priority" in output["achievements"][aid]:
-                    del output["achievements"][aid]["priority"]
-                if "goals" in output["achievements"][aid]:
-                    del output["achievements"][aid]["goals"]
+        for i in range(len(output["achievements"])):
+            if len(output["achievements"][i]["new_levels"])>0:
+                if "levels" in output["achievements"][i]:
+                    del output["achievements"][i]["levels"]
+                if "priority" in output["achievements"][i]:
+                    del output["achievements"][i]["priority"]
+                if "goals" in output["achievements"][i]:
+                    del output["achievements"][i]["goals"]
             else:
-                del output["achievements"][aid]
+                del output["achievements"][i]
 
         if len(output["achievements"])>0 :
             ret[user_id]=output

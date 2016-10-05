@@ -131,7 +131,7 @@ class ModelViewAchievementCategory(ModelView):
         super(ModelViewAchievementCategory, self).__init__(AchievementCategory, session, **kwargs)
 
 class ModelViewAchievement(ModelView):
-    column_list = ('name','valid_start','valid_end','relevance')
+    column_list = ('name','evaluation','valid_start','valid_end','relevance')
     column_searchable_list = ('name',)
     form_excluded_columns =('rewards','users','goals','properties','updated_at')
     fast_mass_delete = True
@@ -168,7 +168,7 @@ class ModelViewGoalTrigger(ModelView):
         super(ModelViewGoalTrigger, self).__init__(GoalTrigger, session, **kwargs)
 
 class ModelViewGoal(ModelView):
-    column_list = ('condition','evaluation','operator','goal','timespan','priority','achievement','updated_at')
+    column_list = ('condition','operator','goal','timespan','priority','achievement','updated_at')
     form_excluded_columns =('properties','triggers')
     #column_searchable_list = ('name',)
     column_filters = (Achievement.id,)
