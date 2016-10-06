@@ -411,6 +411,13 @@ class User(ABase):
         return DBSession.execute(t_users.select().where(t_users.c.id==user_id)).fetchone()
 
     @classmethod
+    def get_users(cls, user_ids):
+        return {
+            x["id"] : x for x in
+            DBSession.execute(t_users.select().where(t_users.c.id.in_(user_ids))).fetchall()
+        }
+
+    @classmethod
     def get_cache_expiration_time_for_today(cls,user):
         """return the seconds until the day of the user ends (timezone of the user).
 
@@ -886,8 +893,8 @@ class Achievement(ABase):
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
-                    goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement, achievement_date, user_ids)
-                    goal_eval["leaderboard_position"] = list(filter(lambda x : x["user_id"]==user_id, goal_eval["leaderboard"]))[0]["position"]
+                    goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement_date, user_ids)
+                    goal_eval["leaderboard_position"] = list(filter(lambda x : x["user"]["id"]==user_id, goal_eval["leaderboard"]))[0]["position"]
 
                 goal_evals[goal["id"]]=goal_eval
                 if not goal_eval["achieved"]:
@@ -1413,7 +1420,7 @@ class Goal(ABase):
             )
 
     @classmethod
-    def get_leaderboard(cls, goal, achievement, achievement_date, user_ids):
+    def get_leaderboard(cls, goal, achievement_date, user_ids):
         """get the leaderboard for the goal and userids"""
         q = select([t_goal_evaluation_cache.c.user_id,
                     t_goal_evaluation_cache.c.value])\
@@ -1423,14 +1430,14 @@ class Goal(ABase):
                           t_goal_evaluation_cache.c.user_id.desc())
         items = DBSession.execute(q).fetchall()
 
+        users = User.get_users(user_ids)
+
         missing_users = set(user_ids)-set([x["user_id"] for x in items])
         if len(missing_users)>0:
             #the goal has not been evaluated for some users...
             achievement = Achievement.get_achievement(goal["achievement_id"])
 
             for user_id in missing_users:
-                user = User.get_user(user_id)
-
                 user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
                 user_wants_level = min((user_has_level or 0)+1, achievement["maxlevel"])
 
@@ -1439,7 +1446,7 @@ class Goal(ABase):
             #rerun the query
             items = DBSession.execute(q).fetchall()
 
-        positions = [{ "user_id" : items[i]["user_id"],
+        positions = [{ "user": User.basic_output(users[items[i]["user_id"]]),
                        "value" : items[i]["value"],
                        "position" : i} for i in range(0,len(items))]
 
