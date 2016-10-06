@@ -124,7 +124,7 @@ t_achievements = Table('achievements', Base.metadata,
     Column("max_distance", ty.Integer, nullable=True),
     Column('priority', ty.Integer, index=True, default=0),
     Column('evaluation',ty.Enum("immediately","daily","weekly","monthly","yearly","end", name="evaluation_types"), default="immediately", nullable=False),
-    Column('relevance',ty.Enum("friends","city","own", name="relevance_types"), default="own"),
+    Column('relevance',ty.Enum("global","friends","city","own", name="relevance_types"), default="own"),
     Column('view_permission',ty.Enum("everyone", "own", name="achievement_view_permission"), default="everyone"),
     Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
 )
@@ -768,6 +768,8 @@ class Achievement(ABase):
             pass
         elif achievement["relevance"]=="friends":
             users += [x["to_id"] for x in DBSession.execute(select([t_users_users.c.to_id,], t_users_users.c.from_id==user_id)).fetchall()]
+        elif achievement["relevance"] == "global":
+            users += [x.id for x in DBSession.execute(select([t_users.c.id,])).fetchall()]
         return set(users)
 
     #TODO:CACHE
@@ -782,6 +784,8 @@ class Achievement(ABase):
             pass
         elif achievement["relevance"]=="friends":
             users += [x["from_id"] for x in DBSession.execute(select([t_users_users.c.from_id,], t_users_users.c.to_id==user_id)).fetchall()]
+        elif achievement["relevance"] == "global":
+            users += [x.id for x in DBSession.execute(select([t_users.c.id, ])).fetchall()]
         return set(users)
 
     @classmethod
@@ -881,7 +885,7 @@ class Achievement(ABase):
                     Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level,None)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
-                if achievement["relevance"]=="friends" or achievement["relevance"]=="city":
+                if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
                     goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement, achievement_date, user_ids)
                     goal_eval["leaderboard_position"] = list(filter(lambda x : x["user_id"]==user_id, goal_eval["leaderboard"]))[0]["position"]
 
