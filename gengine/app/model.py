@@ -213,7 +213,7 @@ t_achievements_rewards = Table('achievements_rewards', Base.metadata,
 t_achievements_users = Table('achievements_users', Base.metadata,
     Column('user_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True, index=True, nullable=False),
     Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
-    Column('achievement_date', ty.DateTime, nullable=True, primary_key=True),
+    Column('achievement_date', ty.DateTime, nullable=True, index=True),
     Column('level', ty.Integer, primary_key = True, default=1),
     Column('updated_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, index=True),
 )
@@ -929,6 +929,7 @@ class Achievement(ABase):
                 update_connection().execute(t_achievements_users.insert().values({
                     "user_id" : user_id,
                     "achievement_id" : achievement["id"],
+                    "achievement_date" : achievement_date,
                     "level" : user_wants_level
                 }))
 
