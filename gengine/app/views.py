@@ -161,16 +161,17 @@ def _get_progress(achievements_for_user, requesting_user):
     for achievement in achievements:
         if may_view(achievement, requesting_user):
             achievement_dates = set()
-            d = Achievement.get_datetime_for_evaluation_type(
+            d = max(achievement["created_at"],achievements_for_user["created_at"]).replace(tzinfo=pytz.utc)
+            dr = Achievement.get_datetime_for_evaluation_type(
                 achievements_for_user["timezone"],
                 achievement["evaluation"],
-                dt=max(achievement["created_at"],achievements_for_user["created_at"]).replace(tzinfo=pytz.utc)
+                dt=d
             )
-            if d == None:
+            if dr == None:
                 achievement_dates.add(d)
             else:
                 while d<=now:
-                    achievement_dates.add(d)
+                    achievement_dates.add(dr)
 
                     if achievement["evaluation"] == "yearly":
                         d += datetime.timedelta(days=365)
@@ -183,7 +184,7 @@ def _get_progress(achievements_for_user, requesting_user):
                     else:
                         break # should not happen
 
-                    d = Achievement.get_datetime_for_evaluation_type(
+                    dr = Achievement.get_datetime_for_evaluation_type(
                         achievements_for_user["timezone"],
                         achievement["evaluation"],
                         dt=d
