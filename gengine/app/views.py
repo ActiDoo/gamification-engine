@@ -232,7 +232,11 @@ def increase_value(request):
     try:
         value = float(request.POST["value"])
     except:
-        raise APIError(400,"invalid_value","Invalid value provided")
+        try:
+            doc = request.json_body
+            value = doc["value"]
+        except:
+            raise APIError(400,"invalid_value","Invalid value provided")
     
     key = request.matchdict["key"] if "key" in request.matchdict else ""
     variable_name = request.matchdict["variable_name"]
