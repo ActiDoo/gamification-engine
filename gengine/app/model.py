@@ -690,8 +690,6 @@ class Value(ABase):
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
 
-        update_connection().commit()
-        
 
 class AchievementCategory(ABase):
     """A category for grouping achievement types"""
