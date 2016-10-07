@@ -690,6 +690,9 @@ class Value(ABase):
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
 
+        update_connection().commit()
+        
+
 class AchievementCategory(ABase):
     """A category for grouping achievement types"""
 
@@ -1413,10 +1416,11 @@ class Goal(ABase):
         """clear the evaluation cache for the user and gaols"""
         for goal_id, achievement_date in goal_ids_with_achievement_date:
             cache_goal_evaluation.delete("%s_%s_%s" % (goal_id, achievement_date, user_id))
-            update_connection().execute(t_goal_evaluation_cache.delete().where(
+            s = update_connection()
+            s.execute(t_goal_evaluation_cache.delete().where(
                 and_(t_goal_evaluation_cache.c.user_id == user_id,
                      t_goal_evaluation_cache.c.goal_id == goal_id,
-                     t_goal_evaluation_cache.c.achievement_date ==achievement_date ))
+                     t_goal_evaluation_cache.c.achievement_date == achievement_date ))
             )
 
     @classmethod
