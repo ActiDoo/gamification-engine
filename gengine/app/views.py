@@ -238,7 +238,7 @@ def increase_value(request):
         except:
             raise APIError(400,"invalid_value","Invalid value provided")
     
-    key = request.matchdict["key"] if "key" in request.matchdict else ""
+    key = request.matchdict["key"] if ("key" in request.matchdict and request.matchdict["key"] is not None) else ""
     variable_name = request.matchdict["variable_name"]
     
     user = User.get_user(user_id)
