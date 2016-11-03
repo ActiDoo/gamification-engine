@@ -587,11 +587,18 @@ class Variable(ABase):
         return DBSession.execute(t_variables.select(t_variables.c.name==name)).fetchone()
 
     @classmethod
-    def get_datetime_for_tz_and_group(cls,tz,group):
-        """get the datetime of the current row, needed for grouping"""
+    def get_datetime_for_tz_and_group(cls,tz,group,at_datetime=None):
+        """
+            get the datetime of the current row, needed for grouping
+            the optional parameter at_datetime can provide a timezone-aware datetime which overrides the default "now"
+        """
+
         tzobj = pytz.timezone(tz)
-        now = datetime.datetime.now(tzobj)
-        #now = now.replace(tzinfo=pytz.utc)
+
+        if not at_datetime:
+            now = datetime.datetime.now(tzobj)
+        else:
+            now = at_datetime
 
         t = None
         if group=="year":
@@ -660,19 +667,20 @@ class Value(ABase):
     (e.g. it counts the occurences of the "events" which the variable represents) """
 
     @classmethod
-    def increase_value(cls, variable_name, user, value, key):
+    def increase_value(cls, variable_name, user, value, key, at_datetime=None):
         """increase the value of the variable for the user.
 
         In addition to the variable_name there may be an application-specific key which can be used in your :class:`.Goal` definitions
+        The parameter at_datetime is optional and can specify a timezone-aware datetime to define when the event happened
         """
 
         user_id = user["id"]
         tz = user["timezone"]
 
         variable = Variable.get_variable_by_name(variable_name)
-        datetime = Variable.get_datetime_for_tz_and_group(tz,variable["group"])
+        dt = Variable.get_datetime_for_tz_and_group(tz,variable["group"],at_datetime=at_datetime)
 
-        condition = and_(t_values.c.datetime==datetime,
+        condition = and_(t_values.c.datetime==dt,
                          t_values.c.variable_id==variable["id"],
                          t_values.c.user_id==user_id,
                          t_values.c.key==str(key))
@@ -682,7 +690,7 @@ class Value(ABase):
         if current_value is not None:
             update_connection().execute(t_values.update(condition, values={"value":current_value+value}))
         else:
-            update_connection().execute(t_values.insert({"datetime":datetime,
+            update_connection().execute(t_values.insert({"datetime":dt,
                                            "variable_id":variable["id"],
                                            "user_id" : user_id,
                                            "key" : str(key),
