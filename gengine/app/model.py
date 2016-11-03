@@ -320,16 +320,15 @@ class AuthUser(ABase):
         return is_valid
 
     def get_or_create_token(self):
-        DBSession.flush()
         tokenObj = DBSession.query(AuthToken).filter(and_(
             AuthToken.valid_until>=datetime.datetime.utcnow(),
-            AuthToken.user_id == self.id
+            AuthToken.user_id == self.user_id
         )).first()
 
         if not tokenObj:
             token = AuthToken.generate_token()
             tokenObj = AuthToken(
-                user_id=self.id,
+                user_id=self.user_id,
                 token=token
             )
 
