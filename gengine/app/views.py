@@ -563,11 +563,12 @@ def admin_tenant(environ, start_response):
         if not perm_global_access_admin_ui in permissions:
             return request_auth(environ, start_response)
         else:
+            token_s = user.get_or_create_token().token
 
             def start_response_with_headers(status, headers, exc_info=None):
 
                 cookie = SimpleCookie()
-                cookie['X-Auth-Token'] = user.get_or_create_token().token
+                cookie['X-Auth-Token'] = token_s
                 cookie['X-Auth-Token']['path'] = get_settings().get("urlprefix", "").rstrip("/") + "/"
 
                 headers.append(('Set-Cookie', cookie['X-Auth-Token'].OutputString()),)
