@@ -12,7 +12,7 @@ addons:
 
 # command to install dependencies
 install:
-  - "pip install -r requirements.txt"
+  - "pip install --upgrade -r requirements.txt"
   - pip install -e .[dev]
 
 # command to run tests
