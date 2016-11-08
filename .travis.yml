@@ -1,7 +1,7 @@
 language: python
 python:
   - "3.5"
-
+sudo: false
 addons:
   apt:
 #    sources:
@@ -12,6 +12,7 @@ addons:
 
 # command to install dependencies
 install:
+  - "pip install -r requirements.txt"
   - pip install -e .[dev]
 
 # command to run tests
