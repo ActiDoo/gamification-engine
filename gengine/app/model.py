@@ -8,6 +8,7 @@ from datetime import timedelta
 import hashlib
 import pytz
 import sqlalchemy.types as ty
+from sqlalchemy.dialects.postgresql import JSON
 import sys
 
 from pyramid.settings import asbool
@@ -52,7 +53,7 @@ t_users = Table("users", Base.metadata,
     Column("country", ty.String(), nullable=True, default=None),
     Column("region", ty.String(), nullable=True, default=None),
     Column("city", ty.String(), nullable=True, default=None),
-    Column("additional_public_data", ty.JSON(), nullable=True, default=None),
+    Column("additional_public_data", JSON(), nullable=True, default=None),
     Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
 )
 
@@ -258,7 +259,7 @@ t_user_messages = Table('user_messages', Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
     Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index = True, nullable=False),
     Column('translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = True),
-    Column('params', ty.JSON, nullable=True, default={}),
+    Column('params', JSON(), nullable=True, default={}),
     Column('is_read', ty.Boolean, index=True, default=False, nullable=False),
     Column('created_at', ty.DateTime(), nullable=False, default=datetime.datetime.utcnow, index=True),
 )
