@@ -4,6 +4,7 @@ from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.exc import DetachedInstanceError
 from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.functions import func
+from sqlalchemy.util.compat import with_metaclass
 from zope.sqlalchemy.datamanager import mark_changed
 
 import gengine.metadata as meta
@@ -31,7 +32,7 @@ class ABaseMeta(type):
         raise AttributeError(item)
 
 
-class ABase(object, metaclass=ABaseMeta):
+class ABase(with_metaclass(ABaseMeta, object)):
     """abstract base class which introduces a nice constructor for the model classes."""
 
     def __init__(self, *args, **kw):
