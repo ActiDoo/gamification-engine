@@ -81,4 +81,10 @@ setup(name='gamification-engine',
       dependency_links=[
           "https://github.com/ActiDoo/PyAPNs/archive/master.zip#egg=apns",
       ],
+      extras_require={
+          'dev': [
+              'testing.postgresql',
+              'names'
+          ]
+      }
      )
