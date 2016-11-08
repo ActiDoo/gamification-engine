@@ -1,6 +1,8 @@
 language: python
 dist: trusty
 python:
+  - "2.7"
+  - "3.4"
   - "3.5"
 sudo: required
 env:
