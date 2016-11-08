@@ -1,13 +1,22 @@
 language: python
 python:
-  - "2.7"
-  
+  - "3.5"
+
+addons:
+  apt:
+    sources:
+      - sourceline: 'deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main'
+        key_url: 'https://www.postgresql.org/media/keys/ACCC4CF8.asc'
+    packages:
+      - postgresql-9.4
+
 # command to install dependencies
 install:
-  - python setup.py -q install
-  
+  - pip install -r requirements.txt
+  - pip install -e .[develop]
+
 # command to run tests
-script: nosetests
+script: python -m gengine.app.tests.runner
 
 # deploy to pypi
 deploy:
