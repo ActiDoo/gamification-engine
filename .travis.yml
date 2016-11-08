@@ -12,8 +12,8 @@ addons:
 
 # command to install dependencies
 install:
-#  - pip install -r requirements.txt
-  - pip install -e .[develop]
+  - pip install -r /home/travis/build/ActiDoo/gamification-engine/requirements.txt
+  - pip install -e .[dev]
 
 # command to run tests
 script: python -m gengine.app.tests.runner
