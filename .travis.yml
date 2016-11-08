@@ -4,15 +4,14 @@ python:
   - "3.5"
 sudo: false
 before_install:
-  - sudo /etc/init.d/postgresql stop
-  - sudo apt-get -y remove --purge postgresql-9.1
-  - sudo apt-get -y remove --purge postgresql-9.2
-  - sudo apt-get -y remove --purge postgresql-9.3
-  - sudo apt-get -y remove --purge postgresql-9.4
-  - sudo apt-get -y autoremove
+  - /etc/init.d/postgresql stop
+  - apt-get -y remove --purge postgresql-9.1
+  - apt-get -y remove --purge postgresql-9.2
+  - apt-get -y remove --purge postgresql-9.3
+  - apt-get -y remove --purge postgresql-9.4
+  - apt-get -y autoremove
 env:
-  - TEST_POSTGRES=/usr/lib/postgresql/9.5/bin/postgres
-  - TEST_INITDB=/usr/lib/postgresql/9.5/bin/initdb
+  - TEST_POSTGRES=/usr/lib/postgresql/9.5/bin/postgres TEST_INITDB=/usr/lib/postgresql/9.5/bin/initdb
 apt:
   packages:
     - postgresql-9.5
