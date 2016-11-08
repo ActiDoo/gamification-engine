@@ -6,7 +6,6 @@ click==6.6
 dogpile.cache==0.6.2
 Flask==0.11.1
 Flask-Admin==1.4.2
-gamification-engine==0.2.0
 itsdangerous==0.24
 Jinja2==2.8
 jsl==0.2.4
