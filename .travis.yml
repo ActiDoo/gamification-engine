@@ -18,7 +18,7 @@ install:
   - pip install -e .[dev]
 
 # command to run tests
-script: python -m gengine.app.tests.runner
+script: python gengine/app/tests/runner.py
 
 # deploy to pypi
 deploy:
