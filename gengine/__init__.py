@@ -32,6 +32,9 @@ def main(global_config, **settings):
     init_declarative_base()
     init_db(engine)
 
+    from gengine.app.cache import init_caches
+    init_caches()
+
     from gengine.base.monkeypatch_flaskadmin import do_monkeypatch
     do_monkeypatch()
 
@@ -109,7 +112,7 @@ def main(global_config, **settings):
     init_tenantadmin(urlprefix=urlprefix,
                      secret=settings.get("flaskadmin_secret","fKY7kJ2xSrbPC5yieEjV"))
 
-    #date serialization    
+    #date serialization
     json_renderer = JSON()
     def datetime_adapter(obj, request):
         return obj.isoformat()

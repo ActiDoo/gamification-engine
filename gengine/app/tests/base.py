@@ -5,7 +5,9 @@ from sqlalchemy.sql.schema import Table
 from gengine.metadata import init_db
 from gengine.app.tests import db as db
 
+
 class BaseDBTest(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         if cls is BaseDBTest:
@@ -53,4 +55,3 @@ class BaseDBTest(unittest.TestCase):
 
     def tearDown(self):
         self.db.stop()
-

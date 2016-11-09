@@ -9,8 +9,6 @@ from zope.sqlalchemy.datamanager import mark_changed
 
 import gengine.metadata as meta
 
-from gengine.base.cache import cache_general
-
 class ABaseMeta(type):
     def __init__(cls, name, bases, nmspc):
         super(ABaseMeta, cls).__init__(name, bases, nmspc)
@@ -98,7 +96,6 @@ def exists_by_expr(t, expr):
         return False
 
 
-@cache_general.cache_on_arguments()
 def datetime_trunc(field, timezone):
     return "date_trunc('%(field)s', CAST(to_char(NOW() AT TIME ZONE %(timezone)s, 'YYYY-MM-DD HH24:MI:SS') AS TIMESTAMP)) AT TIME ZONE %(timezone)s" % {
         "field": field,
@@ -106,13 +103,13 @@ def datetime_trunc(field, timezone):
     }
 
 
-@cache_general.cache_on_arguments()
 def valid_timezone(timezone):
     try:
         pytz.timezone(timezone)
     except UnknownTimeZoneError:
         return False
     return True
+
 
 def update_connection():
     session = meta.DBSession()

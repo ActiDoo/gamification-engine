@@ -17,7 +17,7 @@ from sqlalchemy.sql.schema import UniqueConstraint, Index
 
 from gengine.app.permissions import perm_global_increase_value
 from gengine.base.model import ABase, exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
-from gengine.base.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_users_levels, \
+from gengine.app.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_users_levels, \
     cache_achievements_by_user_for_today, cache_goal_statements, cache_translations
 from sqlalchemy import (
     Table,
@@ -1742,12 +1742,12 @@ mapper(AchievementUser, t_achievements_users)
 
 mapper(Goal, t_goals, properties={
     'name_translation' : relationship(TranslationVariable),
-    'properties' : relationship(GoalGoalProperty, backref='goal'),
 })
 mapper(GoalProperty, t_goalproperties)
 mapper(GoalGoalProperty, t_goals_goalproperties, properties={
    'property' : relationship(GoalProperty, backref='goals'),
-   'value_translation' : relationship(TranslationVariable)
+   'value_translation' : relationship(TranslationVariable),
+   'goal' : relationship(Goal, backref='properties',),
 })
 mapper(GoalEvaluationCache, t_goal_evaluation_cache,properties={
    'user' : relationship(User),

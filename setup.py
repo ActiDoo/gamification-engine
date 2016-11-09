@@ -84,6 +84,7 @@ setup(name='gamification-engine',
       extras_require={
           'dev': [
               'testing.postgresql',
+              'testing.redis',
               'names'
           ]
       }

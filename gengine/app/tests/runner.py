@@ -3,6 +3,10 @@ from gengine.metadata import init_declarative_base, init_session
 import unittest
 import os
 import pkgutil
+import testing.redis
+import logging
+
+log = logging.getLogger(__name__)
 
 init_session()
 init_declarative_base()
@@ -19,8 +23,24 @@ def create_test_suite():
 
 if __name__=="__main__":
     try:
+        redis = testing.redis.RedisServer()
+
+        from gengine.base.cache import setup_redis_cache
+        dsn = redis.dsn()
+        setup_redis_cache(dsn["host"], dsn["port"], dsn["db"])
+
+        from gengine.app.cache import init_caches
+        init_caches()
+
         db.setupDB()
         testSuite = create_test_suite()
         text_runner = unittest.TextTestRunner().run(testSuite)
     finally:
-        db.unsetupDB()
+        try:
+            db.unsetupDB()
+        except:
+            log.exception()
+        try:
+            redis.stop()
+        except:
+            log.exception()
