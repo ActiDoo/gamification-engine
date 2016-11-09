@@ -1694,7 +1694,8 @@ mapper(AuthRolePermission, t_auth_roles_permissions, properties={
 mapper(User, t_users, properties={
     'friends': relationship(User, secondary=t_users_users, 
                                  primaryjoin=t_users.c.id==t_users_users.c.from_id,
-                                 secondaryjoin=t_users.c.id==t_users_users.c.to_id)
+                                 secondaryjoin=t_users.c.id==t_users_users.c.to_id),
+    'language' : relationship(Language,backref="users"),
 })
 
 mapper(UserDevice, t_user_device, properties={
