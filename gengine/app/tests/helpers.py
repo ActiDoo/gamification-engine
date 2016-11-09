@@ -1,7 +1,7 @@
 import names
 import random
 
-from gengine.app.model import User
+from gengine.app.model import User, Language
 from gengine.metadata import DBSession
 
 default_gen_data = {
@@ -96,3 +96,12 @@ def create_user(
     )
 
     return User.get_user(user_id)
+
+def get_or_create_language(name):
+    lang = DBSession.query(Language).filter_by(name=name).first()
+    if not lang:
+        lang = Language()
+        lang.name = name
+        DBSession.add(lang)
+        DBSession.flush()
+    return lang
