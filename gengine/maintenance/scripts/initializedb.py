@@ -13,6 +13,7 @@ from pyramid.scripts.common import parse_vars
 from sqlalchemy import engine_from_config
 from sqlalchemy.sql.schema import Table
 
+from gengine.app.cache import init_caches
 from gengine.app.permissions import perm_global_delete_user, perm_global_increase_value, perm_global_update_user_infos, \
     perm_global_access_admin_ui, perm_global_read_messages, perm_global_register_device
 from gengine.base.model import exists_by_expr
@@ -54,6 +55,7 @@ def initialize(settings,options):
         init_declarative_base,
         init_db
     )
+    init_caches()
     init_session()
     init_declarative_base()
     init_db(engine)
