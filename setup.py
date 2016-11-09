@@ -33,7 +33,11 @@ requires = [
     'pyparsing',
     'argon2',
     'apns',
-    'python-gcm'
+    'python-gcm',
+    #Testing:
+    'testing.postgresql',
+    'testing.redis',
+    'names'
     ]
 
 version = ''
@@ -81,11 +85,4 @@ setup(name='gamification-engine',
       dependency_links=[
           "https://github.com/ActiDoo/PyAPNs/archive/master.zip#egg=apns",
       ],
-      extras_require={
-          'dev': [
-              'testing.postgresql',
-              'testing.redis',
-              'names'
-          ]
-      }
      )
