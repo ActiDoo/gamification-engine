@@ -365,11 +365,15 @@ class UserDevice(ABase):
 
     @classmethod
     def add_or_update_device(cls, user_id, device_id, push_id, device_os, app_version):
+        update_connection().execute(t_user_device.delete().where(and_(
+            t_user_device.c.push_id == push_id,
+            t_user_device.c.device_os == device_os
+        )))
+
         device = DBSession.execute(t_user_device.select().where(and_(
             t_user_device.c.device_id == device_id,
             t_user_device.c.user_id == user_id
         ))).fetchone()
-
         if device and (device["push_id"] != push_id
             or device["device_os"] != device_os
             or device["app_version"] != app_version
