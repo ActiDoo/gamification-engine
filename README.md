@@ -1,5 +1,6 @@
 # gamification-engine
 [![Build Status](https://travis-ci.org/ActiDoo/gamification-engine.svg?branch=master)](https://travis-ci.org/ActiDoo/gamification-engine)
+[![Coverage Status](https://coveralls.io/repos/github/ActiDoo/gamification-engine/badge.svg?branch=develop)](https://coveralls.io/github/ActiDoo/gamification-engine?branch=develop)
 [![Requirements Status](https://requires.io/github/ActiDoo/gamification-engine/requirements.svg?branch=master)](https://requires.io/github/ActiDoo/gamification-engine/requirements/?branch=master)
 [![Heroku](https://heroku-badge.herokuapp.com/?app=gamification-engine&root=admin)](https://gamification-engine.herokuapp.com)
 [![Documentation Status](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](https://readthedocs.org/projects/gamification-engine/?badge=latest)
