@@ -25,6 +25,10 @@ def main(global_config, **settings):
     set_settings(settings)
 
     engine = engine_from_config(settings, 'sqlalchemy.', connect_args={"options": "-c timezone=utc"}, )
+    config = Configurator(settings=settings)
+    
+    from gengine.app.cache import init_caches
+    init_caches()
 
     from gengine.metadata import init_session, init_declarative_base, init_db
 
@@ -32,13 +36,8 @@ def main(global_config, **settings):
     init_declarative_base()
     init_db(engine)
 
-    from gengine.app.cache import init_caches
-    init_caches()
-
     from gengine.base.monkeypatch_flaskadmin import do_monkeypatch
     do_monkeypatch()
-
-    config = Configurator(settings=settings)
 
     def reset_context_on_new_request(event):
         reset_context()
