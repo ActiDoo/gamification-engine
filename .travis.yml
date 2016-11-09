@@ -14,11 +14,15 @@ apt:
     - postgis
 # command to install dependencies
 install:
+  - pip install coveralls
   - "pip install --upgrade -r requirements.txt"
   - pip install -e .[dev]
 
 # command to run tests
-script: python gengine/app/tests/runner.py
+script: coverage run --source=gengine gengine/app/tests/runner.py
+
+after_success:
+  coveralls
 
 # deploy to pypi
 deploy:
