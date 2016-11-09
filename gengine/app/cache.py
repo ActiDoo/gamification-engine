@@ -2,6 +2,14 @@ from gengine.base.cache import create_cache
 
 caches = {}
 
+cache_general = None
+cache_goal_evaluation = None
+cache_achievement_eval = None
+cache_achievements_users_levels = None
+cache_achievements_by_user_for_today = None
+cache_goal_statements = None
+cache_translations = None
+
 def init_caches():
     global cache_general
     cache_general = create_cache("general")
