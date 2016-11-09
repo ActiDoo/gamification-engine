@@ -16,7 +16,7 @@ apt:
 install:
   - pip install coveralls
   - "pip install --upgrade -r requirements.txt"
-  - pip install -e .[dev]
+  - pip install -e .
 
 # command to run tests
 script: coverage run --source=gengine gengine/app/tests/runner.py
