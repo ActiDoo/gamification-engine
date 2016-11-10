@@ -15,7 +15,7 @@ It is framework for developing your own solution, implemented as a **service** t
 
 (commercial support available at https://www.gamification-software.com or together with app development at https://www.appnadoo.de)
 
-**Latest recommended version: ~~https://github.com/ActiDoo/gamification-engine/releases/latest** (not yet called "stable" though)~~
+Latest recommended version: <del>https://github.com/ActiDoo/gamification-engine/releases/latest (not yet called "stable" though)</del>
 There are installation issues in the current master branch. The develop branch is working very well and is way more stable. Nevertheless the docs are out-of-date. We are currently integrating that state into a client's project and will release a new version once we find the time to update the docs and write some tests. 
 
 ## Features
