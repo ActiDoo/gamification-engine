@@ -1,7 +1,7 @@
 import names
 import random
 
-from gengine.app.model import User, Language
+from gengine.app.model import User, Language, t_users
 from gengine.metadata import DBSession
 
 default_gen_data = {
@@ -50,7 +50,7 @@ def create_user(
         additional_public_data = undefined,
         gen_data = default_gen_data
     ):
-
+    print(country)
     if additional_public_data is undefined:
         additional_public_data = {
             'first_name' : names.get_first_name(),
@@ -94,8 +94,51 @@ def create_user(
         friends = friends,
         additional_public_data = additional_public_data
     )
+    user = DBSession.execute("SELECT country FROM users WHERE id = 1")
 
     return User.get_user(user_id)
+
+def update_user( 
+        user_id = undefined,
+        lat = undefined,
+        lng = undefined,
+        country = undefined,
+        region = undefined,
+        city = undefined,
+        timezone = undefined,
+        language = undefined,
+        friends = [],
+        groups = [],
+        additional_public_data = undefined,
+        gen_data = default_gen_data
+    ):
+
+    User.set_infos(
+        user_id = user_id,
+        lat = lat,
+        lng = lng,
+        timezone = timezone,
+        country = country,
+        region = region,
+        city = city,
+        language = language,
+        groups = groups,
+        friends = friends,
+        additional_public_data = additional_public_data
+    )
+
+    return User.get_user(user_id)
+
+def delete_user( 
+        user_id = undefined,
+    ):
+
+    User.delete_user(user_id)
+
+    return User.get_user(user_id)
+    #return DBSession.query(User).count()
+
+    
 
 def get_or_create_language(name):
     lang = DBSession.query(Language).filter_by(name=name).first()
