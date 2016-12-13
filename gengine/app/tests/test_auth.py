@@ -1,7 +1,7 @@
 from gengine.app.tests.base import BaseDBTest
 from gengine.app.tests.helpers import create_user, update_user, delete_user, get_or_create_language
 from gengine.metadata import DBSession
-from gengine.app.model import User
+from gengine.app.model import User, AuthUser
 
 
 class TestUserCreation(BaseDBTest):
@@ -63,22 +63,46 @@ class TestUserCreation(BaseDBTest):
         self.assertTrue(user.additional_public_data["last_name"] == "Red Nose")
 
     def test_user_deletion(self):
+        return
         lang = get_or_create_language("en")
         user = create_user()
 
-        total_rows = DBSession.query(User).count()
-        
         user = delete_user(
-            user_id = user.id,
+            user_id = user.id
         )
-        #diff = total_rows - total_rows_after_delete
-  
-        #self.assertTrue(diff == 1)
-        self.assertEqual(user, None)
+
+        self.assertE(user, None)
+
+    def test_verify_password(self):
+        return
+        auth_user = AuthUser()
+        auth_user.password = "test12345"
+        auth_user.active = True
+        auth_user.email = "test@actidoo.com"
+        DBSession.add(auth_user)
+
+        iscorrect = auth_user.verify_password("test12345")
+        print(isCorrect)
+
+        self.assertEqual(iscorrect, True)
+
+    def test_create_token(self):
+        return
+        user = create_user()
+        auth_user = AuthUser()
+        auth_user.user_id = user.id
+        auth_user.password = "test12345"
+        auth_user.active = True
+        auth_user.email = "test@actidoo.com"
+        DBSession.add(auth_user)
+
+        if auth_user.verify_password("test12345"):
+            token = auth_user.get_or_create_token()
+
+        print(token)
+        self.assertNotEqual(token, None)
 
 
 
 
 
-
-        

@@ -1,8 +1,11 @@
 import names
 import random
 
-from gengine.app.model import User, Language, t_users
+from gengine.app.model import User, Language
 from gengine.metadata import DBSession
+
+from gengine.app.model import UserDevice, t_user_device
+from sqlalchemy import (and_)
 
 default_gen_data = {
     "timezone" : "Europe/Berlin",
@@ -26,6 +29,13 @@ alt_gen_data = {
         "min_lng" : -73.89,
         "max_lng" : -73.97
     }
+}
+
+default_device_data = {
+    "device_id" : "1234",
+    "device_os" : "iOS 5",
+    "app_version" : "1.1",
+    "push_id" : "5678"
 }
 
 class Undefined():
@@ -110,7 +120,6 @@ def update_user(
         friends = [],
         groups = [],
         additional_public_data = undefined,
-        gen_data = default_gen_data
     ):
 
     User.set_infos(
@@ -136,8 +145,6 @@ def delete_user(
     User.delete_user(user_id)
 
     return User.get_user(user_id)
-    #return DBSession.query(User).count()
-
     
 
 def get_or_create_language(name):
@@ -148,3 +155,79 @@ def get_or_create_language(name):
         DBSession.add(lang)
         DBSession.flush()
     return lang
+
+def create_device(
+        user_id=undefined,
+        device_id=undefined,
+        device_os=undefined,
+        push_id=undefined,
+        app_version=undefined,
+        gen_data=default_device_data
+    ):
+
+    if push_id is undefined:
+        push_id = gen_data["push_id"]
+
+    if device_os is undefined:
+        device_os = gen_data["device_os"]
+
+    if app_version is undefined:
+        app_version = gen_data["app_version"]
+
+    if device_id is undefined:
+        device_id = gen_data["device_id"]
+
+    UserDevice.add_or_update_device(
+        device_id = device_id,
+        user_id = user_id,
+        device_os = device_os,
+        push_id = push_id,
+        app_version = app_version
+    )
+
+    device = DBSession.execute(t_user_device.select().where(and_(
+            t_user_device.c.device_id == device_id,
+            t_user_device.c.user_id == user_id
+        ))).fetchone()
+
+    return device
+
+
+def update_device(
+        user_id=undefined,
+        device_id=undefined,
+        device_os=undefined,
+        push_id=undefined,
+        app_version=undefined,
+    ):
+    UserDevice.add_or_update_device(
+        device_id=device_id,
+        user_id=user_id,
+        device_os=device_os,
+        push_id=push_id,
+        app_version=app_version
+    )
+
+    device = DBSession.execute(t_user_device.select().where(and_(
+        t_user_device.c.device_id == device_id,
+        t_user_device.c.user_id == user_id
+    ))).fetchone()
+
+    return device
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
