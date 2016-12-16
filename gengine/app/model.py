@@ -600,8 +600,8 @@ class Variable(ABase):
             get the datetime of the current row, needed for grouping
             the optional parameter at_datetime can provide a timezone-aware datetime which overrides the default "now"
         """
-
         tzobj = pytz.timezone(tz)
+
 
         if not at_datetime:
             now = datetime.datetime.now(tzobj)
@@ -623,6 +623,7 @@ class Variable(ABase):
         else:
             #return datetime.datetime.max.replace
             return datetime.datetime(year=2000,month=1,day=1,hour=0,minute=0,second=0,microsecond=0).replace(tzinfo=pytz.utc)
+
 
         return t.astimezone(tzobj)
 
@@ -674,6 +675,7 @@ class Value(ABase):
 
     (e.g. it counts the occurences of the "events" which the variable represents) """
 
+
     @classmethod
     def increase_value(cls, variable_name, user, value, key, at_datetime=None):
         """increase the value of the variable for the user.
@@ -705,7 +707,8 @@ class Value(ABase):
                                            "value":value}))
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
-
+        new_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
+        return new_value
 
 class AchievementCategory(ABase):
     """A category for grouping achievement types"""
@@ -739,7 +742,9 @@ class Achievement(ABase):
         def generate_achievements_by_user_for_today():
             today = datetime.date.today()
             by_loc = {x["id"] : x["distance"] for x in cls.get_achievements_by_location(coords(user))}
+            print(by_loc)
             by_date = cls.get_achievements_by_date(today)
+            print(by_date)
 
             def update(arr,distance):
                 arr["distance"]=distance
@@ -760,11 +765,14 @@ class Achievement(ABase):
         """return achievements which are valid in that location."""
         #TODO: invalidate automatically when achievement in user's range is modified
         distance = calc_distance(latlng, (t_achievements.c.lat, t_achievements.c.lng)).label("distance")
+        print(distance)
 
         q = select([t_achievements.c.id,
                     distance])\
             .where(or_(and_(t_achievements.c.lat==None,t_achievements.c.lng==None),
                         distance < t_achievements.c.max_distance))
+        print(DBSession.execute(q).fetchall())
+
         return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id']))>0]
 
     @classmethod
