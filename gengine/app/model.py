@@ -18,7 +18,7 @@ from sqlalchemy.sql.schema import UniqueConstraint, Index
 from gengine.app.permissions import perm_global_increase_value
 from gengine.base.model import ABase, exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
 from gengine.app.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_users_levels, \
-    cache_achievements_by_user_for_today, cache_goal_statements, cache_translations
+    cache_achievements_by_user_for_today, cache_translations
 from sqlalchemy import (
     Table,
     ForeignKey,
@@ -1036,9 +1036,9 @@ class Achievement(ABase):
                                                  t_achievements_rewards.c.achievement_id==achievement_id))\
                                        .order_by(t_achievements_rewards.c.from_level))\
                                        .fetchall()
+
         #now compute the diff :-/
         build_hash = lambda x,l : hashlib.md5((str(x["id"])+str(evaluate_string(x["value"], {"level":l}))+str(Translation.trs(x["value_translation_id"], {"level":l}))).encode("UTF-8")).hexdigest()
-
         prev_hashes = {build_hash(x,level-1) for x in prev_level}
         #this_hashes = {build_hash(x,level) for x in this_level}
 
@@ -1257,7 +1257,9 @@ class Goal(ABase):
             else:
                 return q
 
-        q = cache_goal_statements.get_or_create(str(goal["id"]),generate_statement_cache)
+        #q = cache_goal_statements.get_or_create(str(goal["id"]),generate_statement_cache)
+        # TODO: Cache the statement / Make it serializable for caching in redis
+        q = generate_statement_cache()
         return DBSession.execute(q, {'user_id' : user_id})
 
     @classmethod

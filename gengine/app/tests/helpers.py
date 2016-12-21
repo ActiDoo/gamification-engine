@@ -1,7 +1,7 @@
 import names
 import random
 
-from gengine.app.model import User, Language
+from gengine.app.model import User, Language, Achievement,Goal, Variable, Value
 from gengine.metadata import DBSession
 
 from gengine.app.model import UserDevice, t_user_device
@@ -215,11 +215,73 @@ def update_device(
 
     return device
 
+def create_achievement():
+    achievement = Achievement()
+    achievement.name = "invite_users"
+    achievement.valid_start = "2016-12-16"
+    achievement.valid_end = "2016-12-18"
+    achievement.lat = 40.983
+    achievement.lng = 41.562
+    achievement.max_distance = 200000
+    achievement.evaluation = "immediately"
+    achievement.relevance = "friends"
+    achievement.view_permission = "everyone"
+    DBSession.add(achievement)
+
+    DBSession.flush()
+
+    achievement = achievement.get_achievement(achievement.id)
+    DBSession.flush()
+
+    return achievement
 
 
+def create_goals():
+    achievement = create_achievement()
+    goal = Goal()
+    goal.condition = """{"term": {"type": "literal", "variable": "invite_users"}}"""
+    goal.goal = "5*level"
+    goal.operator = "geq"
+    goal.achievement_id = achievement.id
+    DBSession.add(goal)
+    DBSession.flush()
 
+    goal = Goal()
+    goal.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
+    goal.goal = "3*level"
+    goal.operator = "geq"
+    goal.achievement_id = achievement.id
+    DBSession.add(goal)
 
+    DBSession.flush()
 
+    goals = goal.get_goals(achievement.id)
+    return goals
+
+def create_variable():
+    variable = Variable()
+    variable.name = "participate"
+    variable.group = "none"
+    DBSession.add(variable)
+
+    DBSession.flush()
+
+    variable = variable.get_variable_by_name(variable.name)
+    return variable
+
+def create_value():
+    variable = create_variable()
+    user = create_user()
+
+    value = Value()
+    value.user_id = user.id
+    value.variable_id = variable.id
+    value.value = 1
+    value.key = "5"
+    DBSession.add(value)
+    DBSession.flush()
+
+    return value
 
 
 
