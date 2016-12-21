@@ -10,3 +10,17 @@ class DictObjectProxy:
 
     def __setattr__(self, key, value):
         super().__getattribute__("obj")[key] = value
+
+
+class Proxy(object):
+    def __init__(self):
+        self.target = None
+
+    def __getattr__(self, name):
+        return getattr(self.target, name)
+
+    def __setattr__(self, name, value):
+        if name == "target":
+            return object.__setattr__(self, name, value)
+        else:
+            setattr(self.target, name, value)

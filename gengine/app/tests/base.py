@@ -2,9 +2,8 @@ import unittest
 import os
 from sqlalchemy.engine import create_engine
 from sqlalchemy.sql.schema import Table
-from gengine.metadata import init_db
-from gengine.app.tests import db as db
-
+from gengine.metadata import init_db, init_session, get_sessionmaker
+from gengine.app.tests import db
 
 class BaseDBTest(unittest.TestCase):
 
@@ -25,9 +24,9 @@ class BaseDBTest(unittest.TestCase):
                 "database": dsn["database"],
             }
         )
-        init_db(self.engine)
-
+        init_session(override_session=get_sessionmaker()(bind=self.engine), replace=True)
         from gengine.metadata import Base
+        Base.metadata.bind = self.engine
 
         Base.metadata.drop_all(self.engine)
         self.engine.execute("DROP SCHEMA IF EXISTS public CASCADE")
