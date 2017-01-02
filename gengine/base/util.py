@@ -24,3 +24,7 @@ class Proxy(object):
             return object.__setattr__(self, name, value)
         else:
             setattr(self.target, name, value)
+
+    def __call__(self, *args, **kwargs):
+        return self.target(*args, **kwargs)
+    
