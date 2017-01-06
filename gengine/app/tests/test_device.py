@@ -369,6 +369,14 @@ class TestUserDevice(BaseDBTest):
         self.assertIsNotNone(result1)
         self.assertIsNotNone(result2)
 
+    def test_evaluate_goal(self):
+        achievement = create_achievement()
+        goal = create_goals()
+        user = create_user()
+        achievement_date = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement["evaluation"])
+
+        Goal.evaluate(goal, achievement, achievement_date, user.id, 2, goal_eval_cache_before=False,execute_triggers=True)
+
 
 
 
