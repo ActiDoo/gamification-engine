@@ -742,9 +742,7 @@ class Achievement(ABase):
         def generate_achievements_by_user_for_today():
             today = datetime.date.today()
             by_loc = {x["id"] : x["distance"] for x in cls.get_achievements_by_location(coords(user))}
-            print(by_loc)
             by_date = cls.get_achievements_by_date(today)
-            print(by_date)
 
             def update(arr,distance):
                 arr["distance"]=distance
@@ -765,13 +763,11 @@ class Achievement(ABase):
         """return achievements which are valid in that location."""
         #TODO: invalidate automatically when achievement in user's range is modified
         distance = calc_distance(latlng, (t_achievements.c.lat, t_achievements.c.lng)).label("distance")
-        print(distance)
 
         q = select([t_achievements.c.id,
                     distance])\
             .where(or_(and_(t_achievements.c.lat==None,t_achievements.c.lng==None),
                         distance < t_achievements.c.max_distance))
-        print(DBSession.execute(q).fetchall())
 
         return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id']))>0]
 
@@ -1233,14 +1229,12 @@ class Goal(ABase):
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("month","users.timezone")))
                 elif evaluation_type=="year":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
-
             if datetime_col is not None or group_by_key is not None:
                 if datetime_col is not None:
                     q = q.group_by(datetime_col)
 
                 if group_by_key is not None:
                     q = q.group_by(t_values.c.key)
-
                 query_with_groups = q.alias()
 
                 select_cols2 = [query_with_groups.c.user_id]
@@ -1271,6 +1265,8 @@ class Goal(ABase):
         users_progress = Goal.compute_progress(goal, achievement, user_id)
 
         goal_evaluation = {e["user_id"] : e["value"] for e in users_progress}
+        print("In evaluate")
+        print(goal_evaluation)
 
         goal_achieved = False
 
@@ -1278,6 +1274,7 @@ class Goal(ABase):
             goal_eval_cache_before = cls.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
         new = goal_evaluation.get(user_id,0.0)
+        print("new", new)
 
         if goal_eval_cache_before is None or goal_eval_cache_before.get("value",0.0)!=goal_evaluation.get(user_id,0.0):
 
@@ -1285,9 +1282,9 @@ class Goal(ABase):
             params = {
                 "level" : level
             }
-
+            print("params", params)
             goal_goal = evaluate_value_expression(goal["goal"], params)
-
+            print("goal_goal",goal_goal)
             if goal_goal is not None and operator=="geq" and new>=goal_goal:
                 goal_achieved = True
                 new = min(new,goal_goal)
@@ -1297,7 +1294,7 @@ class Goal(ABase):
                 new = max(new,goal_goal)
 
             previous_goal = Goal.basic_goal_output(goal, level-1).get("goal_goal",0)
-
+            print("previous_goal")
             # Evaluate triggers
             if execute_triggers:
                 Goal.select_and_execute_triggers(goal = goal, user_id = user_id, level = level, current_goal = goal_goal, previous_goal = previous_goal, value = new)
@@ -1380,6 +1377,7 @@ class Goal(ABase):
     def get_goal_eval_cache(cls,goal_id,achievement_date,user_id):
         """lookup and return cache entry, else return None"""
         v = cache_goal_evaluation.get("%s_%s_%s" % (goal_id,achievement_date,user_id))
+        print(v)
         if v:
             return v
         else:

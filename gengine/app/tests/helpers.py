@@ -1,7 +1,7 @@
 import names
 import random
 
-from gengine.app.model import User, Language, Achievement,Goal, Variable, Value
+from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, t_goals_goalproperties
 from gengine.metadata import DBSession
 
 from gengine.app.model import UserDevice, t_user_device
@@ -60,7 +60,6 @@ def create_user(
         additional_public_data = undefined,
         gen_data = default_gen_data
     ):
-    print(country)
     if additional_public_data is undefined:
         additional_public_data = {
             'first_name' : names.get_first_name(),
@@ -215,6 +214,7 @@ def update_device(
 
     return device
 
+
 def create_achievement():
     achievement = Achievement()
     achievement.name = "invite_users"
@@ -236,27 +236,57 @@ def create_achievement():
     return achievement
 
 
-def create_goals():
-    achievement = create_achievement()
+def create_goals(achievement):
     goal = Goal()
     goal.condition = """{"term": {"type": "literal", "variable": "invite_users"}}"""
     goal.goal = "5*level"
-    goal.operator = "geq"
+    goal.operator = "leq"
     goal.achievement_id = achievement.id
     DBSession.add(goal)
     DBSession.flush()
 
-    goal = Goal()
-    goal.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
-    goal.goal = "3*level"
-    goal.operator = "geq"
-    goal.achievement_id = achievement.id
-    DBSession.add(goal)
-
+    goal1 = Goal()
+    goal1.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
+    goal1.goal = "3*level"
+    goal1.group_by_key = True
+    goal1.operator = "geq"
+    goal1.achievement_id = achievement.id
+    DBSession.add(goal1)
     DBSession.flush()
 
-    goals = goal.get_goals(achievement.id)
+    goals = DBSession.execute(t_goals.select(t_goals.c.achievement_id == achievement.id)).fetchall()
+    DBSession.flush()
+    print(goals)
+
     return goals
+
+
+def create_goal_properties(goal_id):
+
+    goal_property = GoalProperty()
+    goal_property.name = "participate"
+    goal_property.is_variable = True
+    DBSession.add(goal_property)
+    DBSession.flush()
+
+    translation_variable = TranslationVariable()
+    translation_variable.name = "invite_users_goal_name"
+    DBSession.add(translation_variable)
+    DBSession.flush()
+
+    goals_goal_property = GoalGoalProperty()
+    goals_goal_property.goal_id = goal_id
+    goals_goal_property.property_id = goal_property.id
+    goals_goal_property.value = "7"
+    goals_goal_property.value_translation_id = translation_variable.id
+    goals_goal_property.from_level = 2
+    DBSession.add(goals_goal_property)
+    DBSession.flush()
+
+    goals_goal_property_result = DBSession.execute(t_goals_goalproperties.select().where(t_goals_goalproperties.c.goal_id == goal_id)).fetchone()
+
+    return goals_goal_property_result
+
 
 def create_variable():
     variable = Variable()
@@ -282,14 +312,3 @@ def create_value():
     DBSession.flush()
 
     return value
-
-
-
-
-
-
-
-
-
-
-
