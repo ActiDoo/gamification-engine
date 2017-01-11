@@ -1229,11 +1229,14 @@ class Goal(ABase):
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("month","users.timezone")))
                 elif evaluation_type=="year":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
-            if datetime_col is not None or group_by_key is not None:
+
+            print("datetime_col ", datetime_col)
+            print("group_by_key ", group_by_key)
+            if datetime_col is not None or group_by_key is not False:
                 if datetime_col is not None:
                     q = q.group_by(datetime_col)
 
-                if group_by_key is not None:
+                if group_by_key is not False:
                     q = q.group_by(t_values.c.key)
                 query_with_groups = q.alias()
 
@@ -1254,6 +1257,8 @@ class Goal(ABase):
         #q = cache_goal_statements.get_or_create(str(goal["id"]),generate_statement_cache)
         # TODO: Cache the statement / Make it serializable for caching in redis
         q = generate_statement_cache()
+        print("progress")
+        print(DBSession.execute(q, {'user_id' : user_id}))
         return DBSession.execute(q, {'user_id' : user_id})
 
     @classmethod
@@ -1263,10 +1268,7 @@ class Goal(ABase):
         operator = goal["operator"]
 
         users_progress = Goal.compute_progress(goal, achievement, user_id)
-
         goal_evaluation = {e["user_id"] : e["value"] for e in users_progress}
-        print("In evaluate")
-        print(goal_evaluation)
 
         goal_achieved = False
 
@@ -1274,7 +1276,6 @@ class Goal(ABase):
             goal_eval_cache_before = cls.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
         new = goal_evaluation.get(user_id,0.0)
-        print("new", new)
 
         if goal_eval_cache_before is None or goal_eval_cache_before.get("value",0.0)!=goal_evaluation.get(user_id,0.0):
 

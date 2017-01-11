@@ -248,7 +248,7 @@ def create_goals(achievement):
     goal1 = Goal()
     goal1.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
     goal1.goal = "3*level"
-    goal1.group_by_key = True
+    goal1.group_by_key = False
     goal1.operator = "geq"
     goal1.achievement_id = achievement.id
     DBSession.add(goal1)
@@ -288,26 +288,31 @@ def create_goal_properties(goal_id):
     return goals_goal_property_result
 
 
-def create_variable():
+def create_variable(
+        variable_name = undefined,
+        variable_group = undefined,
+    ):
     variable = Variable()
-    variable.name = "participate"
-    variable.group = "none"
+    variable.name = variable_name
+    variable.group = variable_group
     DBSession.add(variable)
-
     DBSession.flush()
 
-    variable = variable.get_variable_by_name(variable.name)
     return variable
 
-def create_value():
-    variable = create_variable()
-    user = create_user()
+
+def create_value(
+        user_id=undefined,
+        variable_id=undefined,
+        var_value=undefined,
+        key="",
+    ):
 
     value = Value()
-    value.user_id = user.id
-    value.variable_id = variable.id
-    value.value = 1
-    value.key = "5"
+    value.user_id = user_id
+    value.variable_id = variable_id
+    value.value = var_value
+    value.key = key
     DBSession.add(value)
     DBSession.flush()
 
