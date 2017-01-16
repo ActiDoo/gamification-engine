@@ -1217,14 +1217,17 @@ class Goal(ABase):
 
             if evaluation_type!="immediately":
 
-                if evaluation_type=="day":
+                if evaluation_type=="daily":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("day","users.timezone")))
-                elif evaluation_type=="week":
+                elif evaluation_type=="weekly":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("week","users.timezone")))
-                elif evaluation_type=="month":
+                elif evaluation_type=="monthly":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("month","users.timezone")))
-                elif evaluation_type=="year":
+                elif evaluation_type=="yearly":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
+                elif evaluation_type == "end":
+                    pass
+                    #Todo implement for end
 
             if datetime_col is not None or group_by_key is not None:
                 if datetime_col is not None:
