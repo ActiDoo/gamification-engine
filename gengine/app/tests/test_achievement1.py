@@ -1,7 +1,7 @@
 from gengine.app.tests.base import BaseDBTest
-from gengine.app.tests.helpers import create_user, create_achievement
+from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_value, create_goals
 from gengine.metadata import DBSession
-from gengine.app.model import Achievement, User
+from gengine.app.model import Achievement, User, AchievementUser, Goal, Value
 
 
 class TestAchievement(BaseDBTest):
@@ -286,5 +286,92 @@ class TestAchievement(BaseDBTest):
         self.assertNotEqual(result1, [])
         self.assertNotEqual(result2, [])
 
-    def test_evaluate_achievement(self):
+    def test_evaluate_achievement_for_participate(self):
         return
+        # Achievement with relevance own and maxlevel 3
+        achievement = create_achievement()
+
+        user = create_user()
+
+        achievement_date = Achievement.get_datetime_for_evaluation_type(user["timezone"], achievement["evaluation"])
+
+        # get level
+        current_level = 2
+        achievement_user = AchievementUser()
+        achievement_user.user_id = user.id
+        achievement_user.achievement_id = achievement.id
+        achievement_user.achievement_date = achievement_date
+        achievement_user.level = current_level
+        DBSession.add(achievement_user)
+        DBSession.flush()
+
+        variable = create_variable("participate", "none")
+
+        goal = Goal()
+        goal.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
+        goal.goal = "1*level"
+        goal.group_by_key = True
+        goal.operator = "geq"
+        goal.achievement_id = achievement.id
+        DBSession.add(goal)
+        DBSession.flush()
+
+        Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+        Value.increase_value(variable_name="participate", user=user, value=1, key="5")
+        Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+        Value.increase_value(variable_name="participate", user=user, value=1, key="5")
+        Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+        Value.increase_value(variable_name="participate", user=user, value=1, key="5")
+        result = Achievement.evaluate(user, achievement.id, achievement_date)
+        print(result)
+
+        self.assertEqual(result["level"], achievement.maxlevel)
+
+    def test_evaluate_achievement_for_invite_users(self):
+        return
+        # Achievement with relevance friends and maxlevel 3
+        achievement = create_achievement()
+
+        user = create_user()
+
+        achievement_date = Achievement.get_datetime_for_evaluation_type(user["timezone"], achievement["evaluation"])
+
+        # get level
+        current_level = 1
+        achievement_user = AchievementUser()
+        achievement_user.user_id = user.id
+        achievement_user.achievement_id = achievement.id
+        achievement_user.achievement_date = achievement_date
+        achievement_user.level = current_level
+        DBSession.add(achievement_user)
+        DBSession.flush()
+
+        variable = create_variable("invite_users", "none")
+        firstvalue = Value.increase_value(variable_name="invite_users", user=user, value=1, key="5")
+        print("firstvalue ", firstvalue)
+        DBSession.flush()
+
+        goal = Goal()
+        goal.condition = """{"term": {"type": "literal", "variable": "invite_users"}}"""
+        goal.goal = "3*level"
+        goal.operator = "geq"
+        goal.group_by_key = False
+        goal.achievement_id = achievement.id
+        DBSession.add(goal)
+        DBSession.flush()
+
+        level = Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+        print("level ",level)
+        new2 = Value.increase_value(variable_name="invite_users", user=user, value=8, key="5")
+        print("new2 ",new2)
+        level2 = Achievement.evaluate(user, achievement.id, achievement_date)
+        new = Value.increase_value(variable.name, user, 7, key="5")
+        print("level2 ", level2)
+        x = Goal.evaluate(goal,achievement,achievement_date, user.id, Achievement.evaluate(user, achievement.id, achievement_date).get("level"))
+        print("goal eval",x)
+        level3 = Achievement.evaluate(user, achievement.id, achievement_date)
+        print("level3 ",level3)
+
+
+
+

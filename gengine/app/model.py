@@ -689,7 +689,8 @@ class Value(ABase):
 
         variable = Variable.get_variable_by_name(variable_name)
         dt = Variable.get_datetime_for_tz_and_group(tz,variable["group"],at_datetime=at_datetime)
-
+        print("datetime ",t_values.c.datetime)
+        print("dt ",dt)
         condition = and_(t_values.c.datetime==dt,
                          t_values.c.variable_id==variable["id"],
                          t_values.c.user_id==user_id,
@@ -912,6 +913,7 @@ class Achievement(ABase):
                 if not goal_eval:
                     Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level,None)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
+                    print("Goal eval ",goal_eval)
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
                     goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement_date, user_ids)
@@ -1230,8 +1232,6 @@ class Goal(ABase):
                 elif evaluation_type=="year":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
 
-            print("datetime_col ", datetime_col)
-            print("group_by_key ", group_by_key)
             if datetime_col is not None or group_by_key is not False:
                 if datetime_col is not None:
                     q = q.group_by(datetime_col)
@@ -1257,19 +1257,16 @@ class Goal(ABase):
         #q = cache_goal_statements.get_or_create(str(goal["id"]),generate_statement_cache)
         # TODO: Cache the statement / Make it serializable for caching in redis
         q = generate_statement_cache()
-        print("progress")
-        print(DBSession.execute(q, {'user_id' : user_id}))
         return DBSession.execute(q, {'user_id' : user_id})
 
     @classmethod
     def evaluate(cls, goal, achievement, achievement_date, user_id, level, goal_eval_cache_before=False, execute_triggers=True):
         """evaluate the goal for the user_ids and the level"""
-
         operator = goal["operator"]
 
         users_progress = Goal.compute_progress(goal, achievement, user_id)
         goal_evaluation = {e["user_id"] : e["value"] for e in users_progress}
-
+        print("user_progress ", goal_evaluation)
         goal_achieved = False
 
         if goal_eval_cache_before is False:
@@ -1286,8 +1283,10 @@ class Goal(ABase):
             print("params", params)
             goal_goal = evaluate_value_expression(goal["goal"], params)
             print("goal_goal",goal_goal)
+            print("user_value ", new)
             if goal_goal is not None and operator=="geq" and new>=goal_goal:
                 goal_achieved = True
+                print("goal_achieved is ",goal_achieved)
                 new = min(new,goal_goal)
 
             elif goal_goal is not None and operator=="leq" and new<=goal_goal:

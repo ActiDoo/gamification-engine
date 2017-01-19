@@ -1,11 +1,11 @@
 import names
 import random
 
-from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, t_goals_goalproperties
+from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, t_goals_goalproperties, t_users
 from gengine.metadata import DBSession
 
 from gengine.app.model import UserDevice, t_user_device
-from sqlalchemy import (and_)
+from sqlalchemy import and_, select
 
 default_gen_data = {
     "timezone" : "Europe/Berlin",
@@ -32,10 +32,10 @@ alt_gen_data = {
 }
 
 default_device_data = {
-    "device_id" : "1234",
     "device_os" : "iOS 5",
     "app_version" : "1.1",
-    "push_id" : "5678"
+    "push_id" : "5678",
+    "device_id" : "1234"
 }
 
 class Undefined():
@@ -142,8 +142,9 @@ def delete_user(
     ):
 
     User.delete_user(user_id)
-
-    return User.get_user(user_id)
+    users = DBSession.execute(select([t_users.c.id,])).fetchall()
+    print(users)
+    return users
     
 
 def get_or_create_language(name):
@@ -225,6 +226,7 @@ def create_achievement():
     achievement.max_distance = 200000
     achievement.evaluation = "immediately"
     achievement.relevance = "friends"
+    achievement.maxlevel = 3
     achievement.view_permission = "everyone"
     DBSession.add(achievement)
 

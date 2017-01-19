@@ -6,7 +6,7 @@ from gengine.app.model import User, AuthUser
 
 class TestUserCreation(BaseDBTest):
     def test_user_creation(self):
-        return
+
         lang = get_or_create_language("en")
 
         user = create_user(
@@ -34,7 +34,7 @@ class TestUserCreation(BaseDBTest):
         self.assertTrue(user.additional_public_data["last_name"] == "Red Nose")
 
     def test_user_updation(self):
-        return
+
         lang = get_or_create_language("en")
         user = create_user()
         user = update_user(
@@ -63,18 +63,34 @@ class TestUserCreation(BaseDBTest):
         self.assertTrue(user.additional_public_data["last_name"] == "Red Nose")
 
     def test_user_deletion(self):
-        return
-        lang = get_or_create_language("en")
-        user = create_user()
 
-        user = delete_user(
-            user_id = user.id
+        # Create First user
+        user1 = create_user()
+
+        # Create Second user
+        user2 = create_user(
+            lat=85.59,
+            lng=65.75,
+            country="DE",
+            region="Niedersachsen",
+            city="Osnabrück",
+            timezone="Europe/Berlin",
+            language="de",
+            additional_public_data={
+                "first_name": "Michael",
+                "last_name": "Clarke"
+            },
+            friends=[1]
         )
 
-        self.assertE(user, None)
+        remainingusers = delete_user(
+            user_id = user1.id
+        )
+
+        self.assertNotIn(user1.id, remainingusers)
 
     def test_verify_password(self):
-        return
+
         auth_user = AuthUser()
         auth_user.password = "test12345"
         auth_user.active = True
@@ -82,12 +98,12 @@ class TestUserCreation(BaseDBTest):
         DBSession.add(auth_user)
 
         iscorrect = auth_user.verify_password("test12345")
-        print(isCorrect)
+        print(iscorrect)
 
         self.assertEqual(iscorrect, True)
 
     def test_create_token(self):
-        return
+
         user = create_user()
         auth_user = AuthUser()
         auth_user.user_id = user.id
