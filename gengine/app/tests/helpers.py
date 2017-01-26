@@ -1,5 +1,6 @@
 import names
 import random
+import datetime
 
 from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, t_goals_goalproperties, t_users
 from gengine.metadata import DBSession
@@ -143,7 +144,6 @@ def delete_user(
 
     User.delete_user(user_id)
     users = DBSession.execute(select([t_users.c.id,])).fetchall()
-    print(users)
     return users
     
 
@@ -216,51 +216,148 @@ def update_device(
     return device
 
 
-def create_achievement():
+def create_achievement(
+        achievement_name = undefined,
+        achievement_valid_start = undefined,
+        achievement_valid_end = undefined,
+        achievement_lat = undefined,
+        achievement_lng = undefined,
+        achievement_max_distance = undefined,
+        achievement_evaluation = undefined,
+        achievement_relevance = undefined,
+        achievement_maxlevel = undefined,
+        achievement_view_permission = undefined,
+    ):
     achievement = Achievement()
-    achievement.name = "invite_users"
-    achievement.valid_start = "2016-12-16"
-    achievement.valid_end = "2016-12-18"
-    achievement.lat = 40.983
-    achievement.lng = 41.562
-    achievement.max_distance = 200000
-    achievement.evaluation = "immediately"
-    achievement.relevance = "friends"
-    achievement.maxlevel = 3
-    achievement.view_permission = "everyone"
+
+    if achievement_name is undefined:
+        achievement.name = "invite_users_achievement"
+    else:
+        achievement.name = achievement_name
+
+    if achievement_valid_start is undefined:
+        achievement.valid_start = "2016-12-16"
+    else:
+        achievement.valid_start = achievement_valid_start
+
+    if achievement_valid_end is undefined:
+        achievement.valid_end = datetime.datetime.utcnow()
+    else:
+        achievement.valid_end = achievement_valid_end
+
+    if achievement_lat is undefined:
+        achievement.lat = 40.983
+    else:
+        achievement.lat = achievement_lat
+
+    if achievement_lng is undefined:
+        achievement.lng = 41.562
+    else:
+        achievement.lng = achievement_lng
+
+    if achievement_max_distance is undefined:
+        achievement.max_distance = 20000
+    else:
+        achievement.max_distance = achievement_max_distance
+
+    if achievement_evaluation is undefined:
+        achievement.evaluation = "immediately"
+    else:
+        achievement.evaluation = achievement_evaluation
+
+    if achievement_relevance is undefined:
+        achievement.relevance = "friends"
+    else:
+        achievement.relevance = achievement_relevance
+
+    if achievement_maxlevel is undefined:
+        achievement.maxlevel = 3
+    else:
+        achievement.maxlevel = achievement_maxlevel
+
+    if achievement_view_permission is undefined:
+        achievement.view_permission = "everyone"
+    else:
+        achievement.view_permission = achievement_view_permission
+
     DBSession.add(achievement)
-
-    DBSession.flush()
-
-    achievement = achievement.get_achievement(achievement.id)
     DBSession.flush()
 
     return achievement
 
 
-def create_goals(achievement):
+def create_goals(
+        achievement = undefined,
+        goal_condition = undefined,
+        goal_goal = undefined,
+        goal_operator = undefined,
+        goal_group_by_key = undefined,
+        goal_name = undefined
+    ):
     goal = Goal()
-    goal.condition = """{"term": {"type": "literal", "variable": "invite_users"}}"""
-    goal.goal = "5*level"
-    goal.operator = "leq"
-    goal.achievement_id = achievement.id
-    DBSession.add(goal)
-    DBSession.flush()
+    if achievement["name"] is "invite_users_achievement":
 
-    goal1 = Goal()
-    goal1.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
-    goal1.goal = "3*level"
-    goal1.group_by_key = False
-    goal1.operator = "geq"
-    goal1.achievement_id = achievement.id
-    DBSession.add(goal1)
-    DBSession.flush()
+        if goal_condition is undefined:
+            goal.condition = """{"term": {"type": "literal", "variable": "invite_users"}}"""
+        else:
+            goal.condition = goal_condition
 
-    goals = DBSession.execute(t_goals.select(t_goals.c.achievement_id == achievement.id)).fetchall()
-    DBSession.flush()
-    print(goals)
+        if goal_goal is undefined:
+            goal.goal = "5*level"
+        else:
+            goal.goal = goal_goal
 
-    return goals
+        if goal_operator is undefined:
+            goal.operator = "geq"
+        else:
+            goal.operator = goal_operator
+
+        if goal_group_by_key is undefined:
+            goal.group_by_key = False
+        else:
+            goal.group_by_key = goal_group_by_key
+
+        if goal_name is undefined:
+            goal.name = "goal_invite_users"
+        else:
+            goal.name = goal_name
+
+        goal.achievement_id = achievement.id
+        DBSession.add(goal)
+        DBSession.flush()
+
+    if achievement["name"] is "participate_achievement":
+
+        if goal_condition is undefined:
+            goal.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
+        else:
+            goal.condition = goal_condition
+
+        if goal_goal is undefined:
+            goal.goal = "5*level"
+        else:
+            goal.goal = goal_goal
+
+        if goal_operator is undefined:
+            goal.operator = "geq"
+        else:
+            goal.operator = goal_operator
+
+        if goal_group_by_key is undefined:
+            goal.group_by_key = True
+        else:
+            goal.group_by_key = goal_group_by_key
+
+        if goal_name is undefined:
+            goal.name = "goal_participate"
+        else:
+            goal.name = goal_name
+
+        goal.achievement_id = achievement.id
+        DBSession.add(goal)
+        DBSession.flush()
+
+    return goal
 
 
 def create_goal_properties(goal_id):

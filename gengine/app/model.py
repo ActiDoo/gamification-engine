@@ -689,8 +689,6 @@ class Value(ABase):
 
         variable = Variable.get_variable_by_name(variable_name)
         dt = Variable.get_datetime_for_tz_and_group(tz,variable["group"],at_datetime=at_datetime)
-        print("datetime ",t_values.c.datetime)
-        print("dt ",dt)
         condition = and_(t_values.c.datetime==dt,
                          t_values.c.variable_id==variable["id"],
                          t_values.c.user_id==user_id,
@@ -744,7 +742,6 @@ class Achievement(ABase):
             today = datetime.date.today()
             by_loc = {x["id"] : x["distance"] for x in cls.get_achievements_by_location(coords(user))}
             by_date = cls.get_achievements_by_date(today)
-
             def update(arr,distance):
                 arr["distance"]=distance
                 return arr
@@ -764,13 +761,12 @@ class Achievement(ABase):
         """return achievements which are valid in that location."""
         #TODO: invalidate automatically when achievement in user's range is modified
         distance = calc_distance(latlng, (t_achievements.c.lat, t_achievements.c.lng)).label("distance")
-
         q = select([t_achievements.c.id,
                     distance])\
             .where(or_(and_(t_achievements.c.lat==None,t_achievements.c.lng==None),
                         distance < t_achievements.c.max_distance))
 
-        return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id']))>0]
+        return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id'])) > 0]
 
     @classmethod
     @cache_general.cache_on_arguments()
@@ -781,6 +777,7 @@ class Achievement(ABase):
                                                or_(t_achievements.c.valid_end==None,
                                                           t_achievements.c.valid_end>=date)
                                                ))
+
         return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id']))>0]
 
     #TODO:CACHE
@@ -893,8 +890,10 @@ class Achievement(ABase):
 
            return the basic_output for the achievement plus information about the new achieved levels
         """
-
+        print("In evaluate achie")
         def generate():
+            print("In evaluate achie generate")
+
             achievement = Achievement.get_achievement(achievement_id)
 
             user_id = user["id"]
@@ -906,9 +905,8 @@ class Achievement(ABase):
             goal_evals={}
             all_goals_achieved = True
             goals = Goal.get_goals(achievement["id"])
-
             for goal in goals:
-
+                print("For goal in goals")
                 goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
                 if not goal_eval:
                     Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level,None)
@@ -1047,7 +1045,20 @@ class Achievement(ABase):
     @cache_general.cache_on_arguments()
     def get_achievement_properties(cls,achievement_id,level):
         """return all properties which are associated to the achievement level."""
-
+        print("user_wants_level property function ",level)
+        result = DBSession.execute(select([t_achievementproperties.c.id.label("property_id"),
+                                         t_achievementproperties.c.name,
+                                         t_achievementproperties.c.is_variable,
+                                         t_achievements_achievementproperties.c.from_level,
+                                         t_achievements_achievementproperties.c.value,
+                                         t_achievements_achievementproperties.c.value_translation_id],
+                                        from_obj=t_achievementproperties.join(t_achievements_achievementproperties))\
+                                 .where(and_(or_(t_achievements_achievementproperties.c.from_level<=level,
+                                                 t_achievements_achievementproperties.c.from_level==None),
+                                             t_achievements_achievementproperties.c.achievement_id==achievement_id))\
+                                 .order_by(t_achievements_achievementproperties.c.from_level))\
+                        .fetchall()
+        print("Property result in model ",result)
         return DBSession.execute(select([t_achievementproperties.c.id.label("property_id"),
                                          t_achievementproperties.c.name,
                                          t_achievementproperties.c.is_variable,
@@ -1377,7 +1388,6 @@ class Goal(ABase):
     def get_goal_eval_cache(cls,goal_id,achievement_date,user_id):
         """lookup and return cache entry, else return None"""
         v = cache_goal_evaluation.get("%s_%s_%s" % (goal_id,achievement_date,user_id))
-        print(v)
         if v:
             return v
         else:

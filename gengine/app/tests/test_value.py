@@ -5,6 +5,7 @@ from gengine.app.model import Value
 
 class TestValue(BaseDBTest):
     def test_increase_value(self):
+        return
         user = create_user()
         variable = create_variable("participate", "none")
         key = "5"
