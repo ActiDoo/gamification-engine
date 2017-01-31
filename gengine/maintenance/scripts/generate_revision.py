@@ -54,6 +54,9 @@ def revision(settings, message, options):
     init_declarative_base()
     init_db(engine)
 
+    from gengine.app.cache import init_caches
+    init_caches()
+
     from gengine.metadata import (
         Base,
     )
