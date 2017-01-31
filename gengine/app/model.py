@@ -147,12 +147,29 @@ t_goals = Table("goals", Base.metadata,
 )
 
 t_goal_evaluation_cache = Table("goal_evaluation_cache", Base.metadata,
-    Column("goal_id", ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column('id', ty.Integer, primary_key=True),
+    Column("goal_id", ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True),
     Column('achievement_date', ty.DateTime, nullable=True), # To identify the goals for monthly, weekly, ... achievements;
-    Column("user_id", ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("user_id", ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
     Column("achieved", ty.Boolean),
     Column("value", ty.Float),
 )
+
+Index("idx_goal_evaluation_cache_date_not_null_unique",
+    t_goal_evaluation_cache.c.user_id,
+    t_goal_evaluation_cache.c.goal_id,
+    t_goal_evaluation_cache.c.achievement_date,
+    unique=True,
+    postgresql_where=t_goal_evaluation_cache.c.achievement_date!=None
+)
+
+Index("idx_goal_evaluation_cache_date_null_unique",
+    t_goal_evaluation_cache.c.user_id,
+    t_goal_evaluation_cache.c.goal_id,
+    unique=True,
+    postgresql_where=t_goal_evaluation_cache.c.achievement_date==None
+)
+
 
 t_variables = Table('variables', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
@@ -212,12 +229,31 @@ t_achievements_rewards = Table('achievements_rewards', Base.metadata,
 )
 
 t_achievements_users = Table('achievements_users', Base.metadata,
-    Column('user_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True, index=True, nullable=False),
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('id', ty.Integer, primary_key = True),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id"), index=True, nullable=False),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index=True, nullable=False),
     Column('achievement_date', ty.DateTime, nullable=True, index=True),
-    Column('level', ty.Integer, primary_key = True, default=1),
+    Column('level', ty.Integer, default=1, nullable=False, index=True),
     Column('updated_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, index=True),
 )
+
+Index("idx_achievements_users_date_not_null_unique",
+    t_achievements_users.c.user_id,
+    t_achievements_users.c.achievement_id,
+    t_achievements_users.c.achievement_date,
+    t_achievements_users.c.level,
+    unique=True,
+    postgresql_where=t_achievements_users.c.achievement_date!=None
+)
+
+Index("idx_achievements_users_date_null_unique",
+    t_achievements_users.c.user_id,
+    t_achievements_users.c.achievement_id,
+    t_achievements_users.c.level,
+    unique=True,
+    postgresql_where=t_achievements_users.c.achievement_date==None
+)
+
 
 t_requirements = Table('requirements', Base.metadata,
     Column('from_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
