@@ -947,7 +947,11 @@ class Achievement(ABase):
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
                     goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement_date, user_ids)
-                    goal_eval["leaderboard_position"] = list(filter(lambda x : x["user"]["id"]==user_id, goal_eval["leaderboard"]))[0]["position"]
+                    own_filter = list(filter(lambda x: x["user"]["id"] == user_id, goal_eval["leaderboard"]))
+                    if len(own_filter)>0:
+                        goal_eval["leaderboard_position"] = own_filter[0]["position"]
+                    else:
+                        goal_eval["leaderboard_position"] = None
 
                 goal_evals[goal["id"]]=goal_eval
                 if not goal_eval["achieved"]:
