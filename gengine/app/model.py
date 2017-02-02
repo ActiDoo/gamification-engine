@@ -1482,7 +1482,8 @@ class Goal(ABase):
         q = select([t_goal_evaluation_cache.c.user_id,
                     t_goal_evaluation_cache.c.value])\
                 .where(and_(t_goal_evaluation_cache.c.user_id.in_(user_ids),
-                            t_goal_evaluation_cache.c.goal_id==goal["id"]))\
+                            t_goal_evaluation_cache.c.goal_id==goal["id"],
+                            t_goal_evaluation_cache.c.achievement_date==achievement_date))\
                 .order_by(t_goal_evaluation_cache.c.value.desc(),
                           t_goal_evaluation_cache.c.user_id.desc())
         items = DBSession.execute(q).fetchall()
