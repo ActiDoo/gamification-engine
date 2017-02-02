@@ -1,114 +1,116 @@
 from gengine.app.tests.base import BaseDBTest
-from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_value, create_goals, create_goal_properties
-from gengine.metadata import DBSession
-from gengine.app.model import Achievement, User,  Goal, GoalEvaluationCache
+from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_goals, create_goal_properties, create_goal_evaluation_cache
+from gengine.app.model import Achievement, User,  Goal, Value
 
 
 class TestEvaluateGoal(BaseDBTest):
     def test_compute_progress(self):
-        return
-        achievement = create_achievement()
-        goals = create_goals(achievement)
+
         user = create_user()
+        create_variable(variable_name="invite_users", variable_group="day")
+        Value.increase_value(variable_name="invite_users", user=user, value=6, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=7, key=None)
 
-        variable_participate = create_variable("participate", "none")
-        create_value(user.id, variable_participate.id, 2, "5")
-        create_value(user.id, variable_participate.id, 3, "7")
-        create_value(user.id, variable_participate.id, 5, "7")
+        create_variable(variable_name="participate", variable_group="day")
+        Value.increase_value(variable_name="participate", user=user, value=2, key="5")
+        Value.increase_value(variable_name="participate", user=user, value=3, key="7")
+        Value.increase_value(variable_name="participate", user=user, value=5, key="7")
 
-        variable_invite = create_variable("invite_users", "none")
-        create_value(user.id, variable_invite.id, 6)
-        create_value(user.id, variable_invite.id, 7)
+        achievement = create_achievement(achievement_name="invite_users_achievement")
+        goal = create_goals(achievement)
 
-        # For goal0, since its group_by_key is false, progress is sum of all the values of Keys 5 and 7
-        users_progress_goal0 = Goal.compute_progress(goals[0], achievement, user.id)
-        goal0_evaluation = {e["user_id"]: e["value"] for e in users_progress_goal0}
-        print(goal0_evaluation)
+        # goal is for invite_users, its group_by_key is false, progress is sum of all the values
+        users_progress_goal = Goal.compute_progress(goal, achievement, user.id)
+        goal_evaluation = {e["user_id"]: e["value"] for e in users_progress_goal}
+        print(goal_evaluation)
 
-        # For goal1, since its group_by_key is True, it'll group by key and add their respective values
-        users_progress_goal1 = Goal.compute_progress(goals[1], achievement, user.id)
-        goal1_evaluation = {e["user_id"]: e["value"] for e in users_progress_goal1}
-        print(goal1_evaluation)
+        self.assertLessEqual(goal_evaluation.get(user.id), 13)
 
-        self.assertLessEqual(goal0_evaluation.get(user.id), 13)
+        # For goal1, since its group_by_key is True, it'll add the values of the same key
+        achievement1 = create_achievement(achievement_name="participate_achievement")
+        goal1 = create_goals(achievement1)
+        users_progress_goal1 = Goal.compute_progress(goal1, achievement, user.id)
+        goal_evaluation1 = {e["user_id"]: e["value"] for e in users_progress_goal1}
+        print(goal_evaluation1)
 
-        # Check with group_by_key for goals[1] = False
-        self.assertLessEqual(goal1_evaluation.get(user.id), 10)
+        self.assertLess(goal_evaluation1.get(user.id), 10)
 
-        # Check with group_by_key for goals[1] = True
-        self.assertLessEqual(goal1_evaluation.get(user.id), 2)
+        # Check with group_by_key for goals participate = False
+        goal2 = create_goals(achievement1, goal_group_by_key=False)
+        users_progress_goal1 = Goal.compute_progress(goal2, achievement, user.id)
+        goal_evaluation2 = {e["user_id"]: e["value"] for e in users_progress_goal1}
+        print(goal_evaluation2)
+        self.assertLessEqual(goal_evaluation2.get(user.id), 10)
 
         # If group_by_key attribute for goal is not set, then default value is considered as False and NOT None
         # In compute_progress function , group_by_key is compared with None. Is it desired or need to change it to False?
 
-
     def test_evaluate_goal(self):
-        return
-        achievement = create_achievement()
-        goal = create_goals(achievement)
+
         user = create_user()
+        create_variable(variable_name="invite_users", variable_group="day")
+        Value.increase_value(variable_name="invite_users", user=user, value=6, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=7, key=None)
+
+        create_variable(variable_name="participate", variable_group="day")
+        Value.increase_value(variable_name="participate", user=user, value=6, key="5")
+        Value.increase_value(variable_name="participate", user=user, value=3, key="7")
+        Value.increase_value(variable_name="participate", user=user, value=5, key="7")
+
+        # Goal Participate with group_by = False
+        achievement = create_achievement(achievement_name="participate_achievement")
+        goal = create_goals(achievement, goal_group_by_key=False, goal_goal="3*level")
         achievement_date = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement["evaluation"])
 
-        evaluation_result = Goal.evaluate(goal[0], achievement, achievement_date, user.id, 5, goal_eval_cache_before=False, execute_triggers=True)
+        evaluation_result = Goal.evaluate(goal, achievement, achievement_date, user.id, level=4, goal_eval_cache_before=False, execute_triggers=True)
         print(evaluation_result)
-        evaluation_result1 = Goal.evaluate(goal[1], achievement, achievement_date, user.id, 2, goal_eval_cache_before=False, execute_triggers=True)
+        # True cases
+        self.assertGreaterEqual(evaluation_result["value"], 12)
+        self.assertEqual(evaluation_result["achieved"], True)
+
+        # Goal Participate with group_by = True
+        goal2 = create_goals(achievement, goal_group_by_key=True, goal_goal="3*level")
+        evaluation_result2 = Goal.evaluate(goal2, achievement, achievement_date, user.id, level=4, goal_eval_cache_before=False, execute_triggers=True)
+        print(evaluation_result2)
+        # failing cases
+        self.assertGreaterEqual(evaluation_result2["value"], 12)
+        self.assertEqual(evaluation_result2["achieved"], True)
+
+        # Goal invite_users
+        achievement1 = create_achievement(achievement_name="invite_users_achievement")
+        goal1 = create_goals(achievement1, goal_goal="4*level")
+        achievement_date1 = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement1["evaluation"])
+
+        evaluation_result1 = Goal.evaluate(goal1, achievement1, achievement_date1, user.id, level=2, goal_eval_cache_before=False, execute_triggers=True)
         print(evaluation_result1)
 
         # True cases
-        self.assertLessEqual(evaluation_result["value"], 25.0)
-        self.assertEqual(evaluation_result["achieved"], True)
-
-        # False cases
-        self.assertGreater(evaluation_result1["value"], 0.0)
+        self.assertGreaterEqual(evaluation_result1["value"], 8)
         self.assertEqual(evaluation_result1["achieved"], True)
 
-
-    def test_execute_triggers(self):
-        return
-        # Function is called inside evaluate_goal function
-        achievement = create_achievement()
-        goal = create_goals(achievement)
-        user = create_user()
-        print(goal[0])
-        level = 5
-        previous_goal = Goal.basic_goal_output(goal[0], level - 1).get("goal_goal", 0)
-        print(previous_goal)
-        current_goal = Goal.basic_goal_output(goal[0], level).get("goal_goal", 0)
-        print(current_goal)
-
-        # What is "value" here?
-        # We are considering parameter value as 0
-        value = 0.0
-        result = Goal.select_and_execute_triggers(goal[1], user.id, level, current_goal, value, previous_goal)
-        print(result)  # None
-        # What is expected result?
-
-
     def test_get_goal_properties(self):
-        return
+
         achievement = create_achievement()
         goals = create_goals(achievement)
 
-        create_goal_properties(goals[0].id)
-
+        create_goal_properties(goals.id)
         level = 4
-        result = Goal.get_goal_properties(goals[0].id, level)
+        result = Goal.get_goal_properties(goals.id, level)
         print(result)
 
         level1 = 1
-        result1 = Goal.get_goal_properties(goals[0].id, level1)
+        result1 = Goal.get_goal_properties(goals.id, level1)
         print(result1)
 
         # True test
-        self.assertIsNotNone(result)
+        self.assertIsNot(result, [])
 
         # False test
-        #  self.assertNotEqual(result1, [])
-
+        self.assertNotEquals(result1, [])
 
     def test_get_leaderboard(self):
-        return
-        achievement = create_achievement()
+
+        achievement = create_achievement(achievement_name="invite_users_achievement")
         goals = create_goals(achievement)
 
         # Create multiple users for a goal
@@ -163,25 +165,11 @@ class TestEvaluateGoal(BaseDBTest):
         achievement_date_for_user2 = Achievement.get_datetime_for_evaluation_type(User.get_user(user2.id)["timezone"], achievement["evaluation"])
         achievement_date_for_user3 = Achievement.get_datetime_for_evaluation_type(User.get_user(user3.id)["timezone"], achievement["evaluation"])
         achievement_date_for_user4 = Achievement.get_datetime_for_evaluation_type(User.get_user(user4.id)["timezone"], achievement["evaluation"])
+        print(achievement_date_for_user4)
 
-        # Creating entries for goal_evaluation_cache
-        goal_evaluation_cache = GoalEvaluationCache()
-        goal_evaluation_cache.goal_id = goals[0].id
-        goal_evaluation_cache.achievement_date = achievement_date_for_user1
-        goal_evaluation_cache.user_id = user1.id
-        goal_evaluation_cache.achieved = True
-        goal_evaluation_cache.value = 8.00
-        DBSession.add(goal_evaluation_cache)
-        DBSession.flush()
-
-        goal_evaluation_cache = GoalEvaluationCache()
-        goal_evaluation_cache.goal_id = goals[0].id
-        goal_evaluation_cache.achievement_date = achievement_date_for_user2
-        goal_evaluation_cache.user_id = user2.id
-        goal_evaluation_cache.achieved = True
-        goal_evaluation_cache.value = 6.00
-        DBSession.add(goal_evaluation_cache)
-        DBSession.flush()
+        create_goal_evaluation_cache(goal_id=goals.id, gec_achievement_date=achievement_date_for_user1, gec_user_id=user1.id, gec_value=22.00, gec_achieved=True)
+        create_goal_evaluation_cache(goal_id=goals.id, gec_achievement_date=achievement_date_for_user2, gec_user_id=user2.id, gec_value=8.00, gec_achieved=True)
+        create_goal_evaluation_cache(goal_id=goals.id, gec_achievement_date=achievement_date_for_user3, gec_user_id=user3.id, gec_value=15.00, gec_achieved=True)
 
         # Test for finding leaderboard in case where goal has been evaluated for all given users
 
@@ -189,15 +177,20 @@ class TestEvaluateGoal(BaseDBTest):
         user_ids = Achievement.get_relevant_users_by_achievement_and_user(achievement, user3.id)
 
         # Get leaderboard
-        positions = Goal.get_leaderboard(goals[0], achievement_date_for_user3, user_ids)
-
-        self.assertEqual(positions[1]["user"]["additional_public_data"]["last_name"], "Clarke")
+        positions = Goal.get_leaderboard(goals, achievement_date_for_user3, user_ids)
+        print(positions)
+        self.assertEqual(positions[0]["value"], 22.00)
         self.assertEqual(positions[0]["value"], 8.00)
 
         # Test for Goal is not evaluated for few user_ids
+        create_variable(variable_name="invite_users", variable_group="day")
+        Value.increase_value(variable_name="invite_users", user=user4, value=6, key=None)
+        Value.increase_value(variable_name="invite_users", user=user4, value=9, key=None)
+
         user_ids = Achievement.get_relevant_users_by_achievement_and_user(achievement, user4.id)
-        positions = Goal.get_leaderboard(goals[0], achievement_date_for_user4, user_ids)
+        positions = Goal.get_leaderboard(goals, achievement_date_for_user4, user_ids)
 
         print(positions)
-        self.assertEqual(positions[0]["value"], 8.00)
-        self.assertEqual(positions[1]["user"]["additional_public_data"]["last_name"], "Clarke")
+        self.assertEqual(positions[0]["value"], 15.00)
+
+        #Should the leaderbord be chosen from users whose goal_achieved is True??

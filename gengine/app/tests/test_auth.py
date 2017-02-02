@@ -1,14 +1,14 @@
 from gengine.app.tests.base import BaseDBTest
 from gengine.app.tests.helpers import create_user, update_user, delete_user, get_or_create_language
 from gengine.metadata import DBSession
-from gengine.app.model import User, AuthUser
+from gengine.app.model import AuthUser
 
 
 class TestUserCreation(BaseDBTest):
+
     def test_user_creation(self):
 
         lang = get_or_create_language("en")
-
         user = create_user(
             lat = 12.1,
             lng = 12.2,
@@ -51,7 +51,8 @@ class TestUserCreation(BaseDBTest):
                 "last_name" : "Red Nose"
             }
         )
-  
+
+        # Correct cases
         self.assertTrue(user.lat == 14.2)
         self.assertTrue(user.lng == 16.3)
         self.assertTrue(user.country == "EN")
@@ -59,12 +60,13 @@ class TestUserCreation(BaseDBTest):
         self.assertTrue(user.city == "Cluj-Napoca")
         self.assertTrue(user.timezone == "Europe/Bukarest")
         self.assertTrue(user.language_id == lang.id)
-        self.assertTrue(user.additional_public_data["first_name"] == "Rudolf")
-        self.assertTrue(user.additional_public_data["last_name"] == "Red Nose")
+
+        # Failing cases
+        self.assertTrue(user.additional_public_data["first_name"] == "Matthew")
+        self.assertTrue(user.additional_public_data["last_name"] == "Hayden")
 
     def test_user_deletion(self):
 
-        # Create First user
         user1 = create_user()
 
         # Create Second user
@@ -83,14 +85,18 @@ class TestUserCreation(BaseDBTest):
             friends=[1]
         )
 
-        remainingusers = delete_user(
+        remaining_users = delete_user(
             user_id = user1.id
         )
 
-        self.assertNotIn(user1.id, remainingusers)
+        # Correct cases
+        self.assertNotIn(user1.id, remaining_users)
+        self.assertIn(user2.id, remaining_users)
+
+        # Failing cases
+        self.assertNotIn(user2.id, remaining_users)
 
     def test_verify_password(self):
-
         auth_user = AuthUser()
         auth_user.password = "test12345"
         auth_user.active = True
@@ -98,12 +104,10 @@ class TestUserCreation(BaseDBTest):
         DBSession.add(auth_user)
 
         iscorrect = auth_user.verify_password("test12345")
-        print(iscorrect)
 
         self.assertEqual(iscorrect, True)
 
     def test_create_token(self):
-
         user = create_user()
         auth_user = AuthUser()
         auth_user.user_id = user.id
@@ -115,7 +119,6 @@ class TestUserCreation(BaseDBTest):
         if auth_user.verify_password("test12345"):
             token = auth_user.get_or_create_token()
 
-        print(token)
         self.assertNotEqual(token, None)
 
 

@@ -695,7 +695,6 @@ class Value(ABase):
                          t_values.c.key==str(key))
 
         current_value = DBSession.execute(select([t_values.c.value,]).where(condition)).scalar()
-
         if current_value is not None:
             update_connection().execute(t_values.update(condition, values={"value":current_value+value}))
         else:
@@ -707,6 +706,8 @@ class Value(ABase):
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
         new_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
+        print("new_value")
+        print(new_value)
         return new_value
 
 class AchievementCategory(ABase):

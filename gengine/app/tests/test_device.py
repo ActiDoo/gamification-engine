@@ -3,6 +3,7 @@ from gengine.app.tests.helpers import create_user, create_device, update_device
 
 
 class TestUserDevice(BaseDBTest):
+
     def test_create_user_device(self):
 
         user = create_user()
@@ -34,13 +35,14 @@ class TestUserDevice(BaseDBTest):
             app_version='1.2'
         )
 
+        # Correct cases
         self.assertTrue(device.device_id == '1256')
         self.assertTrue(device.user_id == user.id)
-        self.assertTrue(device.device_os == 'iOS')
         self.assertTrue(device.push_id == '5126')
         self.assertTrue(device.app_version == '1.2')
 
-
+        # Failing cases
+        self.assertTrue(device.device_os == 'Android')
 
 
 

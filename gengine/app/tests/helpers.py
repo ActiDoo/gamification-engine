@@ -2,7 +2,7 @@ import names
 import random
 import datetime
 
-from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, t_goals_goalproperties, t_users
+from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, t_goals_goalproperties, t_users, GoalEvaluationCache
 from gengine.metadata import DBSession
 
 from gengine.app.model import UserDevice, t_user_device
@@ -19,7 +19,11 @@ default_gen_data = {
     "country" : "DE",
     "region" : "NRW",
     "city" : "Paderborn",
-    "language" : "de"
+    "language" : "de",
+    "additional_public_data" : {
+        "first_name" : "Matthew",
+        "last_name" : "Hayden"
+    }
 }
 
 alt_gen_data = {
@@ -39,13 +43,16 @@ default_device_data = {
     "device_id" : "1234"
 }
 
+
 class Undefined():
     pass
 
 undefined = Undefined()
 
+
 def randrange_float(f1,f2):
     return random.random() * abs(f1 - f2) + min(f1,f2)
+
 
 def create_user(
         user_id = undefined,
@@ -69,7 +76,7 @@ def create_user(
 
     if user_id is undefined:
         user_id = (DBSession.execute("SELECT max(id) as c FROM users").scalar() or 0) + 1
-
+        print()
     if lat is undefined:
         lat = randrange_float(gen_data["area"]["min_lat"],gen_data["area"]["max_lat"])
 
@@ -104,9 +111,9 @@ def create_user(
         friends = friends,
         additional_public_data = additional_public_data
     )
-    user = DBSession.execute("SELECT country FROM users WHERE id = 1")
 
     return User.get_user(user_id)
+
 
 def update_user( 
         user_id = undefined,
@@ -138,6 +145,7 @@ def update_user(
 
     return User.get_user(user_id)
 
+
 def delete_user( 
         user_id = undefined,
     ):
@@ -155,6 +163,7 @@ def get_or_create_language(name):
         DBSession.add(lang)
         DBSession.flush()
     return lang
+
 
 def create_device(
         user_id=undefined,
@@ -334,7 +343,7 @@ def create_goals(
             goal.condition = goal_condition
 
         if goal_goal is undefined:
-            goal.goal = "5*level"
+            goal.goal = "3*level"
         else:
             goal.goal = goal_goal
 
@@ -385,6 +394,36 @@ def create_goal_properties(goal_id):
     goals_goal_property_result = DBSession.execute(t_goals_goalproperties.select().where(t_goals_goalproperties.c.goal_id == goal_id)).fetchone()
 
     return goals_goal_property_result
+
+
+def create_goal_evaluation_cache(
+        goal_id ,
+        gec_achievement_date,
+        gec_user_id,
+        gec_achieved = undefined,
+        gec_value = undefined,
+    ):
+    goal_evaluation_cache = GoalEvaluationCache()
+
+    if gec_achieved is undefined:
+        goal_evaluation_cache.gec_achieved = True
+    else:
+        goal_evaluation_cache.gec_achieved = gec_achieved
+
+    if gec_value is undefined:
+        goal_evaluation_cache.gec_value = 20.0
+    else:
+        goal_evaluation_cache.gec_value = gec_value
+
+    goal_evaluation_cache.goal_id = goal_id
+    goal_evaluation_cache.achievement_date = gec_achievement_date
+    goal_evaluation_cache.user_id = gec_user_id
+    goal_evaluation_cache.achieved = gec_achieved
+    goal_evaluation_cache.value = gec_value
+    DBSession.add(goal_evaluation_cache)
+    DBSession.flush()
+
+    return goal_evaluation_cache
 
 
 def create_variable(
