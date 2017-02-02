@@ -1423,7 +1423,8 @@ class Goal(ABase):
         """set cache entry after evaluation"""
 
         cache_query = t_goal_evaluation_cache.select().where(and_(t_goal_evaluation_cache.c.goal_id==goal["id"],
-                                                            t_goal_evaluation_cache.c.user_id==user_id))
+                                                                  t_goal_evaluation_cache.c.user_id==user_id,
+                                                                  t_goal_evaluation_cache.c.achievement_date==achievement_date))
         cache = DBSession.execute(cache_query).fetchone()
 
         if not cache:
@@ -1431,15 +1432,18 @@ class Goal(ABase):
                                        .values({"user_id":user_id,
                                                 "goal_id":goal["id"],
                                                 "value" : value,
-                                                "achieved" : achieved})
+                                                "achieved" : achieved,
+                                                "achievement_date" : achievement_date})
             update_connection().execute(q)
         elif cache["value"]!=value or cache["achieved"]!=achieved:
             #update
             q = t_goal_evaluation_cache.update()\
                                        .where(and_(t_goal_evaluation_cache.c.goal_id==goal["id"],
-                                                   t_goal_evaluation_cache.c.user_id==user_id))\
+                                                   t_goal_evaluation_cache.c.user_id==user_id,
+                                                   t_goal_evaluation_cache.c.achievement_date == achievement_date))\
                                        .values({"value" : value,
-                                                "achieved" : achieved})
+                                                "achieved" : achieved,
+                                                "achievement_date": achievement_date})
             update_connection().execute(q)
 
         data = {
