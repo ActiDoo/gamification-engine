@@ -2,13 +2,14 @@ import datetime
 from gengine.app.tests.base import BaseDBTest
 from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_value, create_goals
 from gengine.metadata import DBSession
-from gengine.app.model import Achievement, User, AchievementUser, Goal, Value, AchievementReward, Reward, AchievementProperty, AchievementAchievementProperty
+from gengine.app.model import Achievement, User, AchievementUser, Goal, Value, AchievementReward, Reward, AchievementProperty, AchievementAchievementProperty, t_achievements_users
+from gengine.base.model import update_connection
 
 
 class TestAchievement(BaseDBTest):
     # Includes get_achievement_by_location and get_achievement_by_date
     def test_get_achievements_by_location_and_date(self):
-        return
+
         user = create_user()
         achievement1 = create_achievement(achievement_name="invite_users_achievement")
         achievement2 = create_achievement(achievement_name="participate_achievement")
@@ -22,7 +23,7 @@ class TestAchievement(BaseDBTest):
 
 
     def test_get_relevant_users_by_achievement_friends_and_user(self):
-        return
+
         #Create First user
         user1 = create_user()
 
@@ -94,7 +95,7 @@ class TestAchievement(BaseDBTest):
         self.assertNotIn(1, friendsOfuser1)
 
     def test_get_relevant_users_by_achievement_friends_and_user_reverse(self):
-        return
+
         # Create First user
         user1 = create_user()
 
@@ -167,35 +168,33 @@ class TestAchievement(BaseDBTest):
         self.assertNotIn(4, usersForFriend4)
 
     def test_get_level(self):
-        return
-        user = create_user()
 
-        achievement = create_achievement()
+        user = create_user(timezone="US/Eastern", country="USA", region="xyz", city="New York")
+
+        achievement = create_achievement(achievement_name="invite_users_achievement")
 
         achievement_date = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement["evaluation"])
 
-        update_connection().execute(t_achievements_users.insert().values({
-            "user_id": user.id,
-            "achievement_id": achievement["id"],
-            "achievement_date": achievement_date,
-            "level": 1
-        }))
-
+        achievement_users = AchievementUser()
+        achievement_users.user_id = user.id
+        achievement_users.achievement_id = achievement["id"]
+        achievement_users.achievement_date = achievement_date
+        achievement_users.level = 2
+        DBSession.add(achievement_users)
         DBSession.flush()
 
         level_object = achievement.get_level(user.id, achievement["id"], achievement_date)
+        level = achievement.get_level_int(user.id, achievement.id, achievement_date)
 
-        # Change achievement date
-        achievement_monthly = create_achievement(achievement_evaluation = "monthly")
-        DBSession.add(achievement_monthly)
-        DBSession.flush()
+        achievement_monthly = create_achievement(achievement_evaluation="weekly")
 
         achievement_date1 = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement_monthly["evaluation"])
+        print("achievemnt date")
+        print(achievement_date1)
 
         level_object1 = achievement.get_level(user.id, achievement["id"], achievement_date1)
 
         # Test for get_level as integer
-        level = achievement.get_level_int(user.id, achievement.id, achievement_date)
         level1 = achievement.get_level_int(user.id, achievement.id, achievement_date1)
 
         # Passed cases

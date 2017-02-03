@@ -1083,7 +1083,10 @@ class Achievement(ABase):
         tzobj = pytz.timezone(tz)
 
         if not dt:
-            dt = datetime.datetime.now(tzobj)
+            dt = datetime.datetime.now(tz)
+            print(datetime.datetime.now(tz))
+            print("datetime per users timezone")
+            print(dt)
         else:
             dt = dt.astimezone(tzobj)
 
