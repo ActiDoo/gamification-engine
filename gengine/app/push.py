@@ -181,7 +181,7 @@ def send_push_message(
             else:
                 payload = Payload(alert=ios_text, custom=data, badge=message_count, sound="default")
 
-            log.debug("Sending Push message to User (ID: %s): %s", user_id, ios_text)
+            log.debug("Sending Push message to User (ID: %s)", user_id)
 
             if device.push_id.startswith("prod_"):
                 get_prod_apns().gateway_server.send_notification(device.push_id[5:], payload, identifier=identifier)
@@ -190,7 +190,7 @@ def send_push_message(
 
         if "android" in device.device_os.lower():
 
-            log.debug("Sending Push message to User (ID: %s): %s", user_id, android_text)
+            log.debug("Sending Push message to User (ID: %s)", user_id)
             push_id = device.push_id.lstrip("dev_").lstrip("prod_")
 
             response = get_gcm().json_request(registration_ids=[push_id, ],

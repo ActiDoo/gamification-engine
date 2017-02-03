@@ -147,12 +147,29 @@ t_goals = Table("goals", Base.metadata,
 )
 
 t_goal_evaluation_cache = Table("goal_evaluation_cache", Base.metadata,
-    Column("goal_id", ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column('id', ty.Integer, primary_key=True),
+    Column("goal_id", ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True),
     Column('achievement_date', ty.DateTime, nullable=True), # To identify the goals for monthly, weekly, ... achievements;
-    Column("user_id", ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("user_id", ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
     Column("achieved", ty.Boolean),
     Column("value", ty.Float),
 )
+
+Index("idx_goal_evaluation_cache_date_not_null_unique",
+    t_goal_evaluation_cache.c.user_id,
+    t_goal_evaluation_cache.c.goal_id,
+    t_goal_evaluation_cache.c.achievement_date,
+    unique=True,
+    postgresql_where=t_goal_evaluation_cache.c.achievement_date!=None
+)
+
+Index("idx_goal_evaluation_cache_date_null_unique",
+    t_goal_evaluation_cache.c.user_id,
+    t_goal_evaluation_cache.c.goal_id,
+    unique=True,
+    postgresql_where=t_goal_evaluation_cache.c.achievement_date==None
+)
+
 
 t_variables = Table('variables', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
@@ -212,12 +229,31 @@ t_achievements_rewards = Table('achievements_rewards', Base.metadata,
 )
 
 t_achievements_users = Table('achievements_users', Base.metadata,
-    Column('user_id', ty.BigInteger, ForeignKey("users.id"), primary_key = True, index=True, nullable=False),
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('id', ty.Integer, primary_key = True),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id"), index=True, nullable=False),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index=True, nullable=False),
     Column('achievement_date', ty.DateTime, nullable=True, index=True),
-    Column('level', ty.Integer, primary_key = True, default=1),
+    Column('level', ty.Integer, default=1, nullable=False, index=True),
     Column('updated_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, index=True),
 )
+
+Index("idx_achievements_users_date_not_null_unique",
+    t_achievements_users.c.user_id,
+    t_achievements_users.c.achievement_id,
+    t_achievements_users.c.achievement_date,
+    t_achievements_users.c.level,
+    unique=True,
+    postgresql_where=t_achievements_users.c.achievement_date!=None
+)
+
+Index("idx_achievements_users_date_null_unique",
+    t_achievements_users.c.user_id,
+    t_achievements_users.c.achievement_id,
+    t_achievements_users.c.level,
+    unique=True,
+    postgresql_where=t_achievements_users.c.achievement_date==None
+)
+
 
 t_requirements = Table('requirements', Base.metadata,
     Column('from_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), primary_key = True, nullable=False),
@@ -916,7 +952,11 @@ class Achievement(ABase):
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
                     goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement_date, user_ids)
-                    goal_eval["leaderboard_position"] = list(filter(lambda x : x["user"]["id"]==user_id, goal_eval["leaderboard"]))[0]["position"]
+                    own_filter = list(filter(lambda x: x["user"]["id"] == user_id, goal_eval["leaderboard"]))
+                    if len(own_filter)>0:
+                        goal_eval["leaderboard_position"] = own_filter[0]["position"]
+                    else:
+                        goal_eval["leaderboard_position"] = None
 
                 goal_evals[goal["id"]]=goal_eval
                 if not goal_eval["achieved"]:
@@ -1238,14 +1278,17 @@ class Goal(ABase):
 
             if evaluation_type!="immediately":
 
-                if evaluation_type=="day":
+                if evaluation_type=="daily":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("day","users.timezone")))
-                elif evaluation_type=="week":
+                elif evaluation_type=="weekly":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("week","users.timezone")))
-                elif evaluation_type=="month":
+                elif evaluation_type=="monthly":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("month","users.timezone")))
-                elif evaluation_type=="year":
+                elif evaluation_type=="yearly":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
+                elif evaluation_type == "end":
+                    pass
+                    #Todo implement for end
 
             if datetime_col is not None or group_by_key is not False:
                 if datetime_col is not None:
@@ -1402,7 +1445,8 @@ class Goal(ABase):
         """set cache entry after evaluation"""
 
         cache_query = t_goal_evaluation_cache.select().where(and_(t_goal_evaluation_cache.c.goal_id==goal["id"],
-                                                            t_goal_evaluation_cache.c.user_id==user_id))
+                                                                  t_goal_evaluation_cache.c.user_id==user_id,
+                                                                  t_goal_evaluation_cache.c.achievement_date==achievement_date))
         cache = DBSession.execute(cache_query).fetchone()
 
         if not cache:
@@ -1410,15 +1454,18 @@ class Goal(ABase):
                                        .values({"user_id":user_id,
                                                 "goal_id":goal["id"],
                                                 "value" : value,
-                                                "achieved" : achieved})
+                                                "achieved" : achieved,
+                                                "achievement_date" : achievement_date})
             update_connection().execute(q)
         elif cache["value"]!=value or cache["achieved"]!=achieved:
             #update
             q = t_goal_evaluation_cache.update()\
                                        .where(and_(t_goal_evaluation_cache.c.goal_id==goal["id"],
-                                                   t_goal_evaluation_cache.c.user_id==user_id))\
+                                                   t_goal_evaluation_cache.c.user_id==user_id,
+                                                   t_goal_evaluation_cache.c.achievement_date == achievement_date))\
                                        .values({"value" : value,
-                                                "achieved" : achieved})
+                                                "achieved" : achieved,
+                                                "achievement_date": achievement_date})
             update_connection().execute(q)
 
         data = {
@@ -1465,7 +1512,8 @@ class Goal(ABase):
         q = select([t_goal_evaluation_cache.c.user_id,
                     t_goal_evaluation_cache.c.value])\
                 .where(and_(t_goal_evaluation_cache.c.user_id.in_(user_ids),
-                            t_goal_evaluation_cache.c.goal_id==goal["id"]))\
+                            t_goal_evaluation_cache.c.goal_id==goal["id"],
+                            t_goal_evaluation_cache.c.achievement_date==achievement_date))\
                 .order_by(t_goal_evaluation_cache.c.value.desc(),
                           t_goal_evaluation_cache.c.user_id.desc())
         items = DBSession.execute(q).fetchall()
