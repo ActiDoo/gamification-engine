@@ -2,7 +2,8 @@ import names
 import random
 import datetime
 
-from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, t_goals_goalproperties, t_users, GoalEvaluationCache
+from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, \
+    t_goals_goalproperties, t_users, GoalEvaluationCache, Reward, AchievementReward
 from gengine.metadata import DBSession
 
 from gengine.app.model import UserDevice, t_user_device
@@ -394,6 +395,23 @@ def create_goal_properties(goal_id):
     goals_goal_property_result = DBSession.execute(t_goals_goalproperties.select().where(t_goals_goalproperties.c.goal_id == goal_id)).fetchone()
 
     return goals_goal_property_result
+
+
+def create_achievement_rewards(achievement):
+    reward = Reward()
+    reward.name = "badge"
+    DBSession.add(reward)
+    DBSession.flush()
+
+    achievement_reward = AchievementReward()
+    achievement_reward.achievement_id = achievement.id
+    achievement_reward.reward_id = reward.id
+    achievement_reward.value = "https://www.gamification-software.com/img/trophy_{level1}.png"
+    achievement_reward.from_level = achievement.maxlevel
+    DBSession.add(achievement_reward)
+    DBSession.flush()
+
+    return achievement_reward
 
 
 def create_goal_evaluation_cache(

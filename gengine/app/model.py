@@ -679,13 +679,13 @@ class Variable(ABase):
                 m[row["variable_id"]] = []
 
             m[row["variable_id"]].append({"goal":row,"achievement":Achievement.get_achievement(row["achievement_id"])})
-
         return m
 
     @classmethod
     def invalidate_caches_for_variable_and_user(cls,variable_id,user_id):
         """ invalidate the relevant caches for this user and all relevant users with concerned leaderboards"""
         goalsandachievements = cls.map_variables_to_rules().get(variable_id,[])
+
         timezone = User.get_user(user_id)["timezone"]
         Goal.clear_goal_caches(user_id, [(entry["goal"]["id"],Achievement.get_datetime_for_evaluation_type(timezone, entry["achievement"]["evaluation"])) for entry in goalsandachievements])
         for entry in goalsandachievements:
@@ -742,8 +742,6 @@ class Value(ABase):
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
         new_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
-        print("new_value")
-        print(new_value)
         return new_value
 
 class AchievementCategory(ABase):
@@ -870,7 +868,7 @@ class Achievement(ABase):
     def get_level_int(cls,user_id,achievement_id,achievement_date):
         """get the current level of the user for this achievement as int (0 if the user does not have this achievement)"""
         lvls = Achievement.get_level(user_id, achievement_id,achievement_date)
-
+        print("Get_level:", lvls)
         if not lvls:
             return 0
         else:
@@ -927,28 +925,27 @@ class Achievement(ABase):
 
            return the basic_output for the achievement plus information about the new achieved levels
         """
-        print("In evaluate achie")
         def generate():
-            print("In evaluate achie generate")
-
             achievement = Achievement.get_achievement(achievement_id)
 
             user_id = user["id"]
             user_ids = Achievement.get_relevant_users_by_achievement_and_user(achievement, user_id)
 
             user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
+            print("user_has_level:",user_has_level)
             user_wants_level = min((user_has_level or 0)+1, achievement["maxlevel"])
+            print("user_wants_level:", user_wants_level)
 
             goal_evals={}
             all_goals_achieved = True
             goals = Goal.get_goals(achievement["id"])
             for goal in goals:
-                print("For goal in goals")
+                print("goal_in_goals")
                 goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
                 if not goal_eval:
                     Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level,None)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
-                    print("Goal eval ",goal_eval)
+                    print(goal_eval)
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
                     goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement_date, user_ids)
@@ -1086,7 +1083,6 @@ class Achievement(ABase):
     @cache_general.cache_on_arguments()
     def get_achievement_properties(cls,achievement_id,level):
         """return all properties which are associated to the achievement level."""
-        print("user_wants_level property function ",level)
         result = DBSession.execute(select([t_achievementproperties.c.id.label("property_id"),
                                          t_achievementproperties.c.name,
                                          t_achievementproperties.c.is_variable,
@@ -1099,7 +1095,7 @@ class Achievement(ABase):
                                              t_achievements_achievementproperties.c.achievement_id==achievement_id))\
                                  .order_by(t_achievements_achievementproperties.c.from_level))\
                         .fetchall()
-        print("Property result in model ",result)
+
         return DBSession.execute(select([t_achievementproperties.c.id.label("property_id"),
                                          t_achievementproperties.c.name,
                                          t_achievementproperties.c.is_variable,
@@ -1123,10 +1119,7 @@ class Achievement(ABase):
         tzobj = pytz.timezone(tz)
 
         if not dt:
-            dt = datetime.datetime.now(tz)
-            print(datetime.datetime.now(tz))
-            print("datetime per users timezone")
-            print(dt)
+            dt = datetime.datetime.now(tzobj)
         else:
             dt = dt.astimezone(tzobj)
 
