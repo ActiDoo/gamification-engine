@@ -168,7 +168,7 @@ def _get_progress(achievements_for_user, requesting_user):
                 dt=d
             )
             if dr == None:
-                achievement_dates.add(d)
+                achievement_dates.add(None)
             else:
                 while d<=now:
                     achievement_dates.add(dr)

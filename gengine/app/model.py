@@ -325,6 +325,7 @@ t_goal_trigger_step_executions = Table('goal_trigger_executions', Base.metadata,
     Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
     Column('execution_level', ty.Integer, nullable = False, default=0),
     Column('execution_date', ty.DateTime(), nullable=False, default=datetime.datetime.utcnow, index=True),
+    Column('achievement_date', ty.DateTime(), nullable=True, index=True),
     Index("ix_goal_trigger_executions_combined", "trigger_step_id","user_id","execution_level")
 )
 
@@ -1333,7 +1334,15 @@ class Goal(ABase):
 
             # Evaluate triggers
             if execute_triggers:
-                Goal.select_and_execute_triggers(goal = goal, user_id = user_id, level = level, current_goal = goal_goal, previous_goal = previous_goal, value = new)
+                Goal.select_and_execute_triggers(
+                    goal = goal,
+                    achievement_date = achievement_date,
+                    user_id = user_id,
+                    level = level,
+                    current_goal = goal_goal,
+                    previous_goal = previous_goal,
+                    value = new
+                )
 
             return Goal.set_goal_eval_cache(goal=goal,
                                             user_id=user_id,
@@ -1344,7 +1353,7 @@ class Goal(ABase):
             return Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
     @classmethod
-    def select_and_execute_triggers(cls, goal, user_id, level, current_goal, value, previous_goal):
+    def select_and_execute_triggers(cls, goal, achievement_date, user_id, level, current_goal, value, previous_goal):
 
         if previous_goal == current_goal:
             previous_goal = 0.0
@@ -1356,6 +1365,7 @@ class Goal(ABase):
                                   t_goal_trigger_steps.c.goal_trigger_id,
                                   t_goal_trigger_steps.c.step], from_obj=j).\
                           where(and_(t_goal_triggers.c.goal_id == goal["id"],
+                                     t_goal_trigger_step_executions.c.achievement_date == achievement_date,
                                      t_goal_trigger_step_executions.c.user_id == user_id,
                                      t_goal_trigger_step_executions.c.execution_level == level))).fetchall()
                       }
@@ -1405,7 +1415,8 @@ class Goal(ABase):
                     value = value,
                     goal_goal = current_goal,
                     goal_level = level,
-                    goal_properties = goal_properties
+                    goal_properties = goal_properties,
+                    achievement_date = achievement_date
                 )
 
 
@@ -1656,12 +1667,13 @@ class GoalTriggerStep(ABase):
         return "GoalTriggerStep: %s" % (self.id,)
 
     @classmethod
-    def execute(cls, trigger_step, user_id, current_percentage, value, goal_goal, goal_level, goal_properties, suppress_actions=False):
+    def execute(cls, trigger_step, user_id, current_percentage, value, goal_goal, goal_level, goal_properties, achievement_date, suppress_actions=False):
         uS = update_connection()
         uS.execute(t_goal_trigger_step_executions.insert().values({
-            'user_id' : user_id,
-            'trigger_step_id' : trigger_step["id"],
-            'execution_level' : goal_level,
+            'user_id': user_id,
+            'trigger_step_id': trigger_step["id"],
+            'execution_level': goal_level,
+            'achievement_date': achievement_date
         }))
         if not suppress_actions:
             if trigger_step["action_type"] == "user_message":
@@ -1711,6 +1723,7 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
                 goal_goal=goal_eval["goal_goal"],
                 goal_level=user_wants_level,
                 goal_properties=Goal.get_properties(goal,user_wants_level),
+                achievement_date=achievement_date,
                 suppress_actions = True
             )
 
