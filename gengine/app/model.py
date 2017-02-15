@@ -725,10 +725,15 @@ class Value(ABase):
 
         variable = Variable.get_variable_by_name(variable_name)
         dt = Variable.get_datetime_for_tz_and_group(tz,variable["group"],at_datetime=at_datetime)
+        print("dt in increase value")
+        print(dt)
         condition = and_(t_values.c.datetime==dt,
                          t_values.c.variable_id==variable["id"],
                          t_values.c.user_id==user_id,
                          t_values.c.key==str(key))
+        datetime_db = DBSession.execute(select([t_values.c.datetime, ])).scalar()
+        print("datetime in db")
+        print(datetime_db)
 
         current_value = DBSession.execute(select([t_values.c.value,]).where(condition)).scalar()
         if current_value is not None:
@@ -742,6 +747,7 @@ class Value(ABase):
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
         new_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
+        print(new_value)
         return new_value
 
 class AchievementCategory(ABase):
@@ -868,7 +874,6 @@ class Achievement(ABase):
     def get_level_int(cls,user_id,achievement_id,achievement_date):
         """get the current level of the user for this achievement as int (0 if the user does not have this achievement)"""
         lvls = Achievement.get_level(user_id, achievement_id,achievement_date)
-        print("Get_level:", lvls)
         if not lvls:
             return 0
         else:
@@ -932,9 +937,7 @@ class Achievement(ABase):
             user_ids = Achievement.get_relevant_users_by_achievement_and_user(achievement, user_id)
 
             user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
-            print("user_has_level:",user_has_level)
             user_wants_level = min((user_has_level or 0)+1, achievement["maxlevel"])
-            print("user_wants_level:", user_wants_level)
 
             goal_evals={}
             all_goals_achieved = True

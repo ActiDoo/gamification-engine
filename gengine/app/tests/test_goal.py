@@ -109,7 +109,7 @@ class TestEvaluateGoal(BaseDBTest):
         self.assertNotEquals(result1, [])
 
     def test_get_leaderboard(self):
-        return
+
         achievement = create_achievement(achievement_name="invite_users_achievement")
         goals = create_goals(achievement)
 
@@ -118,11 +118,11 @@ class TestEvaluateGoal(BaseDBTest):
         user2 = create_user(
             lat=85.59,
             lng=65.75,
-            country="DE",
-            region="Niedersachsen",
-            city="Osnabrück",
-            timezone="Europe/Berlin",
-            language="de",
+            country="USA",
+            region="Lethal crosside",
+            city="New York",
+            timezone="US/Eastern",
+            language="en",
             additional_public_data={
                 "first_name": "Michael",
                 "last_name": "Clarke"

@@ -3,7 +3,7 @@ import random
 import datetime
 
 from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, \
-    t_goals_goalproperties, t_users, GoalEvaluationCache, Reward, AchievementReward
+    t_goals_goalproperties, t_users, GoalEvaluationCache, Reward, AchievementReward, AchievementUser
 from gengine.metadata import DBSession
 
 from gengine.app.model import UserDevice, t_user_device
@@ -413,6 +413,17 @@ def create_achievement_rewards(achievement):
 
     return achievement_reward
 
+
+def create_achievement_user(user, achievement, achievement_date, level):
+    achievement_user = AchievementUser()
+    achievement_user.user_id = user.id
+    achievement_user.achievement_id = achievement.id
+    achievement_user.achievement_date = achievement_date
+    achievement_user.level = level
+    DBSession.add(achievement_user)
+    DBSession.flush()
+
+    return achievement_user
 
 def create_goal_evaluation_cache(
         goal_id ,
