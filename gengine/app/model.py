@@ -920,7 +920,7 @@ class Achievement(ABase):
         return out
 
     @classmethod
-    def evaluate(cls, user, achievement_id, achievement_date):
+    def evaluate(cls, user, achievement_id, achievement_date, execute_triggers=True):
         """evaluate the achievement including all its subgoals for the user.
 
            return the basic_output for the achievement plus information about the new achieved levels
@@ -943,7 +943,7 @@ class Achievement(ABase):
 
                 goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
                 if not goal_eval:
-                    Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level,None)
+                    Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level,None, execute_triggers=execute_triggers)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
