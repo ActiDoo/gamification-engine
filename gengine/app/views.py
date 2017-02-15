@@ -193,7 +193,7 @@ def _get_progress(achievements_for_user, requesting_user):
             for achievement_date in reversed(sorted(achievement_dates)):
                 # We execute the goal triggers only for the newest and previous period, not for any periods longer ago
                 # (To not send messages for very old things....)
-                evaluatelist.append(ea(achievement, achievement_date, execute_triggers=(i == 0 or i == 1)))
+                evaluatelist.append(ea(achievement, achievement_date, execute_triggers=(i == 0 or i == 1 or achievement_date == None)))
                 i += 1
 
 
