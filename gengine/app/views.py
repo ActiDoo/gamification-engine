@@ -163,7 +163,7 @@ def _get_progress(achievements_for_user, requesting_user):
             achievement_dates = set()
             d = max(achievement["created_at"],achievements_for_user["created_at"]).replace(tzinfo=pytz.utc)
             dr = Achievement.get_datetime_for_evaluation_type(
-                achievements_for_user["timezone"],
+                "UTC",
                 achievement["evaluation"],
                 dt=d
             )
@@ -185,7 +185,7 @@ def _get_progress(achievements_for_user, requesting_user):
                         break # should not happen
 
                     dr = Achievement.get_datetime_for_evaluation_type(
-                        achievements_for_user["timezone"],
+                        "UTC",
                         achievement["evaluation"],
                         dt=d
                     )

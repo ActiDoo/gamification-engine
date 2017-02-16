@@ -124,7 +124,8 @@ t_achievements = Table('achievements', Base.metadata,
     Column("lng", ty.Float(Precision=64), nullable=True),
     Column("max_distance", ty.Integer, nullable=True),
     Column('priority', ty.Integer, index=True, default=0),
-    Column('evaluation',ty.Enum("immediately","daily","weekly","monthly","yearly","end", name="evaluation_types"), default="immediately", nullable=False),
+    Column('evaluation', ty.Enum("immediately","daily","weekly","monthly","yearly","end", name="evaluation_types"), default="immediately", nullable=False),
+    Column('evaluation_timezone', ty.String(), default=None, nullable=True),
     Column('relevance',ty.Enum("global","friends","city","own", name="relevance_types"), default="own"),
     Column('view_permission',ty.Enum("everyone", "own", name="achievement_view_permission"), default="everyone"),
     Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
@@ -686,7 +687,7 @@ class Variable(ABase):
         """ invalidate the relevant caches for this user and all relevant users with concerned leaderboards"""
         goalsandachievements = cls.map_variables_to_rules().get(variable_id,[])
 
-        timezone = User.get_user(user_id)["timezone"]
+        timezone = "UTC"
         Goal.clear_goal_caches(user_id, [(entry["goal"]["id"],Achievement.get_datetime_for_evaluation_type(timezone, entry["achievement"]["evaluation"])) for entry in goalsandachievements])
         for entry in goalsandachievements:
             achievement_date = Achievement.get_datetime_for_evaluation_type(timezone, entry["achievement"]["evaluation"])
@@ -725,15 +726,11 @@ class Value(ABase):
 
         variable = Variable.get_variable_by_name(variable_name)
         dt = Variable.get_datetime_for_tz_and_group(tz,variable["group"],at_datetime=at_datetime)
-        print("dt in increase value")
-        print(dt)
+
         condition = and_(t_values.c.datetime==dt,
                          t_values.c.variable_id==variable["id"],
                          t_values.c.user_id==user_id,
                          t_values.c.key==str(key))
-        datetime_db = DBSession.execute(select([t_values.c.datetime, ])).scalar()
-        print("datetime in db")
-        print(datetime_db)
 
         current_value = DBSession.execute(select([t_values.c.value,]).where(condition)).scalar()
         if current_value is not None:
@@ -747,7 +744,6 @@ class Value(ABase):
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
         new_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
-        print(new_value)
         return new_value
 
 class AchievementCategory(ABase):
@@ -943,12 +939,10 @@ class Achievement(ABase):
             all_goals_achieved = True
             goals = Goal.get_goals(achievement["id"])
             for goal in goals:
-                print("goal_in_goals")
                 goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
                 if not goal_eval:
                     Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level,None)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
-                    print(goal_eval)
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
                     goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement_date, user_ids)
@@ -1113,16 +1107,20 @@ class Achievement(ABase):
                         .fetchall()
 
     @classmethod
-    def get_datetime_for_evaluation_type(cls, tz, evaluation_type, dt=None):
+    def get_datetime_for_evaluation_type(cls, evaluation_timezone, evaluation_type, dt=None):
         """
             This computes the datetime to identify the time of the achievement.
             Only relevant for repeating achievements (monthly, yearly, weekly, daily)
             Returns None for all other achievement types
         """
-        tzobj = pytz.timezone(tz)
 
+        if evaluation_type and not evaluation_timezone:
+            evaluation_timezone = "UTC"
+
+        tzobj = pytz.timezone(evaluation_timezone)
         if not dt:
             dt = datetime.datetime.now(tzobj)
+
         else:
             dt = dt.astimezone(tzobj)
 
@@ -1215,7 +1213,7 @@ class Goal(ABase):
         return DBSession.execute(t_goals.select(t_goals.c.achievement_id==achievement_id)).fetchall()
 
     @classmethod
-    def compute_progress(cls, goal, achievement, user_id):
+    def compute_progress(cls, goal, achievement, user, evaluation_date):
         """computes the progress of the goal for the given user_id
 
         goal attributes:
@@ -1231,6 +1229,9 @@ class Goal(ABase):
             - evaluation:          "daily", "weekly", "monthly", "yearly" evaluation (users timezone)
 
         """
+
+        user_id = user["id"]
+        timezone = "UTC"
 
         def generate_statement_cache():
             condition = evaluate_condition(goal["condition"], column_variable = t_variables.c.name.label("variable_name"),
@@ -1253,6 +1254,7 @@ class Goal(ABase):
             datetime_col=None
             if group_by_dateformat:
                 # here we need to convert to users' time zone, as we might need to group by e.g. USER's weekday
+                #TODO: modify when implementing fixed timezone for achievements
                 datetime_col = func.to_char(text("values.datetime AT TIME ZONE users.timezone"),group_by_dateformat).label("datetime")
                 select_cols.append(datetime_col)
 
@@ -1274,14 +1276,26 @@ class Goal(ABase):
 
             if evaluation_type!="immediately":
 
+                achievement_date = Achievement.get_datetime_for_evaluation_type(timezone, evaluation_type, evaluation_date)
                 if evaluation_type=="daily":
                     q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("day","users.timezone")))
                 elif evaluation_type=="weekly":
-                    q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("week","users.timezone")))
+                    q = q.where(and_(
+                        t_values.c.datetime >= achievement_date,
+                        t_values.c.datetime < achievement_date + datetime.timedelta(days=7))
+                    )
                 elif evaluation_type=="monthly":
-                    q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("month","users.timezone")))
+                    next_month = Achievement.get_datetime_for_evaluation_type(timezone, "monthly", achievement_date + datetime.timedelta(days=32))
+                    q = q.where(and_(
+                        t_values.c.datetime >= achievement_date,
+                        t_values.c.datetime < next_month)
+                    )
                 elif evaluation_type=="yearly":
-                    q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("year","users.timezone")))
+                    next_year = Achievement.get_datetime_for_evaluation_type(timezone, "monthly", achievement_date + datetime.timedelta(days=366))
+                    q = q.where(and_(
+                        t_values.c.datetime >= achievement_date,
+                        t_values.c.datetime < next_year)
+                    )
                 elif evaluation_type == "end":
                     pass
                     #Todo implement for end
@@ -1311,16 +1325,20 @@ class Goal(ABase):
         #q = cache_goal_statements.get_or_create(str(goal["id"]),generate_statement_cache)
         # TODO: Cache the statement / Make it serializable for caching in redis
         q = generate_statement_cache()
+
         return DBSession.execute(q, {'user_id' : user_id})
 
     @classmethod
     def evaluate(cls, goal, achievement, achievement_date, user_id, level, goal_eval_cache_before=False, execute_triggers=True):
         """evaluate the goal for the user_ids and the level"""
+
         operator = goal["operator"]
 
-        users_progress = Goal.compute_progress(goal, achievement, user_id)
+        #TODO: Move this call to outer loops
+        user = User.get_user(user_id)
+
+        users_progress = Goal.compute_progress(goal, achievement, user, achievement_date)
         goal_evaluation = {e["user_id"] : e["value"] for e in users_progress}
-        print("user_progress ", goal_evaluation)
         goal_achieved = False
 
         if goal_eval_cache_before is False:
@@ -1334,13 +1352,9 @@ class Goal(ABase):
             params = {
                 "level" : level
             }
-            print("params", params)
             goal_goal = evaluate_value_expression(goal["goal"], params)
-            print("goal_goal",goal_goal)
-            print("user_value ", new)
             if goal_goal is not None and operator=="geq" and new>=goal_goal:
                 goal_achieved = True
-                print("goal_achieved is ",goal_achieved)
                 new = min(new,goal_goal)
 
             elif goal_goal is not None and operator=="leq" and new<=goal_goal:
@@ -1348,7 +1362,6 @@ class Goal(ABase):
                 new = max(new,goal_goal)
 
             previous_goal = Goal.basic_goal_output(goal, level-1).get("goal_goal",0)
-            print("previous_goal")
             # Evaluate triggers
             if execute_triggers:
                 Goal.select_and_execute_triggers(goal = goal, user_id = user_id, level = level, current_goal = goal_goal, previous_goal = previous_goal, value = new)
@@ -1439,7 +1452,6 @@ class Goal(ABase):
     @classmethod
     def set_goal_eval_cache(cls,goal, achievement_date, user_id,value,achieved):
         """set cache entry after evaluation"""
-
         cache_query = t_goal_evaluation_cache.select().where(and_(t_goal_evaluation_cache.c.goal_id==goal["id"],
                                                                   t_goal_evaluation_cache.c.user_id==user_id,
                                                                   t_goal_evaluation_cache.c.achievement_date==achievement_date))
@@ -1505,11 +1517,12 @@ class Goal(ABase):
     @classmethod
     def get_leaderboard(cls, goal, achievement_date, user_ids):
         """get the leaderboard for the goal and userids"""
+
         q = select([t_goal_evaluation_cache.c.user_id,
                     t_goal_evaluation_cache.c.value])\
                 .where(and_(t_goal_evaluation_cache.c.user_id.in_(user_ids),
                             t_goal_evaluation_cache.c.goal_id==goal["id"],
-                            t_goal_evaluation_cache.c.achievement_date==achievement_date))\
+                            ))\
                 .order_by(t_goal_evaluation_cache.c.value.desc(),
                           t_goal_evaluation_cache.c.user_id.desc())
         items = DBSession.execute(q).fetchall()
@@ -1525,7 +1538,7 @@ class Goal(ABase):
                 user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
                 user_wants_level = min((user_has_level or 0)+1, achievement["maxlevel"])
 
-                goal_eval = Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level)
+                Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level)
 
             #rerun the query
             items = DBSession.execute(q).fetchall()
@@ -1706,7 +1719,7 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
     achievement = goal.achievement
 
     for user_id in user_ids:
-        achievement_date = Achievement.get_datetime_for_evaluation_type(User.get_user(user_id)["timezone"], achievement["evaluation"])
+        achievement_date = Achievement.get_datetime_for_evaluation_type(evaluation_timezone="UTC", evaluation_type=achievement["evaluation"])
         user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
         user_wants_level = min((user_has_level or 0) + 1, achievement["maxlevel"])
         goal_eval = Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level, None, execute_triggers=False)

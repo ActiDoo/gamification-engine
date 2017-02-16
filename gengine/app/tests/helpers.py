@@ -236,7 +236,7 @@ def create_achievement(
         achievement_evaluation = undefined,
         achievement_relevance = undefined,
         achievement_maxlevel = undefined,
-        achievement_view_permission = undefined,
+        achievement_view_permission = undefined
     ):
     achievement = Achievement()
 
@@ -289,6 +289,8 @@ def create_achievement(
         achievement.view_permission = "everyone"
     else:
         achievement.view_permission = achievement_view_permission
+
+    achievement.evaluation_timezone = "UTC"
 
     DBSession.add(achievement)
     DBSession.flush()
@@ -424,6 +426,7 @@ def create_achievement_user(user, achievement, achievement_date, level):
     DBSession.flush()
 
     return achievement_user
+
 
 def create_goal_evaluation_cache(
         goal_id ,
