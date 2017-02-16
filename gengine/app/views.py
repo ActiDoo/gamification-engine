@@ -114,8 +114,7 @@ def add_or_update_user(request):
                    friends=friends,
                    groups=groups,
                    additional_public_data = additional_public_data)
-    
-    return {"status" : "OK", "user" : User.full_output(user_id)}
+    return {"status": "OK", "user" : User.full_output(user_id)}
 
 @view_config(route_name='delete_user', renderer='string', request_method="DELETE")
 def delete_user(request):
@@ -129,15 +128,15 @@ def delete_user(request):
             raise APIError(403, "forbidden", "You may not delete this user.")
 
     User.delete_user(user_id)
-    return {"status" : "OK"}
+    return {"status": "OK"}
 
 def _get_progress(achievements_for_user, requesting_user):
 
     achievements = Achievement.get_achievements_by_user_for_today(achievements_for_user)
 
-    def ea(achievement, achievement_date):
+    def ea(achievement, achievement_date, execute_triggers):
         try:
-            return Achievement.evaluate(achievements_for_user, achievement["id"], achievement_date)
+            return Achievement.evaluate(achievements_for_user, achievement["id"], achievement_date, execute_triggers=execute_triggers)
         except FormularEvaluationException as e:
             return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
         except Exception as e:
@@ -161,14 +160,14 @@ def _get_progress(achievements_for_user, requesting_user):
     for achievement in achievements:
         if may_view(achievement, requesting_user):
             achievement_dates = set()
-            d = max(achievement["created_at"],achievements_for_user["created_at"]).replace(tzinfo=pytz.utc)
+            d = max(achievement["created_at"], achievements_for_user["created_at"]).replace(tzinfo=pytz.utc)
             dr = Achievement.get_datetime_for_evaluation_type(
                 "UTC",
                 achievement["evaluation"],
                 dt=d
             )
             if dr == None:
-                achievement_dates.add(d)
+                achievement_dates.add(None)
             else:
                 while d<=now:
                     achievement_dates.add(dr)
@@ -190,8 +189,13 @@ def _get_progress(achievements_for_user, requesting_user):
                         dt=d
                     )
 
-            for achievement_date in achievement_dates:
-                evaluatelist.append(ea(achievement, achievement_date))
+            i=0
+            for achievement_date in reversed(sorted(achievement_dates)):
+                # We execute the goal triggers only for the newest and previous period, not for any periods longer ago
+                # (To not send messages for very old things....)
+                evaluatelist.append(ea(achievement, achievement_date, execute_triggers=(i == 0 or i == 1 or achievement_date == None)))
+                i += 1
+
 
     ret = {
         "achievements" : [

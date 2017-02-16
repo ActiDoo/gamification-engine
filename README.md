@@ -16,8 +16,6 @@ It is framework for developing your own solution, implemented as a **service** t
 
 (commercial support available at https://www.gamification-software.com or together with app development at https://www.appnadoo.de)
 
-**Latest recommended version: https://github.com/ActiDoo/gamification-engine/releases/latest** (not yet called "stable" though)
-
 ## Features
 
 - multi level achievements
@@ -32,6 +30,7 @@ It is framework for developing your own solution, implemented as a **service** t
 - custom definable achievement properties and rewards
 - custom definable languages and translations
 - dependencies between achievements (prerequisites & postconditions)
+- goals can execute triggers (currently creation of messages and mobile pushes for iOS/Android)
 - high performance / scalable
 - administration ui
 
