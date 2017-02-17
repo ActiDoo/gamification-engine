@@ -688,10 +688,13 @@ class Variable(ABase):
         """ invalidate the relevant caches for this user and all relevant users with concerned leaderboards"""
         goalsandachievements = cls.map_variables_to_rules().get(variable_id,[])
 
-        timezone = "UTC"
-        Goal.clear_goal_caches(user_id, [(entry["goal"]["id"],Achievement.get_datetime_for_evaluation_type(timezone, entry["achievement"]["evaluation"])) for entry in goalsandachievements])
+        Goal.clear_goal_caches(user_id, [
+            (entry["goal"]["id"], Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"]))
+                for entry in goalsandachievements
+            ]
+        )
         for entry in goalsandachievements:
-            achievement_date = Achievement.get_datetime_for_evaluation_type(timezone, entry["achievement"]["evaluation"])
+            achievement_date = Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"])
             Achievement.invalidate_evaluate_cache(user_id, entry["achievement"], achievement_date)
 
     @classmethod
@@ -1232,7 +1235,7 @@ class Goal(ABase):
         """
 
         user_id = user["id"]
-        timezone = "UTC"
+        timezone = achievement["evaluation_timezone"]
 
         def generate_statement_cache():
             condition = evaluate_condition(goal["condition"], column_variable = t_variables.c.name.label("variable_name"),
@@ -1279,7 +1282,10 @@ class Goal(ABase):
 
                 achievement_date = Achievement.get_datetime_for_evaluation_type(timezone, evaluation_type, evaluation_date)
                 if evaluation_type=="daily":
-                    q = q.where(text("values.datetime AT TIME ZONE users.timezone>"+datetime_trunc("day","users.timezone")))
+                    q = q.where(and_(
+                        t_values.c.datetime >= achievement_date,
+                        t_values.c.datetime < achievement_date + datetime.timedelta(days=1))
+                    )
                 elif evaluation_type=="weekly":
                     q = q.where(and_(
                         t_values.c.datetime >= achievement_date,
@@ -1292,7 +1298,7 @@ class Goal(ABase):
                         t_values.c.datetime < next_month)
                     )
                 elif evaluation_type=="yearly":
-                    next_year = Achievement.get_datetime_for_evaluation_type(timezone, "monthly", achievement_date + datetime.timedelta(days=366))
+                    next_year = Achievement.get_datetime_for_evaluation_type(timezone, "yearly", achievement_date + datetime.timedelta(days=366))
                     q = q.where(and_(
                         t_values.c.datetime >= achievement_date,
                         t_values.c.datetime < next_year)
@@ -1731,7 +1737,7 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
     achievement = goal.achievement
 
     for user_id in user_ids:
-        achievement_date = Achievement.get_datetime_for_evaluation_type(evaluation_timezone="UTC", evaluation_type=achievement["evaluation"])
+        achievement_date = Achievement.get_datetime_for_evaluation_type(evaluation_timezone=achievement["evaluation_timezone"], evaluation_type=achievement["evaluation"])
         user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
         user_wants_level = min((user_has_level or 0) + 1, achievement["maxlevel"])
         goal_eval = Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level, None, execute_triggers=False)
