@@ -1259,7 +1259,11 @@ class Goal(ABase):
             if group_by_dateformat:
                 # here we need to convert to users' time zone, as we might need to group by e.g. USER's weekday
                 #TODO: modify when implementing fixed timezone for achievements
-                datetime_col = func.to_char(text("values.datetime AT TIME ZONE '%s'" % (timezone,)), group_by_dateformat).label("datetime")
+                if timezone:
+                    datetime_col = func.to_char(text("values.datetime AT TIME ZONE '%s'" % (timezone,)), group_by_dateformat).label("datetime")
+                else:
+                    datetime_col = func.to_char(text("values.datetime AT TIME ZONE users.timezone"),
+                                                group_by_dateformat).label("datetime")
                 select_cols.append(datetime_col)
 
             if group_by_key:
