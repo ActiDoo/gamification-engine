@@ -945,7 +945,7 @@ class Achievement(ABase):
             for goal in goals:
                 goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
                 if not goal_eval:
-                    Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level,None, execute_triggers=execute_triggers)
+                    Goal.evaluate(goal, achievement, achievement_date, user, user_wants_level,None, execute_triggers=execute_triggers)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
@@ -1259,7 +1259,7 @@ class Goal(ABase):
             if group_by_dateformat:
                 # here we need to convert to users' time zone, as we might need to group by e.g. USER's weekday
                 #TODO: modify when implementing fixed timezone for achievements
-                datetime_col = func.to_char(text("values.datetime AT TIME ZONE users.timezone"),group_by_dateformat).label("datetime")
+                datetime_col = func.to_char(text("values.datetime AT TIME ZONE '%s'" % (timezone,)), group_by_dateformat).label("datetime")
                 select_cols.append(datetime_col)
 
             if group_by_key:
@@ -1336,13 +1336,13 @@ class Goal(ABase):
         return DBSession.execute(q, {'user_id' : user_id})
 
     @classmethod
-    def evaluate(cls, goal, achievement, achievement_date, user_id, level, goal_eval_cache_before=False, execute_triggers=True):
+    def evaluate(cls, goal, achievement, achievement_date, user, level, goal_eval_cache_before=False, execute_triggers=True):
         """evaluate the goal for the user_ids and the level"""
 
         operator = goal["operator"]
 
         #TODO: Move this call to outer loops
-        user = User.get_user(user_id)
+        user_id = user["id"]
 
         users_progress = Goal.compute_progress(goal, achievement, user, achievement_date)
         goal_evaluation = {e["user_id"] : e["value"] for e in users_progress}
@@ -1546,16 +1546,17 @@ class Goal(ABase):
 
         users = User.get_users(user_ids)
 
-        missing_users = set(user_ids)-set([x["user_id"] for x in items])
+        missing_user_ids = set(user_ids)-set([x["user_id"] for x in items])
+        missing_users = User.get_users(missing_user_ids).values()
         if len(missing_users)>0:
             #the goal has not been evaluated for some users...
             achievement = Achievement.get_achievement(goal["achievement_id"])
 
-            for user_id in missing_users:
-                user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
+            for user in missing_users:
+                user_has_level = Achievement.get_level_int(user["id"], achievement["id"], achievement_date)
                 user_wants_level = min((user_has_level or 0)+1, achievement["maxlevel"])
 
-                Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level)
+                Goal.evaluate(goal, achievement, achievement_date, user, user_wants_level)
 
             #rerun the query
             items = DBSession.execute(q).fetchall()
@@ -1733,14 +1734,15 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
     """When we create a new Trigger-Step, we must ensure, that is will not be executed for the users who already met the conditions before."""
 
     user_ids = [x["id"] for x in DBSession.execute(select([t_users.c.id,],from_obj=t_users)).fetchall()]
+    users = User.get_users(user_ids).values()
     goal = target.trigger.goal
     achievement = goal.achievement
 
-    for user_id in user_ids:
+    for user in users:
         achievement_date = Achievement.get_datetime_for_evaluation_type(evaluation_timezone=achievement["evaluation_timezone"], evaluation_type=achievement["evaluation"])
-        user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
+        user_has_level = Achievement.get_level_int(user["id"], achievement["id"], achievement_date)
         user_wants_level = min((user_has_level or 0) + 1, achievement["maxlevel"])
-        goal_eval = Goal.evaluate(goal, achievement, achievement_date, user_id, user_wants_level, None, execute_triggers=False)
+        goal_eval = Goal.evaluate(goal, achievement, achievement_date, user, user_wants_level, None, execute_triggers=False)
 
         previous_goal = Goal.basic_goal_output(goal, user_wants_level - 1).get("goal_goal", 0)
         if previous_goal == goal_eval["goal_goal"]:
@@ -1754,7 +1756,7 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
                 or (operator == "leq" and current_percentage <= required_percentage):
             GoalTriggerStep.execute(
                 trigger_step=target,
-                user_id=user_id,
+                user_id=user["id"],
                 current_percentage=current_percentage,
                 value=goal_eval["value"],
                 goal_goal=goal_eval["goal_goal"],
