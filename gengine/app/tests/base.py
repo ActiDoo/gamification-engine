@@ -25,7 +25,7 @@ class BaseDBTest(unittest.TestCase):
                 "database": dsn["database"],
             }
         )
-        init_session(override_session=scoped_session(get_sessionmaker()(bind=self.engine)), replace=True)
+        init_session(override_session=scoped_session(get_sessionmaker(bind=self.engine)), replace=True)
         from gengine.metadata import Base
         Base.metadata.bind = self.engine
 
