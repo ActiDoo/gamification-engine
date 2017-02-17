@@ -7,7 +7,7 @@ cache_goal_evaluation = None
 cache_achievement_eval = None
 cache_achievements_users_levels = None
 cache_achievements_by_user_for_today = None
-cache_goal_statements = None
+#cache_goal_statements = None
 cache_translations = None
 
 def init_caches():
@@ -30,8 +30,8 @@ def init_caches():
     global cache_goal_evaluation
     cache_goal_evaluation = create_cache("goal_evaluation")
 
-    global cache_goal_statements
-    cache_goal_statements = create_cache("goal_statements")
+    #global cache_goal_statements
+    #cache_goal_statements = create_memory_cache("goal_statements")
 
 
 def clear_all_caches():
@@ -41,4 +41,4 @@ def clear_all_caches():
     cache_achievements_users_levels.invalidate(hard=True)
     cache_translations.invalidate(hard=True)
     cache_goal_evaluation.invalidate(hard=True)
-    cache_goal_statements.invalidate(hard=True)
+    #cache_goal_statements.invalidate(hard=True)
