@@ -41,10 +41,6 @@ class TestUserDevice(BaseDBTest):
         self.assertTrue(device.push_id == '5126')
         self.assertTrue(device.app_version == '1.2')
 
-        # Failing cases
-        self.assertTrue(device.device_os == 'Android')
-
-
 
 
 

@@ -5,7 +5,7 @@ from gengine.app.model import Achievement, User,  Goal, Value
 
 class TestEvaluateGoal(BaseDBTest):
     def test_compute_progress(self):
-        return
+
         user = create_user()
         create_variable(variable_name="invite_users", variable_group="day")
         Value.increase_value(variable_name="invite_users", user=user, value=6, key=None)
@@ -20,7 +20,8 @@ class TestEvaluateGoal(BaseDBTest):
         goal = create_goals(achievement)
 
         # goal is for invite_users, its group_by_key is false, progress is sum of all the values
-        users_progress_goal = Goal.compute_progress(goal, achievement, user.id)
+        achievement_date = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement["evaluation"])
+        users_progress_goal = Goal.compute_progress(goal=goal, achievement=achievement, user=user, evaluation_date=achievement_date)
         goal_evaluation = {e["user_id"]: e["value"] for e in users_progress_goal}
         print(goal_evaluation)
 
@@ -29,7 +30,8 @@ class TestEvaluateGoal(BaseDBTest):
         # For goal1, since its group_by_key is True, it'll add the values of the same key
         achievement1 = create_achievement(achievement_name="participate_achievement")
         goal1 = create_goals(achievement1)
-        users_progress_goal1 = Goal.compute_progress(goal1, achievement, user.id)
+        achievement_date1= Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement1["evaluation"])
+        users_progress_goal1 = Goal.compute_progress(goal=goal1, achievement=achievement1, user=user, evaluation_date=achievement_date1)
         goal_evaluation1 = {e["user_id"]: e["value"] for e in users_progress_goal1}
         print(goal_evaluation1)
 
@@ -37,16 +39,13 @@ class TestEvaluateGoal(BaseDBTest):
 
         # Check with group_by_key for goals participate = False
         goal2 = create_goals(achievement1, goal_group_by_key=False)
-        users_progress_goal1 = Goal.compute_progress(goal2, achievement, user.id)
+        users_progress_goal1 = Goal.compute_progress(goal=goal2, achievement=achievement1, user=user, evaluation_date=achievement_date1)
         goal_evaluation2 = {e["user_id"]: e["value"] for e in users_progress_goal1}
         print(goal_evaluation2)
         self.assertLessEqual(goal_evaluation2.get(user.id), 10)
 
-        # If group_by_key attribute for goal is not set, then default value is considered as False and NOT None
-        # In compute_progress function , group_by_key is compared with None. Is it desired or need to change it to False?
-
     def test_evaluate_goal(self):
-        return
+
         user = create_user()
         create_variable(variable_name="invite_users", variable_group="day")
         Value.increase_value(variable_name="invite_users", user=user, value=6, key=None)
@@ -72,9 +71,9 @@ class TestEvaluateGoal(BaseDBTest):
         goal2 = create_goals(achievement, goal_group_by_key=True, goal_goal="3*level")
         evaluation_result2 = Goal.evaluate(goal2, achievement, achievement_date, user.id, level=4, goal_eval_cache_before=False, execute_triggers=True)
         print(evaluation_result2)
-        # failing cases
-        self.assertGreaterEqual(evaluation_result2["value"], 12)
-        self.assertEqual(evaluation_result2["achieved"], True)
+
+        self.assertLessEqual(evaluation_result2["value"], 12)
+        self.assertEqual(evaluation_result2["achieved"], False)
 
         # Goal invite_users
         achievement1 = create_achievement(achievement_name="invite_users_achievement")
@@ -84,12 +83,11 @@ class TestEvaluateGoal(BaseDBTest):
         evaluation_result1 = Goal.evaluate(goal1, achievement1, achievement_date1, user.id, level=2, goal_eval_cache_before=False, execute_triggers=True)
         print(evaluation_result1)
 
-        # True cases
         self.assertGreaterEqual(evaluation_result1["value"], 8)
         self.assertEqual(evaluation_result1["achieved"], True)
 
     def test_get_goal_properties(self):
-        return
+
         achievement = create_achievement()
         goals = create_goals(achievement)
 
@@ -102,14 +100,11 @@ class TestEvaluateGoal(BaseDBTest):
         result1 = Goal.get_goal_properties(goals.id, level1)
         print(result1)
 
-        # True test
         self.assertIsNot(result, [])
-
-        # False test
-        self.assertNotEquals(result1, [])
+        self.assertEquals(result1, [])
 
     def test_get_leaderboard(self):
-        return
+
         achievement = create_achievement(achievement_name="invite_users_achievement")
         goals = create_goals(achievement)
 
@@ -180,7 +175,8 @@ class TestEvaluateGoal(BaseDBTest):
         positions = Goal.get_leaderboard(goals, achievement_date_for_user3, user_ids)
         print(positions)
         self.assertEqual(positions[0]["value"], 22.00)
-        self.assertEqual(positions[0]["value"], 8.00)
+        self.assertEqual(positions[1]["value"], 15.00)
+        self.assertEqual(positions[2]["value"], 8.00)
 
         # Test for Goal is not evaluated for few user_ids
         create_variable(variable_name="invite_users", variable_group="day")
@@ -192,5 +188,3 @@ class TestEvaluateGoal(BaseDBTest):
 
         print(positions)
         self.assertEqual(positions[0]["value"], 15.00)
-
-        #Should the leaderbord be chosen from users whose goal_achieved is True??

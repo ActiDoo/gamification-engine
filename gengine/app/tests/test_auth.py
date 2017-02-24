@@ -61,10 +61,6 @@ class TestUserCreation(BaseDBTest):
         self.assertTrue(user.timezone == "Europe/Bukarest")
         self.assertTrue(user.language_id == lang.id)
 
-        # Failing cases
-        self.assertTrue(user.additional_public_data["first_name"] == "Matthew")
-        self.assertTrue(user.additional_public_data["last_name"] == "Hayden")
-
     def test_user_deletion(self):
 
         user1 = create_user()
@@ -91,10 +87,7 @@ class TestUserCreation(BaseDBTest):
 
         # Correct cases
         self.assertNotIn(user1.id, remaining_users)
-        self.assertIn(user2.id, remaining_users)
-
-        # Failing cases
-        self.assertNotIn(user2.id, remaining_users)
+        self.assertEqual(user2.id, remaining_users[0].id)
 
     def test_verify_password(self):
         auth_user = AuthUser()
