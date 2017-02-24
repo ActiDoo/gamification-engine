@@ -731,20 +731,22 @@ class Value(ABase):
         variable = Variable.get_variable_by_name(variable_name)
         dt = Variable.get_datetime_for_tz_and_group(tz,variable["group"],at_datetime=at_datetime)
 
-        condition = and_(t_values.c.datetime==dt,
-                         t_values.c.variable_id==variable["id"],
-                         t_values.c.user_id==user_id,
-                         t_values.c.key==str(key))
+        key = None if key is None else str(key)
+
+        condition = and_(t_values.c.datetime == dt,
+                         t_values.c.variable_id == variable["id"],
+                         t_values.c.user_id == user_id,
+                         t_values.c.key == key)
 
         current_value = DBSession.execute(select([t_values.c.value,]).where(condition)).scalar()
         if current_value is not None:
             update_connection().execute(t_values.update(condition, values={"value":current_value+value}))
         else:
-            update_connection().execute(t_values.insert({"datetime":dt,
-                                           "variable_id":variable["id"],
-                                           "user_id" : user_id,
-                                           "key" : str(key),
-                                           "value":value}))
+            update_connection().execute(t_values.insert({"datetime": dt,
+                                           "variable_id": variable["id"],
+                                           "user_id": user_id,
+                                           "key": key,
+                                           "value": value}))
 
         Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
         new_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
