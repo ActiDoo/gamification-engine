@@ -115,7 +115,7 @@ class TestAchievement(BaseDBTest):
                 "first_name": "Michael",
                 "last_name": "Clarke"
             },
-            friends = [1, 4]
+            friends = [user1.id]
         )
 
         # Create Third user
@@ -131,7 +131,7 @@ class TestAchievement(BaseDBTest):
                 "first_name": "Rudolf",
                 "last_name": "Red Nose"
             },
-            friends=[1, 2]
+            friends=[user1.id, user2.id]
         )
 
         # Create Fourth user
@@ -147,7 +147,7 @@ class TestAchievement(BaseDBTest):
                 "first_name": "Steve",
                 "last_name": "Waugh"
             },
-            friends=[2, 3]
+            friends=[user2.id, user3.id]
         )
 
         achievement = create_achievement()
@@ -156,34 +156,26 @@ class TestAchievement(BaseDBTest):
         usersForFriend3 = achievement.get_relevant_users_by_achievement_and_user_reverse(achievement, user3.id)
         usersForFriend4 = achievement.get_relevant_users_by_achievement_and_user_reverse(achievement, user4.id)
 
-        print(usersForFriend1)
-        print(usersForFriend2)
-        print(usersForFriend3)
-        print(usersForFriend4)
-
-        self.assertIn(2, usersForFriend1)
-       # self.assertIn(3, usersForFriend1)
-        self.assertIn(3, usersForFriend2)
-        self.assertIn(4, usersForFriend2)
-        self.assertIn(4, usersForFriend3)
-        self.assertIn(1, usersForFriend4)
-        self.assertIn(4, usersForFriend4)
+        self.assertIn(user2.id, usersForFriend1)
+        self.assertIn(user3.id, usersForFriend1)
+        self.assertIn(user3.id, usersForFriend2)
+        self.assertIn(user4.id, usersForFriend2)
+        self.assertIn(user4.id, usersForFriend3)
+        self.assertIn(user4.id, usersForFriend4)
 
     def test_get_level(self):
 
         user = create_user(timezone="Australia/Sydney", country="Australia", region="xyz", city="Sydney")
         achievement = create_achievement(achievement_name="invite_users_achievement", achievement_evaluation="weekly")
 
-        achievement_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, achievement.evaluation)
+        achievement_date = Achievement.get_datetime_for_evaluation_type(evaluation_timezone=achievement.evaluation_timezone, evaluation_type="weekly")
 
         create_achievement_user(user, achievement, achievement_date, level=2)
 
         achievement.get_level(user.id, achievement["id"], achievement_date)
         level = achievement.get_level_int(user.id, achievement.id, achievement_date)
 
-        achievement_date1 = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, achievement_date+datetime.timedelta(7))
-        print("achievement date")
-        print(achievement_date1)
+        achievement_date1 = Achievement.get_datetime_for_evaluation_type(evaluation_timezone=achievement.evaluation_timezone, evaluation_type="weekly", dt=achievement_date + datetime.timedelta(7))
 
         achievement.get_level(user.id, achievement["id"], achievement_date1)
         level1 = achievement.get_level_int(user.id, achievement.id, achievement_date1)
@@ -193,33 +185,27 @@ class TestAchievement(BaseDBTest):
         self.assertEqual(level, 2)
         self.assertEqual(level1, 0)
 
-        # Failed cases
-        self.assertEqual(level1, 1)
-
     def test_get_rewards(self):
-        return
-        achievement = create_achievement()
+
+        achievement = create_achievement(achievement_maxlevel=3)
         create_achievement_rewards(achievement)
-
+        clear_all_caches()
         rewardlist1 = Achievement.get_rewards(achievement.id, 1)
-        print(rewardlist1)
+        print("rewardlist1",rewardlist1)
 
-        rewardlist2 = Achievement.get_rewards(achievement.id, 2)
-        print(rewardlist2)
+        rewardlist2 = Achievement.get_rewards(achievement.id, 5)
+        print("rewardlist2", rewardlist2)
 
         rewardlist3 = Achievement.get_rewards(achievement.id, 3)
-        print(rewardlist3)
+        print("rewardlist3", rewardlist3)
 
-        # passed test cases
-        self.assertNotEqual(rewardlist2, [])
+        self.assertEqual(rewardlist1, [])
+        self.assertEqual(rewardlist2, [])
         self.assertNotEqual(rewardlist3, [])
 
-        # failed test cases
-        self.assertEqual(rewardlist1, [])
-
     def test_get_achievement_properties(self):
-        return
-        achievement = create_achievement()
+
+        achievement = create_achievement(achievement_maxlevel=3)
 
         achievementproperty = AchievementProperty()
         achievementproperty.name = "xp"
@@ -234,6 +220,8 @@ class TestAchievement(BaseDBTest):
         DBSession.add(achievements_achievementproperty)
         DBSession.flush()
 
+        clear_all_caches()
+
         result1 = Achievement.get_achievement_properties(achievement.id, 4)
         print(result1)
 
@@ -241,10 +229,10 @@ class TestAchievement(BaseDBTest):
         print(result2)
 
         self.assertNotEqual(result1, [])
-        self.assertNotEqual(result2, [])
+        self.assertEqual(result2, [])
 
     def test_evaluate_achievement_for_participate(self):
-        return
+
         achievement = create_achievement(achievement_name="participate_achievement", achievement_relevance="own", achievement_maxlevel=4)
 
         user = create_user()
@@ -263,76 +251,68 @@ class TestAchievement(BaseDBTest):
         variable = create_variable("participate", variable_group="day")
         Value.increase_value(variable_name=variable.name, user=user, value=1, key="5")
 
-        goal = create_goals(achievement,
-                            goal_condition="""{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}""",
-                            goal_group_by_key=True,
-                            goal_operator="geq",
-                            goal_goal="1*level")
+        create_goals(achievement,
+                     goal_condition="""{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}""",
+                     goal_group_by_key=True,
+                     goal_operator="geq",
+                     goal_goal="1*level")
+
+        clear_all_caches()
 
         level = Achievement.evaluate(user, achievement.id, achievement_date).get("level")
-        print("level ",level)
-        result1 = Value.increase_value(variable_name="participate", user=user, value=5, key="5")
-        print("value result ",result1)
-        level2 = Achievement.evaluate(user, achievement.id, achievement_date)
-        print("level2 ",level2)
-        result2 = Value.increase_value(variable_name="participate", user=user, value=1, key="5")
-        # result3 = Value.increase_value(variable_name="participate", user=user, value=1, key="5")
-        # result = Achievement.evaluate(user, achievement.id, achievement_date)
 
-        #self.assertEqual(result["level"], achievement.maxlevel)
+        Value.increase_value(variable_name="participate", user=user, value=1, key="7")
+        level2 = Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+
+        Value.increase_value(variable_name="participate", user=user, value=5, key="5")
+        level1 = Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+
+        self.assertEqual(level, 1)
+        self.assertEqual(level2, 1)
+        self.assertEqual(level1, 4)
 
     def test_evaluate_achievement_for_invite_users(self):
-        return
-        # Achievement with relevance friends and maxlevel 3
-        achievement = create_achievement(achievement_name="invite_users_achievement", achievement_relevance="friends", achievement_maxlevel=3)
+
+        achievement = create_achievement(achievement_name="invite_users_achievement", achievement_relevance="friends", achievement_maxlevel=10)
 
         user = create_user()
 
         achievement_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, achievement.evaluation)
 
-        # get level
-        current_level = 1
-        achievement_user = AchievementUser()
-        achievement_user.user_id = user.id
-        achievement_user.achievement_id = achievement.id
-        achievement_user.achievement_date = achievement_date
-        achievement_user.level = current_level
-        DBSession.add(achievement_user)
-        DBSession.flush()
+        create_achievement_user(user=user, achievement=achievement, achievement_date=achievement_date, level=1)
 
         update_connection().execute(t_values.delete())
         create_variable("invite_users", variable_group="day")
-        firstvalue = Value.increase_value(variable_name="invite_users", user=user, value=1, key=None)
-        print("firstvalue ", firstvalue)
+        Value.increase_value(variable_name="invite_users", user=user, value=1, key=None)
 
         create_goals(achievement,
-                     goal_goal="3*level",
+                     goal_goal="1*level",
                      goal_operator="geq",
                      goal_group_by_key=False
                      )
         clear_all_caches()
 
-        achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
-        #print("achievement result: ",achievement_result)
+        level = Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+        print("level: ", level)
 
-        new2 = Value.increase_value(variable_name="invite_users", user=user, value=8, key=None)
-        print("new2 ",new2)
-        achievement_result1 = Achievement.evaluate(user, achievement.id, achievement_date)
-        #print(achievement_result1)
+        Value.increase_value(variable_name="invite_users", user=user, value=8, key=None)
+        level1 = Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+        print("level1 ", level1)
 
-        new3 = Value.increase_value(variable_name="invite_users", user=user, value=5, key=None)
-        print(new3)
-        achievement_result2 = Achievement.evaluate(user, achievement.id, achievement_date)
-        #print("achievement_result2: ", achievement_result2)
+        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None)
+        level2 = Achievement.evaluate(user, achievement.id, achievement_date).get("level")
+        print("level2: ", level2)
 
+        self.assertEqual(level, 1)
+        self.assertEqual(level1, 9)
+        self.assertEqual(level2, 10)
 
     def test_get_reward_and_properties_for_achievement(self):
-        return
+
         user = create_user()
 
         achievement = create_achievement(achievement_name="invite_users_achievement", achievement_relevance="friends", achievement_maxlevel=3)
 
-        # Check for property
         achievementproperty = AchievementProperty()
         achievementproperty.name = "xp"
         DBSession.add(achievementproperty)
@@ -346,109 +326,65 @@ class TestAchievement(BaseDBTest):
         DBSession.add(achievements_achievementproperty)
         DBSession.flush()
 
-        reward = Reward()
-        reward.name = "badge"
-        DBSession.add(reward)
-        DBSession.flush()
-
-        achievement_reward = AchievementReward()
-        achievement_reward.achievement_id = achievement.id
-        achievement_reward.reward_id = reward.id
-        achievement_reward.value = "https://www.gamification-software.com/img/trophy_{level1}.png"
-        achievement_reward.from_level = 2
-        DBSession.add(achievement_reward)
-        DBSession.flush()
+        create_achievement_rewards(achievement=achievement)
 
         achievement_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, achievement.evaluation)
 
-        current_level = 1
-        achievement_user = AchievementUser()
-        achievement_user.user_id = user.id
-        achievement_user.achievement_id = achievement.id
-        achievement_user.achievement_date = achievement_date
-        achievement_user.level = current_level
-        DBSession.add(achievement_user)
-        DBSession.flush()
+        create_achievement_user(user=user, achievement=achievement, achievement_date=achievement_date, level=1)
 
-        variable = create_variable("invite_users", "none")
-        firstvalue = Value.increase_value(variable_name="invite_users", user=user, value=2, key="5")
-        DBSession.flush()
+        create_variable("invite_users", "none")
+        Value.increase_value(variable_name="invite_users", user=user, value=4, key="5")
 
-        goal = create_goals(achievement = achievement,
-                            goal_condition="""{"term": {"type": "literal", "variable": "invite_users"}}""",
-                            goal_group_by_key=True,
-                            goal_operator="geq",
-                            goal_goal="1*level")
+        create_goals(achievement = achievement,
+                     goal_condition="""{"term": {"type": "literal", "variable": "invite_users"}}""",
+                     goal_group_by_key=True,
+                     goal_operator="geq",
+                     goal_goal="1*level")
 
+        clear_all_caches()
         result = Achievement.evaluate(user, achievement.id, achievement_date)
-        print(result)
+        print("reward_achievement_result:",result)
 
-        self.assertNotEqual(len(result["new_levels"]["2"]["rewards"]), 0)
-
-        Value.increase_value(variable_name="invite_users", user=user, value=2, key="5")
-        DBSession.flush()
-
-        # result = Achievement.evaluate(user, achievement.id, achievement_date)
-        # print(result)
-
-        # result1 = Achievement.get_achievement_properties(achievement.id, 4)
-        # print("in test property",result1)
-
-        self.assertNotEqual(len(result["new_levels"]["2"]["properties"]), 0)
+        self.assertEqual(len(result["new_levels"]["2"]["rewards"]), 0)
+        self.assertEqual(len(result["new_levels"]["3"]["rewards"]), 1)
+        self.assertEqual(len(result["new_levels"]["2"]["properties"]), 1)
+        self.assertEqual(len(result["new_levels"]["3"]["properties"]), 1)
 
     def test_multiple_goals_of_same_achievement(self):
-        return
+
         user = create_user()
 
         achievement = create_achievement(achievement_name="participate_achievement", achievement_maxlevel=3)
 
-        reward = Reward()
-        reward.name = "badge"
-        DBSession.add(reward)
-        DBSession.flush()
-
-        achievement_reward = cre
-        achievement_reward = AchievementReward()
-        achievement_reward.achievement_id = achievement.id
-        achievement_reward.reward_id = reward.id
-        achievement_reward.value = "https://www.gamification-software.com/img/trophy_{level1}.png"
-        achievement_reward.from_level = 2
-        DBSession.add(achievement_reward)
-        DBSession.flush()
+        create_achievement_rewards(achievement=achievement)
 
         achievement_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, achievement.evaluation)
 
-        goal1 = create_goals(achievement=achievement,
-                             goal_condition="""{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate_seminar"}}""",
-                             goal_group_by_key=False,
-                             goal_operator="geq",
-                             goal_goal="2*level",
-                             goal_name = "goal_participate_seminar")
+        create_goals(achievement=achievement,
+                     goal_condition="""{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate_seminar"}}""",
+                     goal_group_by_key=False,
+                     goal_operator="geq",
+                     goal_goal="2*level",
+                     goal_name = "goal_participate_seminar")
 
-        goal2 = create_goals(achievement=achievement,
-                             goal_condition="""{"term": {"type": "literal", "variable": "participate_talk"}}""",
-                             goal_group_by_key=False,
-                             goal_operator="geq",
-                             goal_goal="1*level",
-                             goal_name="goal_participate_talk")
+        create_goals(achievement=achievement,
+                     goal_condition="""{"term": {"type": "literal", "variable": "participate_talk"}}""",
+                     goal_group_by_key=False,
+                     goal_operator="geq",
+                     goal_goal="1*level",
+                     goal_name="goal_participate_talk")
 
-        current_level = 1
-        achievement_user = AchievementUser()
-        achievement_user.user_id = user.id
-        achievement_user.achievement_id = achievement.id
-        achievement_user.achievement_date = achievement_date
-        achievement_user.level = current_level
-        DBSession.add(achievement_user)
-        DBSession.flush()
+        clear_all_caches()
+        create_achievement_user(user=user, achievement=achievement, achievement_date=achievement_date, level=1)
 
-        variable1 = create_variable("participate_seminar",variable_group=None)
+        variable1 = create_variable("participate_seminar", variable_group=None)
         variable2 = create_variable("participate_talk", variable_group=None)
         Value.increase_value(variable1.name, user, "2", "5")
-        Value.increase_value(variable1.name, user, "2", "7")
-        Value.increase_value(variable2.name, user, "2", key=None)
+        Value.increase_value(variable1.name, user, "3", "7")
+        Value.increase_value(variable2.name, user, "3", key=None)
 
         result = Achievement.evaluate(user, achievement.id, achievement_date)
-        print(result)
+        print("multiple_goals_of_same_achievement:",result)
         Value.increase_value(variable1.name, user, "2", "7")
         result1 = Achievement.evaluate(user, achievement.id, achievement_date)
         print(result1)
@@ -456,4 +392,11 @@ class TestAchievement(BaseDBTest):
         result2 = Achievement.evaluate(user, achievement.id, achievement_date)
         print(result2)
 
-        self.assertNotEqual(len(result["new_levels"]["2"]["rewards"]), 0)
+        self.assertEqual(len(result["levels"]["3"]["rewards"]), 1)
+        self.assertEqual(result["levels"]["1"]["goals"]["1"]["goal_goal"], 2)
+        self.assertEqual(result["levels"]["3"]["goals"]["2"]["goal_goal"], 3)
+        self.assertEqual(result1["levels"]["2"]["goals"]["1"]["goal_goal"], 4)
+        self.assertEqual(result1["levels"]["3"]["goals"]["2"]["goal_goal"], 3)
+        self.assertEqual(result2["levels"]["2"]["goals"]["1"]["goal_goal"], 4)
+        self.assertEqual(result2["levels"]["3"]["goals"]["2"]["goal_goal"], 3)
+

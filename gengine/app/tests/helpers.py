@@ -77,7 +77,6 @@ def create_user(
 
     if user_id is undefined:
         user_id = (DBSession.execute("SELECT max(id) as c FROM users").scalar() or 0) + 1
-        print()
     if lat is undefined:
         lat = randrange_float(gen_data["area"]["min_lat"],gen_data["area"]["max_lat"])
 
