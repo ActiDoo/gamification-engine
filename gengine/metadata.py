@@ -18,10 +18,11 @@ class MySession(Session):
 
 DBSession=Proxy()
 
-def get_sessionmaker():
+def get_sessionmaker(bind=None):
     return sessionmaker(
         extension=ZopeTransactionExtension(),
-        class_=MySession
+        class_=MySession,
+        bind=bind
     )
 
 def init_session(override_session=None, replace=False):

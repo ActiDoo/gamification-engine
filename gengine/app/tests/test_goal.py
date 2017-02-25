@@ -61,7 +61,7 @@ class TestEvaluateGoal(BaseDBTest):
         goal = create_goals(achievement, goal_group_by_key=False, goal_goal="3*level")
         achievement_date = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement["evaluation"])
 
-        evaluation_result = Goal.evaluate(goal, achievement, achievement_date, user.id, level=4, goal_eval_cache_before=False, execute_triggers=True)
+        evaluation_result = Goal.evaluate(goal, achievement, achievement_date, user, level=4, goal_eval_cache_before=False, execute_triggers=True)
         print(evaluation_result)
         # True cases
         self.assertGreaterEqual(evaluation_result["value"], 12)
@@ -69,7 +69,7 @@ class TestEvaluateGoal(BaseDBTest):
 
         # Goal Participate with group_by = True
         goal2 = create_goals(achievement, goal_group_by_key=True, goal_goal="3*level")
-        evaluation_result2 = Goal.evaluate(goal2, achievement, achievement_date, user.id, level=4, goal_eval_cache_before=False, execute_triggers=True)
+        evaluation_result2 = Goal.evaluate(goal2, achievement, achievement_date, user, level=4, goal_eval_cache_before=False, execute_triggers=True)
         print(evaluation_result2)
 
         self.assertLessEqual(evaluation_result2["value"], 12)
@@ -80,7 +80,7 @@ class TestEvaluateGoal(BaseDBTest):
         goal1 = create_goals(achievement1, goal_goal="4*level")
         achievement_date1 = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement1["evaluation"])
 
-        evaluation_result1 = Goal.evaluate(goal1, achievement1, achievement_date1, user.id, level=2, goal_eval_cache_before=False, execute_triggers=True)
+        evaluation_result1 = Goal.evaluate(goal1, achievement1, achievement_date1, user, level=2, goal_eval_cache_before=False, execute_triggers=True)
         print(evaluation_result1)
 
         self.assertGreaterEqual(evaluation_result1["value"], 8)

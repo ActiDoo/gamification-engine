@@ -162,32 +162,33 @@ def _get_progress(achievements_for_user, requesting_user):
             achievement_dates = set()
             d = max(achievement["created_at"], achievements_for_user["created_at"]).replace(tzinfo=pytz.utc)
             dr = Achievement.get_datetime_for_evaluation_type(
-                "UTC",
+                achievement["evaluation_timezone"],
                 achievement["evaluation"],
                 dt=d
             )
-            if dr == None:
-                achievement_dates.add(None)
-            else:
-                while d<=now:
-                    achievement_dates.add(dr)
 
+            achievement_dates.add(dr)
+            if dr != None:
+                while d <= now:
                     if achievement["evaluation"] == "yearly":
-                        d += datetime.timedelta(days=365)
+                        d += datetime.timedelta(days=364)
                     elif achievement["evaluation"] == "monthly":
                         d += datetime.timedelta(days=28)
                     elif achievement["evaluation"] == "weekly":
-                        d += datetime.timedelta(days=7)
+                        d += datetime.timedelta(days=6)
                     elif achievement["evaluation"] == "daily":
-                        d += datetime.timedelta(days=1)
+                        d += datetime.timedelta(hours=23)
                     else:
                         break # should not happen
 
                     dr = Achievement.get_datetime_for_evaluation_type(
-                        "UTC",
+                        achievement["evaluation_timezone"],
                         achievement["evaluation"],
                         dt=d
                     )
+
+                    if dr <= now:
+                        achievement_dates.add(dr)
 
             i=0
             for achievement_date in reversed(sorted(achievement_dates)):

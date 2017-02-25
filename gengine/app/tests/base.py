@@ -2,7 +2,8 @@ import unittest
 import os
 from sqlalchemy.engine import create_engine
 from sqlalchemy.sql.schema import Table
-from gengine.metadata import init_db, init_session, get_sessionmaker
+from sqlalchemy.orm.scoping import scoped_session
+from gengine.metadata import init_session, get_sessionmaker
 from gengine.app.tests import db
 
 class BaseDBTest(unittest.TestCase):
@@ -24,7 +25,7 @@ class BaseDBTest(unittest.TestCase):
                 "database": dsn["database"],
             }
         )
-        init_session(override_session=get_sessionmaker()(bind=self.engine), replace=True)
+        init_session(override_session=scoped_session(get_sessionmaker(bind=self.engine)), replace=True)
         from gengine.metadata import Base
         Base.metadata.bind = self.engine
 
