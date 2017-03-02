@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from gengine.app.tests.base import BaseDBTest
 from gengine.app.tests.helpers import create_user, update_user, delete_user, get_or_create_language
 from gengine.metadata import DBSession
