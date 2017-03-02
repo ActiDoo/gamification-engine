@@ -71,13 +71,12 @@ def create_user(
     ):
     if additional_public_data is undefined:
         additional_public_data = {
-            'first_name' : names.get_first_name(),
-            'last_name' : names.get_last_name()
+            'first_name' : 'Stefan',
+            'last_name' : 'Rogers'
         }
 
     if user_id is undefined:
         user_id = (DBSession.execute("SELECT max(id) as c FROM users").scalar() or 0) + 1
-        print()
     if lat is undefined:
         lat = randrange_float(gen_data["area"]["min_lat"],gen_data["area"]["max_lat"])
 
@@ -251,7 +250,7 @@ def create_achievement(
         achievement.valid_start = achievement_valid_start
 
     if achievement_valid_end is undefined:
-        achievement.valid_end = datetime.datetime.utcnow()
+        achievement.valid_end = datetime.date.today()
     else:
         achievement.valid_end = achievement_valid_end
 

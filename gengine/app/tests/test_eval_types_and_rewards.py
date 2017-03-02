@@ -1,14 +1,12 @@
 import datetime
-import pytz
 
 from gengine.app.cache import clear_all_caches
 from gengine.app.tests.base import BaseDBTest
-from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_value, create_goals, create_achievement_rewards, create_achievement_user, create_goal_evaluation_cache
-from gengine.metadata import DBSession
-from gengine.app.model import Achievement, AchievementUser, Value, t_values
-from gengine.base.model import update_connection
+from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_goals, create_achievement_user
+from gengine.app.model import Achievement, Value
 
-class TestAchievementEvaluationTypeAndRewards(BaseDBTest):
+
+class TestEvaluationForMultipleUsersAndTimzone(BaseDBTest):
 
     def test_multiple_users_achievemnt_reward(self):
 
@@ -77,7 +75,7 @@ class TestAchievementEvaluationTypeAndRewards(BaseDBTest):
         create_achievement_user(user4, achievement, achievement_date1, level=1)
 
         create_variable("invite_users", variable_group="day")
-        Value.increase_value(variable_name="invite_users", user=user1, value=3, key=None)
+        Value.increase_value(variable_name="invite_users", user=user1, value=12, key=None)
         Value.increase_value(variable_name="invite_users", user=user2, value=2, key=None)
         Value.increase_value(variable_name="invite_users", user=user3, value=11, key=None)
         Value.increase_value(variable_name="invite_users", user=user4, value=6, key=None)
@@ -90,12 +88,31 @@ class TestAchievementEvaluationTypeAndRewards(BaseDBTest):
 
         clear_all_caches()
 
+        print("test for multiple users")
         # Evaluate achievement for all users
         achievement1 = Achievement.evaluate(user3, achievement.id, achievement_date1)
-        print(achievement1)
+        print(achievement1["goals"][1]["leaderboard"])
 
         new_date = achievement_date1+datetime.timedelta(7)
         print(new_date)
         next_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, achievement.evaluation, dt=new_date)
         achievement = Achievement.evaluate(user3, achievement.id, next_date)
-        print(achievement)
+        print(achievement["goals"][1]["leaderboard"][0])
+
+        self.assertEqual(3, achievement1["goals"][1]["leaderboard"][0]["user"]["id"])
+        self.assertEqual(1, achievement1["goals"][1]["leaderboard"][1]["user"]["id"])
+        self.assertEqual(2, achievement1["goals"][1]["leaderboard"][2]["user"]["id"])
+
+        self.assertEqual(9.0, achievement1["goals"][1]["leaderboard"][0]["value"])
+        self.assertEqual(6.0, achievement1["goals"][1]["leaderboard"][1]["value"])
+        self.assertEqual(2.0, achievement1["goals"][1]["leaderboard"][2]["value"])
+
+        self.assertEqual(1, achievement["goals"][1]["leaderboard"][0]["user"]["id"])
+        self.assertEqual(2, achievement["goals"][1]["leaderboard"][1]["user"]["id"])
+        self.assertEqual(3, achievement["goals"][1]["leaderboard"][2]["user"]["id"])
+
+        self.assertEqual(6.0, achievement["goals"][1]["leaderboard"][0]["value"])
+        self.assertEqual(2.0, achievement["goals"][1]["leaderboard"][1]["value"])
+        self.assertEqual(0.0, achievement["goals"][1]["leaderboard"][2]["value"])
+
+
