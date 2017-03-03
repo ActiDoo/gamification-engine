@@ -21,6 +21,14 @@ from gengine.wsgiutil import HTTPSProxied, init_reverse_proxy
 def main(global_config, **settings):
     """ This function returns a Pyramid WSGI application.
     """
+    
+    durl = os.environ.get("DATABASE_URL") #heroku
+    if durl:
+        settings['sqlalchemy.url']=durl
+        
+    murl = os.environ.get("MEMCACHED_URL") #heroku
+    if murl:
+        settings['urlcache_url']=murl
 
     set_settings(settings)
 
@@ -43,15 +51,6 @@ def main(global_config, **settings):
         reset_context()
     config.add_subscriber(reset_context_on_new_request,NewRequest)
     config.include('pyramid_dogpile_cache')
-    
-    durl = os.environ.get("DATABASE_URL") #heroku
-    if durl:
-        settings['sqlalchemy.url']=durl
-        
-    murl = os.environ.get("MEMCACHED_URL") #heroku
-    if murl:
-        settings['urlcache_url']=murl
-    
 
     config.include("pyramid_tm")
     config.include('pyramid_chameleon')
