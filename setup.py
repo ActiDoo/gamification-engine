@@ -83,6 +83,6 @@ setup(name='gamification-engine',
       gengine = gengine:redgalaxy
       """,
       dependency_links=[
-          "https://github.com/ActiDoo/PyAPNs/archive/master.zip#egg=apns",
+          "https://github.com/ActiDoo/PyAPNs/tarball/master#egg=apns",
       ],
      )
