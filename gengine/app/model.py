@@ -1544,6 +1544,7 @@ class Goal(ABase):
                     t_goal_evaluation_cache.c.value])\
                 .where(and_(t_goal_evaluation_cache.c.user_id.in_(user_ids),
                             t_goal_evaluation_cache.c.goal_id==goal["id"],
+                            t_goal_evaluation_cache.c.achievement_date==achievement_date,
                             ))\
                 .order_by(t_goal_evaluation_cache.c.value.desc(),
                           t_goal_evaluation_cache.c.user_id.desc())
@@ -1551,7 +1552,9 @@ class Goal(ABase):
 
         users = User.get_users(user_ids)
 
-        missing_user_ids = set(user_ids)-set([x["user_id"] for x in items])
+        requested_user_ids = set(int(s) for s in user_ids)
+        values_found_for_user_ids = set([int(x["user_id"]) for x in items])
+        missing_user_ids = requested_user_ids - values_found_for_user_ids
         missing_users = User.get_users(missing_user_ids).values()
         if len(missing_users)>0:
             #the goal has not been evaluated for some users...
