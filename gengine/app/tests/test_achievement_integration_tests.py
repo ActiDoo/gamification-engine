@@ -221,7 +221,7 @@ class TestAchievementEvaluationType(BaseDBTest):
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print("achievement result: ", achievement_result)
 
-        next_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, evaluation_type="monthly", dt=next_month+datetime.timedelta(10))
+        next_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, evaluation_type="monthly", dt=next_month+datetime.timedelta(days=10))
 
         Value.increase_value(variable_name="invite_users", user=user, value=10, key=None, at_datetime=next_date)
         achievement_result1 = Achievement.evaluate(user, achievement.id, next_date)
@@ -229,7 +229,7 @@ class TestAchievementEvaluationType(BaseDBTest):
 
         self.assertEqual(achievement_result["achievement_date"], achievement_date)
         self.assertEqual(achievement_result1["achievement_date"], next_date)
-        self.assertNotEqual(next_month, next_date)
+        self.assertGreaterEqual(next_month, next_date) # next_month can be the 1st, 2nd, 3rd of 4th (February)
         self.assertIn('1', achievement_result["levels_achieved"])
         self.assertIn('1', achievement_result1["new_levels"])
         self.assertIn('2', achievement_result1["new_levels"])

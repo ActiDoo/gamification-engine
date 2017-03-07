@@ -34,7 +34,7 @@ if __name__=="__main__":
 
         db.setupDB()
         testSuite = create_test_suite()
-        text_runner = unittest.TextTestRunner().run(testSuite)
+        text_runner = unittest.TextTestRunner(failfast=True).run(testSuite)
     finally:
         try:
             db.unsetupDB()
