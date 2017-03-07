@@ -8,7 +8,7 @@ from gengine.app.model import Achievement, Value
 
 class TestEvaluationForMultipleUsersAndTimzone(BaseDBTest):
 
-    def test_multiple_users_achievemnt_reward(self):
+    def test_friends_leaderboard(self):
 
         user1 = create_user()
 
@@ -69,50 +69,33 @@ class TestEvaluationForMultipleUsersAndTimzone(BaseDBTest):
         print("Achievement date for first user:")
         print(achievement_date1)
 
-        create_achievement_user(user1, achievement, achievement_date1, level=1)
-        create_achievement_user(user2, achievement, achievement_date1, level=1)
-        create_achievement_user(user3, achievement, achievement_date1, level=1)
-        create_achievement_user(user4, achievement, achievement_date1, level=1)
-
         create_variable("invite_users", variable_group="day")
+
+        create_goals(achievement,
+                     goal_goal=None,
+                     goal_operator="geq",
+                     goal_group_by_key=False
+                    )
+
         Value.increase_value(variable_name="invite_users", user=user1, value=12, key=None)
         Value.increase_value(variable_name="invite_users", user=user2, value=2, key=None)
         Value.increase_value(variable_name="invite_users", user=user3, value=11, key=None)
         Value.increase_value(variable_name="invite_users", user=user4, value=6, key=None)
 
-        create_goals(achievement,
-                     goal_goal="3*level",
-                     goal_operator="geq",
-                     goal_group_by_key=False
-                     )
-
         clear_all_caches()
 
         print("test for multiple users")
-        # Evaluate achievement for all users
+
+        # Evaluate achievement for friends of user 3
         achievement1 = Achievement.evaluate(user3, achievement.id, achievement_date1)
         print(achievement1["goals"][1]["leaderboard"])
 
-        new_date = achievement_date1+datetime.timedelta(7)
-        print(new_date)
-        next_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, achievement.evaluation, dt=new_date)
-        achievement = Achievement.evaluate(user3, achievement.id, next_date)
-        print(achievement["goals"][1]["leaderboard"][0])
+        # user 3 has to friends: user 1 and user 2
+        self.assertEqual(user1["id"], achievement1["goals"][1]["leaderboard"][0]["user"]["id"])
+        self.assertEqual(user3["id"], achievement1["goals"][1]["leaderboard"][1]["user"]["id"])
+        self.assertEqual(user2["id"], achievement1["goals"][1]["leaderboard"][2]["user"]["id"])
 
-        self.assertEqual(3, achievement1["goals"][1]["leaderboard"][0]["user"]["id"])
-        self.assertEqual(1, achievement1["goals"][1]["leaderboard"][1]["user"]["id"])
-        self.assertEqual(2, achievement1["goals"][1]["leaderboard"][2]["user"]["id"])
-
-        self.assertEqual(9.0, achievement1["goals"][1]["leaderboard"][0]["value"])
-        self.assertEqual(6.0, achievement1["goals"][1]["leaderboard"][1]["value"])
+        self.assertEqual(12.0, achievement1["goals"][1]["leaderboard"][0]["value"])
+        self.assertEqual(11.0, achievement1["goals"][1]["leaderboard"][1]["value"])
         self.assertEqual(2.0, achievement1["goals"][1]["leaderboard"][2]["value"])
-
-        self.assertEqual(1, achievement["goals"][1]["leaderboard"][0]["user"]["id"])
-        self.assertEqual(2, achievement["goals"][1]["leaderboard"][1]["user"]["id"])
-        self.assertEqual(3, achievement["goals"][1]["leaderboard"][2]["user"]["id"])
-
-        self.assertEqual(6.0, achievement["goals"][1]["leaderboard"][0]["value"])
-        self.assertEqual(2.0, achievement["goals"][1]["leaderboard"][1]["value"])
-        self.assertEqual(0.0, achievement["goals"][1]["leaderboard"][2]["value"])
-
 
