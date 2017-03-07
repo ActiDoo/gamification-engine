@@ -15,6 +15,8 @@ class BaseDBTest(unittest.TestCase):
         super(BaseDBTest, cls).setUpClass()
 
     def setUp(self):
+        from gengine.app.cache import clear_all_caches
+        clear_all_caches()
         self.db = db.db()
         dsn = self.db.dsn()
         self.engine =  create_engine(
