@@ -729,9 +729,9 @@ class Value(ABase):
         tz = user["timezone"]
 
         variable = Variable.get_variable_by_name(variable_name)
-        dt = Variable.get_datetime_for_tz_and_group(tz,variable["group"],at_datetime=at_datetime)
+        dt = Variable.get_datetime_for_tz_and_group(tz, variable["group"], at_datetime=at_datetime)
 
-        key = None if key is None else str(key)
+        key = '' if key is None else str(key)
 
         condition = and_(t_values.c.datetime == dt,
                          t_values.c.variable_id == variable["id"],
