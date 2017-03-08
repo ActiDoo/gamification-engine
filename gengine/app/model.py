@@ -1740,7 +1740,6 @@ class GoalTriggerStep(ABase):
                     is_read = False,
                 )
                 uS.add(m)
-                UserMessage.deliver(m)
 
 @event.listens_for(GoalTriggerStep, "after_insert")
 @event.listens_for(GoalTriggerStep, 'after_update')
