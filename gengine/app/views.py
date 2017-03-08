@@ -213,7 +213,10 @@ def _get_progress(achievements_for_user, requesting_user):
 @view_config(route_name='get_progress', renderer='json', request_method="GET")
 def get_progress(request):
     """get all relevant data concerning the user's progress"""
-    user_id = int(request.matchdict["user_id"])
+    try:
+        user_id = int(request.matchdict["user_id"])
+    except:
+        raise APIError(400, "illegal_user_id", "no valid user_id given")
     
     user = User.get_user(user_id)
     if not user:
