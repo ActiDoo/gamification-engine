@@ -112,6 +112,6 @@ def valid_timezone(timezone):
 
 
 def update_connection():
-    session = meta.DBSession()
+    session = meta.DBSession() if callable(meta.DBSession) else meta.DBSession
     mark_changed(session)
     return session
