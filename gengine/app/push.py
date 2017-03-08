@@ -118,7 +118,6 @@ def gcm_feedback(response):
         for reg_id, success_id in response['success'].items():
             log.debug('Successfully sent notification for reg_id {0}'.format(reg_id))
 
-    uS = update_connection()
 
     # Handling errors
     if 'errors' in response:
@@ -129,7 +128,7 @@ def gcm_feedback(response):
                 # Remove reg_ids from database
                 for reg_id in reg_ids:
                     q = t_user_device.delete().where(t_user_device.c.push_id == reg_id)
-                    uS.execute(q)
+                    DBSession.execute(q)
 
     # Repace reg_id with canonical_id in your database
     if 'canonical' in response:
@@ -143,7 +142,9 @@ def gcm_feedback(response):
                 "push_id" : canonical_id
             }).where(t_user_device.c.push_id == reg_id)
 
-            uS.execute(q)
+            DBSession.execute(q)
+
+    DBSession.flush()
 
 def send_push_message(
         user_id,
