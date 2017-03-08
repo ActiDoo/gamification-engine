@@ -298,6 +298,7 @@ t_user_messages = Table('user_messages', Base.metadata,
     Column('translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable = True),
     Column('params', JSON(), nullable=True, default={}),
     Column('is_read', ty.Boolean, index=True, default=False, nullable=False),
+    Column('has_been_pushed', ty.Boolean, index=True, default=True, server_default='0', nullable=False),
     Column('created_at', ty.DateTime(), nullable=False, default=datetime.datetime.utcnow, index=True),
 )
 
@@ -1688,7 +1689,6 @@ class UserMessage(ABase):
     @classmethod
     def deliver(cls, message):
         from gengine.app.push import send_push_message
-
         text = UserMessage.get_text(message)
         language = get_settings().get("fallback_language", "en")
         j = t_users.join(t_languages)
@@ -1697,12 +1697,18 @@ class UserMessage(ABase):
              language = user_language["name"]
         translated_text = text[language]
 
-        send_push_message(
-            user_id = message["user_id"],
-            text = translated_text,
-            custom_payload = {},
-            title = get_settings().get("push_title","Gamification-Engine")
-        )
+        if not message["has_been_pushed"]:
+            try:
+                send_push_message(
+                    user_id = message["user_id"],
+                    text = translated_text,
+                    custom_payload = {},
+                    title = get_settings().get("push_title","Gamification-Engine")
+                )
+            except Exception as e:
+                log.error(e, exc_info=True)
+            else:
+                DBSession.execute(t_user_messages.update().values({ "has_been_pushed" : True }).where(t_user_messages.c.id == message["id"]))
 
 class GoalTrigger(ABase):
     def __unicode__(self, *args, **kwargs):
