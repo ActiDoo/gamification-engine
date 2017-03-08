@@ -1738,6 +1738,7 @@ class GoalTriggerStep(ABase):
                         'percentage' : current_percentage
                     },**goal_properties),
                     is_read = False,
+                    has_been_pushed = False
                 )
                 uS.add(m)
 
