@@ -685,17 +685,17 @@ class Variable(ABase):
         return m
 
     @classmethod
-    def invalidate_caches_for_variable_and_user(cls,variable_id,user_id):
+    def invalidate_caches_for_variable_and_user(cls, variable_id, user_id, dt):
         """ invalidate the relevant caches for this user and all relevant users with concerned leaderboards"""
-        goalsandachievements = cls.map_variables_to_rules().get(variable_id,[])
+        goalsandachievements = cls.map_variables_to_rules().get(variable_id, [])
 
         Goal.clear_goal_caches(user_id, [
-            (entry["goal"]["id"], Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"]))
+            (entry["goal"]["id"], Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"], dt=dt))
                 for entry in goalsandachievements
             ]
         )
         for entry in goalsandachievements:
-            achievement_date = Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"])
+            achievement_date = Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"],dt=dt)
             Achievement.invalidate_evaluate_cache(user_id, entry["achievement"], achievement_date)
 
     @classmethod
@@ -749,7 +749,7 @@ class Value(ABase):
                                            "key": key,
                                            "value": value}))
 
-        Variable.invalidate_caches_for_variable_and_user(variable["id"],user["id"])
+        Variable.invalidate_caches_for_variable_and_user(variable_id=variable["id"], user_id=user["id"], dt = dt)
         new_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
         return new_value
 
