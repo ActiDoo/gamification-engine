@@ -5,6 +5,7 @@ import os
 import pkgutil
 import testing.redis
 import logging
+import sys
 
 log = logging.getLogger(__name__)
 
