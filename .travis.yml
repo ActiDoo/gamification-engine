@@ -31,3 +31,10 @@ deploy:
   password: $PYPI_PASSWORD
   on:
     tags: true
+
+notifications:
+  email:
+    recipients:
+      - $ADMIN_EMAIL
+    on_success: always # default: change
+    on_failure: always # default: always
