@@ -347,7 +347,7 @@ class AuthUser(ABase):
             import argon2
             import crypt
             import base64
-            self.password_salt = crypt.mksalt()
+            self.password_salt = crypt.mksalt()+crypt.mksalt()+crypt.mksalt()+crypt.mksalt()+crypt.mksalt()
             hash = argon2.argon2_hash(new_pw, self.password_salt)
             self.password_hash = base64.b64encode(hash).decode("UTF-8")
 
