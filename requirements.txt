@@ -1,5 +1,5 @@
 alembic==0.8.8
-apns==2.0.1
+-e git+https://github.com/ActiDoo/PyAPNs@2bd5517c791333188c949c61d239a63d1596d539#egg=apns
 argon2==0.1.10
 Chameleon==2.25
 click==6.6
