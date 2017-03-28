@@ -45,7 +45,6 @@ Goals define conditions that need to be fulfilled in order to get an achievement
  - group_by_key:        group by the key of the values table
  - timespan:            number of days which are considered (uses utc, i.e. days*24hours)
  - maxmin:              "max" or "min" - select min or max value after grouping
- - evaluation:          "daily", "weekly", "monthly", "yearly" evaluation (users timezone)
 
 .. _PostgreSQL-Docs: http://www.postgresql.org/docs/9.3/static/functions-formatting.html
  
