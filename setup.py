@@ -32,7 +32,7 @@ requires = [
     'jsonschema',
     'pyparsing',
     'argon2',
-    'apns',
+    'tapns3',
     'python-gcm',
     #Testing:
     'testing.postgresql',
