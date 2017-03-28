@@ -52,15 +52,16 @@ Increase multiple Values at once
    - POST to "/increase_multi_values"
       - JSON request body:
         .. code:: json
+
         {
-            "{userId}" : {
-                "{variable}" : [
-                    {
-                        "key" : "{key}",
-                        "value" : "{value}"
-                    }
-                ]
-            }
+          "{userId}" : {
+            "{variable}" : [
+              {
+                "key" : "{key}",
+                "value" : "{value}"
+              }
+            ]
+          }
         }
     
     - directly evaluates all goals associated with the given variables
