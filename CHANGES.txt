@@ -1,1 +1,8 @@
-.
+0.2
+  * Implement new rule syntax
+  * Add time-aware / recurring achievements
+  * Add optional authentication & authorization
+  * Introduce Goal Triggers
+  * Introduce Mobile Pushes
+  * Introduce Messages
+  * Lots of bugfixes

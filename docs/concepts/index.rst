@@ -39,7 +39,7 @@ Goals define conditions that need to be fulfilled in order to get an achievement
 
  - goal:                the value that is used for comparison
  - operator:            "geq" or "leq"; used for comparison
- - condition:           the rule as python code, see below
+ - condition:           the rule in json format, see below
  - group_by_dateformat: passed as a parameter to to_char ( PostgreSQL-Docs_ )
                         e.g. you can select and group by the weekday by using "ID" for ISO 8601 day of the week (1-7) which can afterwards be used in the condition
  - group_by_key:        group by the key of the values table
@@ -58,9 +58,16 @@ We first need to create a variable "participate" and tell our application to inc
 The constraint that a user may not attend multiple times to one seminar is covered by the application and not discussed here.
 In the gamification-engine we create a Goal with the following formular:
 
-.. code:: python
+.. code:: json
 
-   and_(p.var=="participate", p.key.in_(["5","7","9"]))
+   {
+     "term": {
+       "type": "literal",
+       "variable": "participate",
+       "key": ["5","7","9"],
+       "key_operator": "IN"
+     }
+   }
    
 Whenever a value for "participate" is set, this Goal is evaluated. 
 It sums up all rows with the given condition and compares it to the Goal's "goal" attribute using the given operator.
@@ -73,13 +80,19 @@ We create a variable "invite_users" and set the condition as follows:
 .. code:: python
 
    p.var=="invite_users"
+   {
+     "term": {
+       "type": "literal",
+       "variable": "invite_users"
+     }
+   }
    
 Furthermore we set the Goal's goal to 30 and the operator to "geq".
 
  
 
 If you want to make use of Goals with multiple levels, you probably want to increase the goal attribute with every level.
-Therefore, you can also use python formulars.
+Therefore, you can mathematical formulas.
 
 Example:
 
@@ -87,7 +100,9 @@ For the first level, the user needs to invite 5 other users, for the second leve
 
 .. code:: python
    
-   5*p.level # p.level is set by the gamification engine
+   5*level # level is set by the gamification engine
+
+For further information about the rule language, we currently need to refer to .. _the sources: https://github.com/ActiDoo/gamification-engine/blob/develop/gengine/app/formular.py .
 
 Achievements
 ============
@@ -98,18 +113,22 @@ To allow multiple levels, you can set the *maxlevel* attribute.
 You can specify time-based constraints by setting *valid_start* and *valid_end*,
 and location-based constraints by setting *lat*,*lng* and *max_distance*.
 
-The *hidden* flag can be used to model secret achievements. The *priority* specifies a custom order in output lists. 
+The *hidden* flag can be used to model secret achievements. The *priority* specifies a custom order in output lists.
 
 Achievements can also be used to model leaderboards.
 Therefor you need to assign a single Goal whose *goal attribute* is set to None.
 The Achievement's *relevance* attribute specifies in which context the leaderboard should be computed.
 Valid values are "friends", "city" and "own".
 
+For setting up recurring achievements, set the *evaluation* to e.g. *monthly*. The *evaluation_timezone* parameter specifies when exactly the periods begin and end.
+
+There is a *view_permission* setting that can be used when authorization is active. It specifies whether other users can see the goal progress.
+
 Properties
 ==========
 A property describes Achievements or Goals of our system, like the name, image, description or XP the user should get. 
-The Values of Properties can again be python formulars.
-Inside the formular you can make use of the level by using *p.level*.
+The Values of Properties can again be python formulas.
+Inside the formula you can make use of the level by using *level*.
     
 Additionally Properties can be used as Variables.
 This is useful to model goals like "reach 1000xp".
@@ -119,8 +138,8 @@ Rewards
 =======
 From the model perspective Rewards are similar to Properties.
 The main difference occurs during the evaluation of Achievements, more specifically when a user reaches a new level.
-While the formulars for the properties are simply evaluated for the specific level,
-the evaluated formulars of the rewards are compared to lower levels.
+While the formulas for the properties are simply evaluated for the specific level,
+the evaluated formulas of the rewards are compared to lower levels.
 
 The engine thus knows for each achieved level, which reward is new and can tell the application about this.
 In your application this could for example trigger a badge notification.

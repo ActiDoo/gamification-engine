@@ -4,18 +4,18 @@
 Modules
 -------
 
-.. image:: /_static/2015-09-07-erm.svg
+.. image:: /_static/2017-03-28-erm.svg
    :width: 1000
 
-gengine.models
+gengine.app.models
 ==============
 
-.. automodule:: gengine.models
-   :members: ABase, User, Variable, Value, Achievement, Property, AchievementProperty, Reward, Goalproperty, GoalGoalproperty AchievementReward, AchievementUser, GoalEvaluationCache, Goal, Language, TranslationVariable, Translation
+.. automodule:: gengine.app.models
+   :members: ABase, User, Variable, Value, Achievement, Property, AchievementProperty, Reward, GoalProperty, GoalGoalProperty, GoalTrigger, GoalTriggerStep, UserMessage, AchievementReward, AchievementUser, GoalEvaluationCache, Goal, Language, TranslationVariable, Translation, AuthUser, AuthToken, AuthRole, AuthRolePermission, UserDevice
 
 
-gengine.views
+gengine.app.views
 =============
 
-.. automodule:: gengine.views
-   :members: add_or_update_user, delete_user, get_progress, increas_value, get_achievement_level
+.. automodule:: gengine.app.views
+   :members: add_or_update_user, delete_user, get_progress, increase_value, increase_multi_values, get_achievement_level, auth_login, register_device, get_messages, set_messages_read

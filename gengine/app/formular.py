@@ -243,26 +243,26 @@ def evaluate_condition(inst, column_variable=None, column_key=None):
 demo_schema = {
     'term': {
         'variable': 'participate',
-        'key_operator' : 'IN',
+        'key_operator': 'IN',
         'key': ['2', ],
-        'type' : 'literal'
+        'type': 'literal'
     }
 }
 
 demo2_schema = {
     'term': {
-        'type' : 'disjunction',
+        'type': 'disjunction',
         'terms': [
             {
-                'type' : 'literal',
+                'type': 'literal',
                 'variable': 'participate',
-                'key_operator' : 'ILIKE',
+                'key_operator': 'ILIKE',
                 'key': ['%blah%', ]
             },
             {
-                'type' : 'literal',
+                'type': 'literal',
                 'variable': 'participate',
-                'key_operator' : 'IN',
+                'key_operator': 'IN',
                 'key': ['2', ]
             }
         ]

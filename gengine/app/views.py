@@ -349,7 +349,7 @@ def get_achievement_level(request):
     if not achievement:
         raise APIError(404, "achievement_not_found", "achievement not found")
 
-    level_output = Achievement.basic_output(achievement, [], True, level).get("levels").get(str(level), {"properties":{},"rewards":{}})
+    level_output = Achievement.basic_output(achievement, [], True, level).get("levels").get(str(level), {"properties": {}, "rewards": {}})
     if "goals" in level_output:
         del level_output["goals"]
     if "level" in level_output:
