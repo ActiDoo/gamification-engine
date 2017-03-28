@@ -6,3 +6,4 @@
   * Introduce Mobile Pushes
   * Introduce Messages
   * Lots of bugfixes
+  * Remove Python 2.x support
