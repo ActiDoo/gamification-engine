@@ -1,5 +1,12 @@
-import testing.postgresql
 import os
+
+import logging
+log = logging.getLogger(__name__)
+
+try:
+    import testing.postgresql
+except ImportError as e:
+    log.info("testing.postgresql not installed")
 
 db = None
 

@@ -1,4 +1,3 @@
-import names
 import random
 import datetime
 
@@ -8,6 +7,14 @@ from gengine.metadata import DBSession
 
 from gengine.app.model import UserDevice, t_user_device
 from sqlalchemy import and_, select
+
+import logging
+log = logging.getLogger(__name__)
+
+try:
+    import names
+except ImportError as e:
+    log.info("names not installed")
 
 default_gen_data = {
     "timezone" : "Europe/Berlin",

@@ -290,19 +290,22 @@ def populate_demo(DBSession):
         DBSession.add(user3)
         DBSession.flush()
 
-        auth_user = AuthUser(user_id=user1.id,email="admin@gamification-software.com",password="test123",active=True)
-        DBSession.add(auth_user)
+        try:
+            auth_user = AuthUser(user_id=user1.id,email="admin@gamification-software.com",password="test123",active=True)
+            DBSession.add(auth_user)
 
-        auth_role = AuthRole(name="Global Admin")
-        DBSession.add(auth_role)
+            auth_role = AuthRole(name="Global Admin")
+            DBSession.add(auth_role)
 
-        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
-        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_user))
-        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
-        DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_user_infos))
+            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
+            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_user))
+            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
+            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_user_infos))
 
-        auth_user.roles.append(auth_role)
-        DBSession.add(auth_user)
+            auth_user.roles.append(auth_role)
+            DBSession.add(auth_user)
+        except ImportError as e:
+            print("[auth] feature not installed - not importing auth demo data")
 
 
 if __name__ == '__main__':

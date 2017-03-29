@@ -3,11 +3,15 @@ from gengine.metadata import init_declarative_base, init_session
 import unittest
 import os
 import pkgutil
-import testing.redis
 import logging
 import sys
 
 log = logging.getLogger(__name__)
+
+try:
+    import testing.redis
+except ImportError as e:
+    log.info("testing.redis not installed")
 
 init_session()
 init_declarative_base()

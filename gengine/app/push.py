@@ -1,8 +1,6 @@
-import logging
 import random
 import threading
-from apns import APNs, Payload
-from gcm import GCM
+
 import os
 from sqlalchemy.sql.expression import and_, select
 from sqlalchemy.sql.functions import func
@@ -13,7 +11,20 @@ from gengine.base.settings import get_settings
 from gengine.metadata import DBSession
 
 threadlocal = threading.local()
+
+import logging
 log = logging.getLogger(__name__)
+
+try:
+    from apns import APNs, Payload
+except ImportError as e:
+    log.info("tapns3 not installed")
+
+try:
+    from gcm import GCM
+except ImportError as e:
+    log.info("python-gcm not installed")
+
 
 def get_prod_apns():
     """
