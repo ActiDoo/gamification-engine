@@ -39,7 +39,7 @@ Increase Value
          - variable_name (the name of the variable to increase or decrease)
          - userId (the Id of the user)
          - key (an optional key, describing the context of the event, can be used in rules)
-     - POST parameters:
+      - POST parameters:
          - value (the increase/decrease value in Double)
 	
    - if the userId is not registered an error will be thrown
