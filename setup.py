@@ -31,14 +31,7 @@ requires = [
     'jsl',
     'jsonschema',
     'pyparsing',
-    'argon2',
-    'tapns3',
-    'python-gcm',
-    #Testing:
-    'testing.postgresql',
-    'testing.redis',
-    'names'
-    ]
+]
 
 version = ''
 with open('gengine/__init__.py', 'r') as fd:
@@ -71,6 +64,20 @@ setup(name='gamification-engine',
       zip_safe=False,
       test_suite='gengine',
       install_requires=requires,
+      extras_require={
+        "auth": [
+            'argon2'
+        ],
+        "pushes": [
+            'tapns3',
+            'python-gcm',
+        ],
+        "testing": [
+            'testing.postgresql',
+            'testing.redis',
+            'names'
+        ]
+      },
       entry_points="""\
       [paste.app_factory]
       main = gengine:main
