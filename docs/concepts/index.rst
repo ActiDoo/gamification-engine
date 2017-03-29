@@ -4,7 +4,7 @@
 Concepts
 --------
 
-Assumption: You installed the gamification-engine and can open the admin interface at /admin/
+Assumption: You installed the gamification-engine and you can open the admin interface at /admin/
 
 Users
 =====
@@ -30,7 +30,7 @@ When such an event occurs, your application triggers the gamification engine to 
 The storage of these values can be grouped by day, month or year to save storage.
 Note that if you want to specify time-based rules like "event X occurs Y times in the last 14 days", you may not group the values by month or year.
 
-In addition to integers, the application can also set keys to model application-specific data.
+In addition to integers, the application can also add additional keys to the variables to model application-specific data.
 
 Goals
 =====
@@ -50,7 +50,7 @@ Goals define conditions that need to be fulfilled in order to get an achievement
  
 The conditions contain a python expression that must evaluate to a valid parameter for SQLAlchemy's where function. 
 
-Examples:
+### Examples:
 
 When the user has participated in the seminars 5, 7, and 9, he should get an achievement.
 We first need to create a variable "participate" and tell our application to increase the value of that variable with the seminar ID as key for the user by 1.
@@ -101,7 +101,9 @@ For the first level, the user needs to invite 5 other users, for the second leve
    
    5*level # level is set by the gamification engine
 
-For further information about the rule language, we currently need to refer to .. _the sources: https://github.com/ActiDoo/gamification-engine/blob/develop/gengine/app/formular.py .
+For further information about the rule language, we currently need to refer to the sources_ .
+
+.. _sources: https://github.com/ActiDoo/gamification-engine/blob/develop/gengine/app/formular.py
 
 Achievements
 ============
@@ -125,11 +127,11 @@ There is a *view_permission* setting that can be used when authorization is acti
 
 Properties
 ==========
-A property describes Achievements or Goals of our system, like the name, image, description or XP the user should get. 
+A property describes an Achievement or a Goal of our system, like the name, image, description or XP the user should get. 
 The Values of Properties can again be python formulas.
 Inside the formula you can make use of the level by using *level*.
     
-Additionally Properties can be used as Variables.
+Additionally, Properties can be used as Variables.
 This is useful to model goals like "reach 1000xp".
 
 
@@ -142,3 +144,14 @@ the evaluated formulas of the rewards are compared to lower levels.
 
 The engine thus knows for each achieved level, which reward is new and can tell the application about this.
 In your application this could for example trigger a badge notification.
+
+
+Further new concepts
+=======
+Since the latest version, some complete new optional concepts and features are added to the gamification-engine:
+
+ - Authentication
+ - Push Notifications
+ - Messages
+ 
+All of these features are optional and they are not required to successfully use the engine. For the moment we refer to the source code and the description of the Rest API, a detailed documentation will follow.

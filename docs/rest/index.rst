@@ -39,8 +39,8 @@ Increase Value
          - variable_name (the name of the variable to increase or decrease)
          - userId (the Id of the user)
          - key (an optional key, describing the context of the event, can be used in rules)
-	  - POST parameters:
-		 - value (the increase/decrease value in Double)
+     - POST parameters:
+         - value (the increase/decrease value in Double)
 	
    - if the userId is not registered an error will be thrown
    - directly evaluates all goals associated with this variable_name
@@ -51,18 +51,17 @@ Increase multiple Values at once
    
    - POST to "/increase_multi_values"
       - JSON request body:
-        .. code:: json
-
-        {
-          "{userId}" : {
-            "{variable}" : [
-              {
-                "key" : "{key}",
-                "value" : "{value}"
-              }
-            ]
-          }
-        }
+           .. code:: json
+           {
+               "{userId}" : {
+                   "{variable}" : [
+                       {
+                           "key" : "{key}",
+                           "value" : "{value}"
+                       }
+                   ]
+               }
+           }
     
     - directly evaluates all goals associated with the given variables
     - directly returns new reached achievements
