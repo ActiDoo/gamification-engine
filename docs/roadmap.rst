@@ -9,21 +9,17 @@ Features which might influence the overall performance or cause greater changes 
 
 At ActiDoo.com we implement new functions as we need them and push them as soon as they are somewhat stable.
 
-Important Todo
+Todo
 ==============
-   - Tests (!)
-
-Less Important Todo
-===================
+   - Review and improve tests
    - Improve Caching
 
 Future Features
 ===============
    - possibility to store events (values table) in noSQL systems
-   - evaluate time-related leaderboards and reset them afterwards
+   - implement callback for time-aware achievements
    - nicer admin UI
    - statistics
    - maybe a possiblity to plugin authentication/authorization to allow users to directly push events to the engine
-     
      - this still needs to be discussed from an architectural point of view
-     - this would also introduce the need for security constraints to detect cheaters 
+     - this would also introduce the need for security constraints to detect cheaters

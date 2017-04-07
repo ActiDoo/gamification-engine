@@ -1,13 +1,28 @@
 language: python
+dist: trusty
 python:
-  - "2.7"
-  
+  - "3.4"
+  - "3.5"
+sudo: required
+env:
+  - TEST_POSTGRES=/usr/lib/postgresql/9.6/bin/postgres TEST_INITDB=/usr/lib/postgresql/9.6/bin/initdb
+apt:
+  packages:
+    - postgresql-9.6
+    - postgresql-contrib-9.6
+    - postgis
 # command to install dependencies
 install:
-  - python setup.py -q install
-  
+  - pip install coveralls
+  - "pip install --upgrade -r requirements.txt"
+  - "pip install --upgrade -r optional-requirements.txt"
+  - pip install -e .
+
 # command to run tests
-script: nosetests
+script: coverage run --source=gengine gengine/app/tests/runner.py
+
+after_success:
+  coveralls
 
 # deploy to pypi
 deploy:
@@ -16,3 +31,10 @@ deploy:
   password: $PYPI_PASSWORD
   on:
     tags: true
+
+notifications:
+  email:
+    recipients:
+      - $ADMIN_EMAIL
+    on_success: always # default: change
+    on_failure: always # default: always

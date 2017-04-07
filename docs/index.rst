@@ -20,6 +20,7 @@ Contents:
    :maxdepth: 2
    
    installing/index
+   upgrading/index
    concepts/index
    rest/index
    internals/index

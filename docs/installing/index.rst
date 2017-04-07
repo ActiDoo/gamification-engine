@@ -7,7 +7,7 @@ Installation
 Requirements
 ============
 
-The gamification-engine requires an installed python distribution in version 2.7. It uses different language structures which are not supported in Python 2.6 or Python 3.x. Furthermore, the only currently supported persistence layer is PostgreSQL.
+The gamification-engine requires an installed python distribution in version 3.x. It uses several language structures which are not supported in Python 2.x. Furthermore, the only currently supported persistence layer is PostgreSQL. Also the corresponding development packages are required (for Ubuntu/Debian: libpq-dev and python3-dev).
 
 
 Installation from PyPI
@@ -23,6 +23,14 @@ You can install it by invoking
     $ pip install gamification-engine
     $ gengine_quickstart mygengine
     $ cd mygengine
+
+In the latest version, there are some optional dependencies for auth pushes and testing. To use these features install it in the following way:
+
+.. highlight:: bash
+
+::
+
+    $ pip install gamification-engine[auth,pushes,testing]
 
 Afterwards edit production.ini according to your needs.
 

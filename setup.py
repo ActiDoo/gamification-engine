@@ -27,8 +27,11 @@ requires = [
     'pymemcache',
     'mock',
     'alembic',
-    'raven'
-    ]
+    'raven',
+    'jsl',
+    'jsonschema',
+    'pyparsing',
+]
 
 version = ''
 with open('gengine/__init__.py', 'r') as fd:
@@ -48,10 +51,11 @@ setup(name='gamification-engine',
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         "Topic :: Software Development :: Libraries",
-        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
         "License :: OSI Approved :: MIT License"
         ],
-      author='Marcel Sander, Jens Janiuk',
+      author='Marcel Sander, Jens Janiuk, Matthias Feldotto',
       author_email='marcel@gamification-software.com',
       license='MIT',
       url='https://www.gamification-software.com',
@@ -61,12 +65,30 @@ setup(name='gamification-engine',
       zip_safe=False,
       test_suite='gengine',
       install_requires=requires,
+      extras_require={
+        "auth": [
+            'argon2'
+        ],
+        "pushes": [
+            'tapns3',
+            'python-gcm',
+        ],
+        "testing": [
+            'testing.postgresql',
+            'testing.redis',
+            'names'
+        ]
+      },
       entry_points="""\
       [paste.app_factory]
       main = gengine:main
       [console_scripts]
-      initialize_gengine_db = gengine.scripts.initializedb:main
-      gengine_quickstart = gengine.scripts.quickstart:main
-      generate_gengine_erd = gengine.scripts.generate_erd:main
+      initialize_gengine_db = gengine.maintenance.scripts.initializedb:main
+      gengine_quickstart = gengine.maintenance.scripts.quickstart:main
+      generate_gengine_erd = gengine.maintenance.scripts.generate_erd:main
+      generate_gengine_revision = gengine.maintenance.scripts.generate_revision:main
+      gengine_push_messages = gengine.maintenance.scripts.push_messages:main
+      [redgalaxy.plugins]
+      gengine = gengine:redgalaxy
       """,
      )

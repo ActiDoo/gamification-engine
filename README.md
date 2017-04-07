@@ -1,5 +1,6 @@
 # gamification-engine
 [![Build Status](https://travis-ci.org/ActiDoo/gamification-engine.svg?branch=master)](https://travis-ci.org/ActiDoo/gamification-engine)
+[![Coverage Status](https://coveralls.io/repos/github/ActiDoo/gamification-engine/badge.svg?branch=develop)](https://coveralls.io/github/ActiDoo/gamification-engine?branch=develop)
 [![Requirements Status](https://requires.io/github/ActiDoo/gamification-engine/requirements.svg?branch=master)](https://requires.io/github/ActiDoo/gamification-engine/requirements/?branch=master)
 [![Heroku](https://heroku-badge.herokuapp.com/?app=gamification-engine&root=admin)](https://gamification-engine.herokuapp.com)
 [![Documentation Status](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](https://readthedocs.org/projects/gamification-engine/?badge=latest)
@@ -15,8 +16,7 @@ It is framework for developing your own solution, implemented as a **service** t
 
 (commercial support available at https://www.gamification-software.com or together with app development at https://www.appnadoo.de)
 
-Latest recommended version: <del>https://github.com/ActiDoo/gamification-engine/releases/latest (not yet called "stable" though)</del>
-There are installation issues in the current master branch. The develop branch is working very well and is way more stable. Nevertheless the docs are out-of-date. We are currently integrating that state into a client's project and will release a new version once we find the time to update the docs and write some tests. 
+Latest recommended version: https://github.com/ActiDoo/gamification-engine/releases/latest
 
 ## Features
 
@@ -32,6 +32,7 @@ There are installation issues in the current master branch. The develop branch i
 - custom definable achievement properties and rewards
 - custom definable languages and translations
 - dependencies between achievements (prerequisites & postconditions)
+- goals can execute triggers (currently creation of messages and mobile pushes for iOS/Android)
 - high performance / scalable
 - administration ui
 

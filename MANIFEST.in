@@ -1,3 +1,1 @@
-include *.txt *.ini *.cfg *.rst
-recursive-include gengine *.ico *.png *.css *.gif *.jpg *.pt *.txt *.mak *.mako *.js *.html *.xml README alembic alembic/versions/*.py alembic/env.py
-recursive-include gengine_quickstart_template *.ini
+include *.txt *.ini *.cfg *.rst *.ico *.png *.css *.gif *.jpg *.pt *.txt *.mak *.mako *.js *.html *.xml *.py README DUMMY LICENSE

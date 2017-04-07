@@ -1,0 +1,241 @@
+{% extends 'admin/master.html' %}
+{% import 'admin/lib.html' as lib with context %}
+
+{% macro extra() %}
+  
+{% endmacro %}
+
+{% block head %}
+    {{ super() }}
+{% endblock %}
+
+{% block body %}
+	<ul>
+	{% for msg in msgs %}
+		<li>{{ msg }}</li>
+	{% endfor %}
+	</ul>
+
+	<h2>Welcome to the Gamification Engine Admin-Area</h2>
+
+	<p>
+		For further information have a look at the docs:<br>
+		<a href="http://gamification-engine.readthedocs.org/en/latest/concepts/index.html">ReadTheDocs</a>
+	</p>
+
+	<p>
+		If you need any kind of Support, visit our Website and contact us at<br>
+		<a href="https://www.gamification-software.com/">www.gamification-software.com</a>
+	</p>
+
+	<div class="row">
+	
+		<div class="span6">
+			<form id="api_form">
+		  		<fieldset>
+		    		<legend>API-Demo</legend>
+		    		
+		    		<label>Select API call</label>
+		    		<select name="apicall">
+			    		<option>progress</option>
+			    		<option>increase_value</option>
+			    		<option>add_or_update_user</option>
+			    		<option>delete_user</option>
+			    		<option>achievement_level</option>
+						{%if settings_enable_authentication %}
+						<option>auth_login</option>
+						{% endif %}
+						<option>register_device</option>
+						<option>get_messages</option>
+						<option>set_messages_read</option>
+		    		</select>
+		    		
+		    		<div id="api_field_userid">
+		    			<label>User ID</label>
+		    			<input type="number" value="1">
+		    		</div>
+		    		
+		    		<div id="api_field_variable">
+		    			<label>Variable</label>
+		    			<input type="text" value="invite_users">
+		    		</div>
+		    		
+		    		<div id="api_field_value">
+		    			<label>Value</label>
+		    			<input type="number" placeholder="Enter Value">
+		    		</div>
+		    		
+		    		<div id="api_field_key">
+		    			<label>Key</label>
+		    			<input type="text" placeholder="Enter Key (optional)">
+		    		</div>
+		    		
+		    		<div id="api_field_achievementid">
+		    			<label>Achievement ID</label>
+		    			<input type="number" value="1">
+		    		</div>
+		    		
+		    		<div id="api_field_level">
+		    			<label>Level</label>
+		    			<input type="text" placeholder="Enter Key (optional)">
+		    		</div>
+		    		
+		    		<div id="api_field_lat">
+		    			<label>Latitude</label>
+		    			<input type="text" placeholder="Enter Latitude">
+		    		</div>
+		    		
+		    		<div id="api_field_lon">
+		    			<label>Longitude</label>
+		    			<input type="text" placeholder="Enter Longitude">
+		    		</div>
+		    		
+		    		<div id="api_field_friends">
+		    			<label>Friends</label>
+		    			<input type="text" placeholder="Enter Friends (comma separated)">
+		    		</div>
+                    
+                    <div id="api_field_groups">
+                        <label>Groups</label>
+                        <input type="text" placeholder="Enter Groups (comma separated)">
+                    </div>
+		    		
+		    		<div id="api_field_timezone">
+		    			<label>Timezone</label>
+		    			<input type="text" placeholder="Enter Timezone">
+		    		</div>
+
+                    <div id="api_field_language">
+		    			<label>Language</label>
+		    			<input type="text" placeholder="Enter Language">
+		    		</div>
+		    		
+		    		<div id="api_field_country">
+		    			<label>Country</label>
+		    			<input type="text" placeholder="Enter Country">
+		    		</div>
+		    		
+		    		<div id="api_field_region">
+		    			<label>Region</label>
+		    			<input type="text" placeholder="Enter Region">
+		    		</div>
+		    		
+		    		<div id="api_field_city">
+		    			<label>City</label>
+		    			<input type="text" placeholder="Enter City">
+		    		</div>
+
+					<div id="api_field_email">
+		    			<label>Email</label>
+		    			<input type="text" placeholder="Enter Email">
+		    		</div>
+
+					<div id="api_field_password">
+		    			<label>Password</label>
+		    			<input type="text" placeholder="Enter Password">
+		    		</div>
+
+					<div id="api_field_device_id">
+		    			<label>Device-ID</label>
+		    			<input type="text" placeholder="Device-ID">
+		    		</div>
+
+					<div id="api_field_device_os">
+		    			<label>Device-OS</label>
+		    			<input type="text" placeholder="Device-OS">
+		    		</div>
+
+					<div id="api_field_push_id">
+		    			<label>Push-ID</label>
+		    			<input type="text" placeholder="Push-ID">
+		    		</div>
+
+					<div id="api_field_app_version">
+		    			<label>App-Version</label>
+		    			<input type="text" placeholder="App-Version">
+		    		</div>
+
+					<div id="api_field_offset">
+		    			<label>Offset</label>
+		    			<input type="text" placeholder="Offset">
+		    		</div>
+
+					<div id="api_field_message_id">
+		    			<label>Message-ID</label>
+		    			<input type="text" placeholder="Message-ID">
+		    		</div>
+
+                    <div id="api_field_additional_public_data">
+		    			<label>Additional Public User Data (JSON)</label>
+		    			<input type="text" placeholder="Additional Public User Data (JSON)">
+		    		</div>
+
+		    		<label>Submit</label>
+		    		<button type="submit" id="api_submit" class="btn">Submit</button>
+		  		</fieldset>
+			</form>
+		</div>
+		<div class="span6">
+			<form>
+				<fieldset>
+					<legend>Description</legend>
+					
+					<b>Get Progress</b>
+					<p>
+						GET to "/progress/{userId}"
+					</p>
+					
+					<b>Increase Value</b>
+					<p>
+						POST to "/increase_value/{variable_name}/{userId}"
+					</p>
+					
+					<b>Add or Update User</b>
+					<p>
+						POST to "/add_or_update_user/{user_id}"
+					</p>
+					
+					<b>Delete User</b>
+					<p>
+						POST to "/delete_user/{user_id}"
+					</p>
+					
+					<b>Get Achievement Level</b>
+					<p>
+						GET to "/achievement/{achievement_id}/level/{level}"
+					</p>
+
+					{%if settings_enable_authentication %}
+					<b>Login</b>
+					<p>
+						POST to "/auth/login"
+					</p>
+					{% endif %}
+
+					<b>Register Device</b>
+					<p>
+						POST to "/register_device/{user_id}"
+					</p>
+
+					<b>Get Messages</b>
+					<p>
+						GET to "/messages/{user_id}"
+					</p>
+
+					<b>Set Messages Read</b>
+					<p>
+						POST to "/read_messages/{user_id}"
+					</p>
+				</fieldset>
+			</form>
+		</div>
+	</div>
+	<div id="api_result">
+	
+	</div>
+{% endblock %}
+
+{% block tail %}
+  {{ super() }}
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
+{% endblock %}
