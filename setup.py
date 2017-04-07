@@ -51,10 +51,11 @@ setup(name='gamification-engine',
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         "Topic :: Software Development :: Libraries",
+        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "License :: OSI Approved :: MIT License"
         ],
-      author='Marcel Sander, Jens Janiuk',
+      author='Marcel Sander, Jens Janiuk, Matthias Feldotto',
       author_email='marcel@gamification-software.com',
       license='MIT',
       url='https://www.gamification-software.com',
@@ -90,7 +91,4 @@ setup(name='gamification-engine',
       [redgalaxy.plugins]
       gengine = gengine:redgalaxy
       """,
-      dependency_links=[
-          "https://github.com/ActiDoo/PyAPNs/tarball/master#egg=apns",
-      ],
      )
