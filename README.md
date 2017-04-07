@@ -16,6 +16,8 @@ It is framework for developing your own solution, implemented as a **service** t
 
 (commercial support available at https://www.gamification-software.com or together with app development at https://www.appnadoo.de)
 
+Latest recommended version: https://github.com/ActiDoo/gamification-engine/releases/latest
+
 ## Features
 
 - multi level achievements
