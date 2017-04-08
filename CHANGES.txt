@@ -1,3 +1,6 @@
+0.2.1
+  * Fix of PyPI packaging
+
 0.2.0
   * Implement new rule syntax
   * Add time-aware / recurring achievements
