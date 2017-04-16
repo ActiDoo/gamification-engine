@@ -77,10 +77,10 @@ class TestEvaluationForMultipleUsersAndTimzone(BaseDBTest):
                      goal_group_by_key=False
                     )
 
-        Value.increase_value(variable_name="invite_users", user=user1, value=12, key=None)
-        Value.increase_value(variable_name="invite_users", user=user2, value=2, key=None)
-        Value.increase_value(variable_name="invite_users", user=user3, value=11, key=None)
-        Value.increase_value(variable_name="invite_users", user=user4, value=6, key=None)
+        Value.increase_value(variable_name="invite_users", user=user1, value=12, key=None, at_datetime=achievement_date1)
+        Value.increase_value(variable_name="invite_users", user=user2, value=2, key=None, at_datetime=achievement_date1)
+        Value.increase_value(variable_name="invite_users", user=user3, value=11, key=None, at_datetime=achievement_date1)
+        Value.increase_value(variable_name="invite_users", user=user4, value=6, key=None, at_datetime=achievement_date1)
 
         clear_all_caches()
 
