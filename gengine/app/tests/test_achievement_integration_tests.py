@@ -35,7 +35,7 @@ class TestAchievementEvaluationType(BaseDBTest):
 
         # User has achieved in first week and 2nd week
         print("Weekly evaluation Case 1")
-        Value.increase_value(variable_name="invite_users", user=user, value=10, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=10, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print(achievement_result)
 
@@ -81,7 +81,7 @@ class TestAchievementEvaluationType(BaseDBTest):
 
         # User has not achieved in first week but in 2nd week
         print("Weekly evaluation Case 2")
-        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print(achievement_result)
 
@@ -123,7 +123,7 @@ class TestAchievementEvaluationType(BaseDBTest):
 
         # User has not achieved in first week and achieved after few days in a same week
         print("Weekly evaluation Case 3")
-        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print(achievement_result)
 
@@ -168,7 +168,7 @@ class TestAchievementEvaluationType(BaseDBTest):
         # User has achieved in this month and next month
         print("Monthly evaluation Case 1")
 
-        Value.increase_value(variable_name="invite_users", user=user, value=10, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=10, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print("achievement result: ", achievement_result)
 
@@ -217,7 +217,7 @@ class TestAchievementEvaluationType(BaseDBTest):
         # User has NOT achieved in this month but in the next month
         print("Monthly evaluation Case 2")
 
-        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print("achievement result: ", achievement_result)
 
@@ -262,7 +262,7 @@ class TestAchievementEvaluationType(BaseDBTest):
         # Not achieved in first month after some days in the same month
         print("Monthly evaluation Case 3")
 
-        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print("achievement result: ", achievement_result)
 
@@ -307,7 +307,7 @@ class TestAchievementEvaluationType(BaseDBTest):
         # Goal achieved in both this month and next year
         print("Yearly evaluation Case 1")
 
-        Value.increase_value(variable_name="invite_users", user=user, value=10, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=10, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print("achievement result: ", achievement_result)
 
@@ -356,7 +356,7 @@ class TestAchievementEvaluationType(BaseDBTest):
         # Not achieved in first year but in the second year
         print("Yearly evaluation Case 2")
 
-        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print("achievement result: ", achievement_result)
 
@@ -403,7 +403,7 @@ class TestAchievementEvaluationType(BaseDBTest):
         # Not achieved in first month after some days in the same year
         print("Yearly evaluation Case 3")
 
-        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None)
+        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None, at_datetime=achievement_date)
         achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
         print("achievement result: ", achievement_result)
 

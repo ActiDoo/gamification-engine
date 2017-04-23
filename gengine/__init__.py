@@ -5,7 +5,7 @@ from gengine.base.context import reset_context
 from gengine.base.errors import APIError
 from gengine.base.settings import set_settings
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 import datetime
 
