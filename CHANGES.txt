@@ -1,3 +1,6 @@
+0.2.2
+  * Fix several test cases
+
 0.2.1
   * Fix of PyPI packaging
 
