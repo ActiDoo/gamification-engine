@@ -9,6 +9,7 @@ def config_routes(config):
     config.add_route('get_achievement_level', '/achievement/{achievement_id}/level/{level}')
 
     config.add_route('auth_login', '/auth/login')
+    config.add_route('change_password', '/auth/change_password')
 
     config.add_route('register_device', '/register_device/{user_id}')
     config.add_route('get_messages', '/messages/{user_id}')

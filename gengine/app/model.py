@@ -62,6 +62,7 @@ t_auth_users = Table("auth_users", Base.metadata,
     Column("email", ty.String, unique=True),
     Column("password_hash", ty.String, nullable=False),
     Column("password_salt", ty.Unicode, nullable=False),
+    Column("force_password_change", ty.Boolean, nullable=False, server_default='0'),
     Column("active", ty.Boolean, nullable=False),
     Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
 )
@@ -358,6 +359,11 @@ class AuthUser(ABase):
         orig = self.password_hash
         is_valid = check == orig
         return is_valid
+
+    @classmethod
+    def check_password_strength(cls, password):
+        length_error = len(password) < 8
+        return not length_error
 
     def get_or_create_token(self):
         tokenObj = DBSession.query(AuthToken).filter(and_(

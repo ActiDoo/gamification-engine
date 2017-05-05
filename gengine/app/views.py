@@ -384,6 +384,9 @@ def auth_login(request):
         if not user.active:
             raise APIError(400, "user_is_not_activated", "Your user is not activated.")
 
+        if user.force_password_change:
+            raise APIError(400, "user_has_to_change_password", "You have to change your password.")
+
         token = AuthToken.generate_token()
         tokenObj = AuthToken(
             user_id = user.id,
@@ -396,6 +399,51 @@ def auth_login(request):
         "token" : token,
         "user" : User.full_output(user.user_id),
     }
+
+
+@view_config(route_name='change_password', renderer='json', request_method="POST")
+def change_password(request):
+    try:
+        doc = request.json_body
+    except:
+        raise APIError(400, "invalid_json", "no valid json body")
+
+    email = doc.get("email")
+    old_password = doc.get("old_password")
+    new_password = doc.get("new_password")
+
+    if not email or not old_password or not new_password:
+        raise APIError(400, "change_password.email_and_old_password_and_new_password_required", "You need to send your email, the old password and a new password.")
+
+    user = DBSession.query(AuthUser).filter_by(email=email).first()
+
+    if not user or not user.verify_password(old_password):
+        raise APIError(401, "change_password.email_or_old_password_invalid", "Either the email address or the old password is wrong.")
+
+    if not user.active:
+        raise APIError(400, "user_is_not_activated", "Your user is not activated.")
+
+    if new_password == old_password:
+        raise APIError(400, "change_password.may_not_be_the_same", "The new password may not be the same as the old one.")
+
+    if not AuthUser.check_password_strength(new_password):
+        raise APIError(400, "change_password.invalid_new_password", "The new password is too weak. Minimum length is 8 characters.")
+
+    user.password = new_password
+    DBSession.add(user)
+
+    token = AuthToken.generate_token()
+    tokenObj = AuthToken(
+        user_id=user.id,
+        token=token
+    )
+    DBSession.add(tokenObj)
+
+    return {
+        "token": tokenObj,
+        "user": User.full_output(user.user_id),
+    }
+
 
 @view_config(route_name='register_device', renderer='json', request_method="POST")
 def register_device(request):
