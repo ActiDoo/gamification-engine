@@ -430,6 +430,7 @@ def change_password(request):
         raise APIError(400, "change_password.invalid_new_password", "The new password is too weak. Minimum length is 8 characters.")
 
     user.password = new_password
+    user.force_password_change = False
     DBSession.add(user)
 
     token = AuthToken.generate_token()
@@ -439,8 +440,10 @@ def change_password(request):
     )
     DBSession.add(tokenObj)
 
+    DBSession.flush()
+
     return {
-        "token": tokenObj,
+        "token": token,
         "user": User.full_output(user.user_id),
     }
 
