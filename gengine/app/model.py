@@ -331,6 +331,27 @@ t_goal_trigger_step_executions = Table('goal_trigger_executions', Base.metadata,
     Index("ix_goal_trigger_executions_combined", "trigger_step_id","user_id","execution_level")
 )
 
+t_tasks = Table('tasks', Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+    Column('entry_name', ty.String(100), index=True),
+    Column('task_name', ty.String(100), index=True, nullable=False),
+    Column('config', ty.JSON()),
+    Column('cron', ty.String(100)),
+    Column('is_removed', ty.Boolean, index=True, nullable=False, default=False),
+    Column('is_auto_created', ty.Boolean, index=True, nullable=False, default=False),
+    Column('is_user_modified', ty.Boolean, index=True, nullable=False, default=False),
+)
+
+t_taskexecutions = Table('taskexecutions', Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+    Column('task_id', ty.Integer, ForeignKey("tasks.id", ondelete="CASCADE"), index=True, nullable=False),
+    Column('planned_at', ty.DateTime(), nullable=False, default=None, index=True),
+    Column('locked_at', ty.DateTime(), nullable=True, default=None, index=True),
+    Column('finished_at', ty.DateTime(), nullable=True, default=None, index=True),
+    Column('canceled_at', ty.DateTime(), nullable=True, default=None, index=True),
+    Column('log', ty.String),
+)
+
 class AuthUser(ABase):
 
     @hybrid_property
@@ -400,7 +421,7 @@ class AuthRolePermission(ABase):
 
 class UserDevice(ABase):
     def __unicode__(self, *args, **kwargs):
-        return "Device: %s" % (self.id,)
+        return "Device: %s" % (self.device_id,)
 
     @classmethod
     def add_or_update_device(cls, user_id, device_id, push_id, device_os, app_version):

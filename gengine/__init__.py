@@ -54,7 +54,8 @@ def main(global_config, **settings):
 
     config.include("pyramid_tm")
     config.include('pyramid_chameleon')
-    
+    config.include('gengine.app.tasksystem')
+
     urlprefix = settings.get("urlprefix","")
     urlcacheid = settings.get("urlcacheid","gengine")
     force_https = asbool(settings.get("force_https",False))
@@ -116,7 +117,7 @@ def main(global_config, **settings):
         return obj.isoformat()
     json_renderer.add_adapter(datetime.datetime, datetime_adapter)
     config.add_renderer('json', json_renderer)
-    
+
     config.scan()
     
     return HTTPSProxied(config.make_wsgi_app())
