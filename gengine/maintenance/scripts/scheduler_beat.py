@@ -4,10 +4,9 @@ import logging
 
 import datetime
 
+from gengine.base.util import dt_ago, dt_now
 from sqlalchemy.sql.expression import and_
 from zope.sqlalchemy.datamanager import mark_changed
-
-from gengine.metadata import MySession
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.StreamHandler())
@@ -54,8 +53,6 @@ def main(argv=sys.argv):
 
     config = Configurator(settings=settings)
     pyramid_dogpile_cache.includeme(config)
-    config.include("gengine.app.tasksystem")
-    config.scan()
 
     from gengine.metadata import (
         init_session,
@@ -78,6 +75,8 @@ def main(argv=sys.argv):
     import crontab
     from gengine.app.tasksystem import ITaskRegistry
 
+    config.include("gengine.app.tasksystem")
+    config.scan("gengine")
     enginetasks = config.registry.getUtility(ITaskRegistry).registrations
 
     with transaction.manager:
@@ -92,15 +91,17 @@ def main(argv=sys.argv):
 
             if cron:
 
+                now = dt_now().replace(second=0)
+
                 item = crontab.CronItem(line=cron)
-                s = item.schedule()
-                prev = s.get_next()
-                next = s.get_next()
+                s = item.schedule(date_from=now)
+                prev = s.get_next().replace(second=0)
+                next = s.get_next().replace(second=0)
 
                 execs = sess.execute(m.t_taskexecutions.select().where(and_(
-                    m.t_taskexecutions.c.task_id == s["id"],
-                    m.t_taskexecutions.c.canceled_at is None,
-                    m.t_taskexecutions.c.finished_at is None,
+                    m.t_taskexecutions.c.task_id == task["id"],
+                    m.t_taskexecutions.c.canceled_at == None,
+                    m.t_taskexecutions.c.finished_at == None,
                 )).order_by(m.t_taskexecutions.c.planned_at.desc())).fetchall()
 
                 found = False
@@ -111,23 +112,23 @@ def main(argv=sys.argv):
                         # The next execution is already planned
                         found = True
 
-                    if exec["planned_at"] <= prev and prev < datetime.datetime.now() - datetime.timedelta(minutes=10) and not exec["locked_at"]:
+                    if exec["planned_at"] <= prev and prev < dt_ago(minutes=10) and not exec["locked_at"]:
                         #  The execution is more than 10 minutes in the past and not yet locked (worker not running / overloaded)
-                        if next - datetime.timedelta(minutes=10) < datetime.datetime.now():
+                        if next - datetime.timedelta(minutes=10) < dt_now():
                             # The next execution is planned in less than 10 minutes, cancel the other one
                             sess.execute(
                                 m.t_taskexecutions.update().values({
-                                    'canceled_at': datetime.datetime.now()
+                                    'canceled_at': dt_now()
                                 }).where({
                                     'id': exec["id"]
                                 })
                             )
 
-                    if exec["locked_at"] and exec["locked_at"] < datetime.datetime.now() - datetime.timedelta(hours=24):
+                    if exec["locked_at"] and exec["locked_at"] < dt_ago(hours=24):
                         # this task is running for more than 24 hours. probably crashed.... set it to canceled
                         sess.execute(
                             m.t_taskexecutions.update().values({
-                                'canceled_at': datetime.datetime.now()
+                                'canceled_at': dt_now()
                             }).where({
                                 'id': exec["id"]
                             })
@@ -137,7 +138,7 @@ def main(argv=sys.argv):
                     # Plan next execution
                     sess.execute(
                         m.t_taskexecutions.insert().values({
-                            'task_id': s["id"],
+                            'task_id': task["id"],
                             'planned_at': next
                         })
                     )

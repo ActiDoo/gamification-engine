@@ -345,11 +345,12 @@ t_tasks = Table('tasks', Base.metadata,
 t_taskexecutions = Table('taskexecutions', Base.metadata,
     Column('id', ty.Integer, primary_key=True),
     Column('task_id', ty.Integer, ForeignKey("tasks.id", ondelete="CASCADE"), index=True, nullable=False),
-    Column('planned_at', ty.DateTime(), nullable=False, default=None, index=True),
-    Column('locked_at', ty.DateTime(), nullable=True, default=None, index=True),
-    Column('finished_at', ty.DateTime(), nullable=True, default=None, index=True),
-    Column('canceled_at', ty.DateTime(), nullable=True, default=None, index=True),
+    Column('planned_at', TIMESTAMP(timezone=True), nullable=False, default=None, index=True),
+    Column('locked_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
+    Column('finished_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
+    Column('canceled_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('log', ty.String),
+    Column('success', ty.Boolean, index=True, nullable=True, default=None),
 )
 
 class AuthUser(ABase):

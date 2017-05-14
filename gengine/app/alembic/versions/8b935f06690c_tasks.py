@@ -7,6 +7,8 @@ Create Date: 2017-05-11 18:41:59.178033
 """
 
 # revision identifiers, used by Alembic.
+from sqlalchemy.dialects.postgresql.base import TIMESTAMP
+
 revision = '8b935f06690c'
 down_revision = '2012674516fc'
 branch_labels = None
@@ -35,10 +37,10 @@ def upgrade():
     op.create_table('taskexecutions',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('task_id', sa.Integer(), nullable=False),
-        sa.Column('planned_at', sa.DateTime(), nullable=False),
-        sa.Column('locked_at', sa.DateTime(), nullable=True),
-        sa.Column('finished_at', sa.DateTime(), nullable=True),
-        sa.Column('canceled_at', sa.DateTime(), nullable=True),
+        sa.Column('planned_at', TIMESTAMP(timezone=True), nullable=False),
+        sa.Column('locked_at', TIMESTAMP(timezone=True), nullable=True),
+        sa.Column('finished_at', TIMESTAMP(timezone=True), nullable=True),
+        sa.Column('canceled_at', TIMESTAMP(timezone=True), nullable=True),
         sa.Column('log', sa.String(), nullable=True),
         sa.ForeignKeyConstraint(['task_id'], ['tasks.id'], name=op.f('fk_taskexecutions_task_id_tasks'), ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_taskexecutions'))

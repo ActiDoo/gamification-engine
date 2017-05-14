@@ -2,6 +2,7 @@ from collections import defaultdict
 
 import venusian
 import zope.interface
+from gengine.metadata import MySession
 
 from sqlalchemy.sql.expression import and_
 from zope.interface.declarations import implementer
@@ -34,13 +35,18 @@ class EngineTask(object):
             config = scanner.config
 
             registry = config.registry
-            registry.getUtility(ITaskRegistry).register(self.name, self.description, self.config_scheme, self.default_config, self.default_cron)
+            registry.getUtility(ITaskRegistry).register(self.name, wrapped, self.description, self.config_scheme, self.default_config, self.default_cron)
 
             import transaction
             from .model import t_tasks
             from ..metadata import DBSession
 
-            sess = DBSession.target()
+            sess = None
+            if hasattr(DBSession, "target"):
+                sess = DBSession
+            else:
+                sess = DBSession()
+
             with transaction.manager:
 
                 db_task = sess.execute(t_tasks.select().where(and_(
@@ -80,7 +86,7 @@ class EngineTask(object):
 class ITaskRegistry(zope.interface.Interface):
     registrations = zope.interface.Attribute("""blahblah""")
 
-    def register(name, description, config_scheme, default_config, default_cron):
+    def register(name, fun, description, config_scheme, default_config, default_cron):
         """bar blah blah"""
 
 
@@ -89,10 +95,16 @@ class TaskRegistry:
     def __init__(self):
         self.registrations = defaultdict(lambda: defaultdict(dict))
 
-    def register(self, name, description, config_scheme, default_config, default_cron):
+    def register(self, name, fun, description, config_scheme, default_config, default_cron):
         self.registrations[name] = {
+            "fun": fun,
             "description": description,
             "config_scheme": config_scheme,
             "default_config": default_config,
             "default_cron": default_cron
         }
+
+    def execute(self, name, config):
+        if not config:
+            config = self.registrations.get(name).get("default_config", None)
+        return self.registrations[name]["fun"](config=config)
