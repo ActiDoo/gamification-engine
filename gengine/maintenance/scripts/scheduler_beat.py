@@ -2,6 +2,9 @@
 import sys
 import logging
 
+import datetime
+
+from sqlalchemy.sql.expression import and_
 from zope.sqlalchemy.datamanager import mark_changed
 
 from gengine.metadata import MySession
@@ -51,6 +54,8 @@ def main(argv=sys.argv):
 
     config = Configurator(settings=settings)
     pyramid_dogpile_cache.includeme(config)
+    config.include("gengine.app.tasksystem")
+    config.scan()
 
     from gengine.metadata import (
         init_session,
@@ -68,13 +73,74 @@ def main(argv=sys.argv):
     sess = DBSession()
     init_session(override_session=sess, replace=True)
 
+
     import gengine.app.model as m
+    import crontab
+    from gengine.app.tasksystem import ITaskRegistry
+
+    enginetasks = config.registry.getUtility(ITaskRegistry).registrations
+
     with transaction.manager:
         mark_changed(sess, transaction.manager, True)
 
+        tasks = sess.execute(m.t_tasks.select()).fetchall()
 
-        messages = sess.execute(m.t_user_messages.select().where(m.t_user_messages.c.has_been_pushed == False))
-        for msg in messages:
-            m.UserMessage.deliver(msg)
+        for task in tasks:
+            cron = task["cron"]
+            if not cron:
+                cron = enginetasks.get(task["task_name"]).get("default_cron", None)
+
+            if cron:
+
+                item = crontab.CronItem(line=cron)
+                s = item.schedule()
+                prev = s.get_next()
+                next = s.get_next()
+
+                execs = sess.execute(m.t_taskexecutions.select().where(and_(
+                    m.t_taskexecutions.c.task_id == s["id"],
+                    m.t_taskexecutions.c.canceled_at is None,
+                    m.t_taskexecutions.c.finished_at is None,
+                )).order_by(m.t_taskexecutions.c.planned_at.desc())).fetchall()
+
+                found = False
+
+                for exec in execs:
+
+                    if exec["planned_at"] >= next:
+                        # The next execution is already planned
+                        found = True
+
+                    if exec["planned_at"] <= prev and prev < datetime.datetime.now() - datetime.timedelta(minutes=10) and not exec["locked_at"]:
+                        #  The execution is more than 10 minutes in the past and not yet locked (worker not running / overloaded)
+                        if next - datetime.timedelta(minutes=10) < datetime.datetime.now():
+                            # The next execution is planned in less than 10 minutes, cancel the other one
+                            sess.execute(
+                                m.t_taskexecutions.update().values({
+                                    'canceled_at': datetime.datetime.now()
+                                }).where({
+                                    'id': exec["id"]
+                                })
+                            )
+
+                    if exec["locked_at"] and exec["locked_at"] < datetime.datetime.now() - datetime.timedelta(hours=24):
+                        # this task is running for more than 24 hours. probably crashed.... set it to canceled
+                        sess.execute(
+                            m.t_taskexecutions.update().values({
+                                'canceled_at': datetime.datetime.now()
+                            }).where({
+                                'id': exec["id"]
+                            })
+                        )
+
+                if not found:
+                    # Plan next execution
+                    sess.execute(
+                        m.t_taskexecutions.insert().values({
+                            'task_id': s["id"],
+                            'planned_at': next
+                        })
+                    )
+
         sess.flush()
         sess.commit()

@@ -44,8 +44,8 @@ class EngineTask(object):
             with transaction.manager:
 
                 db_task = sess.execute(t_tasks.select().where(and_(
-                    t_tasks.c.task_name == self.name,
-                    t_tasks.c.is_auto_created is True,
+                    t_tasks.c.task_name.like(self.name),
+                    t_tasks.c.is_auto_created == True,
                 ))).fetchone()
 
                 if not db_task:
