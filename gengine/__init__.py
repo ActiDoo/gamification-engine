@@ -54,12 +54,12 @@ def main(global_config, **settings):
 
     config.include("pyramid_tm")
     config.include('pyramid_chameleon')
-    config.include('gengine.app.tasksystem')
+    config.include('gengine.app.tasks')
 
     urlprefix = settings.get("urlprefix","")
     urlcacheid = settings.get("urlcacheid","gengine")
     force_https = asbool(settings.get("force_https",False))
-    init_reverse_proxy(force_https,urlprefix)
+    init_reverse_proxy(force_https, urlprefix)
     
     urlcache_url = settings.get("urlcache_url","127.0.0.1:11211")
     urlcache_active = asbool(os.environ.get("URLCACHE_ACTIVE", settings.get("urlcache_active",True)))
@@ -105,12 +105,6 @@ def main(global_config, **settings):
 
     config.include(config_app_routes, route_prefix=urlprefix)
 
-    config.add_route('admin_app', '/admin/*subpath')
-
-    from gengine.app.admin import init_admin as init_tenantadmin
-    init_tenantadmin(urlprefix=urlprefix,
-                     secret=settings.get("flaskadmin_secret","fKY7kJ2xSrbPC5yieEjV"))
-
     #date serialization
     json_renderer = JSON()
     def datetime_adapter(obj, request):
@@ -119,5 +113,10 @@ def main(global_config, **settings):
     config.add_renderer('json', json_renderer)
 
     config.scan()
-    
+
+    config.add_route('admin_app', '/admin/*subpath')
+    from gengine.app.admin import init_admin as init_tenantadmin
+    init_tenantadmin(urlprefix=urlprefix,
+                     secret=settings.get("flaskadmin_secret", "fKY7kJ2xSrbPC5yieEjV"))
+
     return HTTPSProxied(config.make_wsgi_app())

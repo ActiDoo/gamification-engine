@@ -1,51 +1,35 @@
 from collections import defaultdict
-
-import venusian
-import zope.interface
-from gengine.metadata import MySession
-
 from sqlalchemy.sql.expression import and_
-from zope.interface.declarations import implementer
-
-# Registry, Config, Decorator:
 from zope.sqlalchemy.datamanager import mark_changed
 
 
-def includeme(config):
-    config.registry.registerUtility(TaskRegistry())
-
 class EngineTask(object):
-    def __init__(self, name, description, config_scheme, default_config, default_cron, *args, **kwargs):
+    def __init__(self, name, description, config_scheme, default_config, default_cron, default_activated, *args, **kwargs):
         """Constructor just here to accept parameters for decorator"""
         self.name = name
         self.description = description
         self.config_scheme = config_scheme
         self.default_config = default_config
         self.default_cron = default_cron
+        self.default_activated = default_activated
         self.args = args
         self.kwargs = kwargs
 
     def __call__(self, wrapped):
         """Attach the decorator with Venusian"""
-        args = self.args
-        kwargs = self.kwargs
 
-        def callback(scanner, _name, wrapped):
-            """Register a view; called on config.scan"""
-            config = scanner.config
+        from gengine.app.registries import get_task_registry
+        get_task_registry().register(self.name, wrapped, self.description, self.config_scheme, self.default_config, self.default_cron)
 
-            registry = config.registry
-            registry.getUtility(ITaskRegistry).register(self.name, wrapped, self.description, self.config_scheme, self.default_config, self.default_cron)
-
+        if self.default_activated:
             import transaction
             from .model import t_tasks
             from ..metadata import DBSession
 
-            sess = None
             if hasattr(DBSession, "target"):
-                sess = DBSession
-            else:
                 sess = DBSession()
+            else:
+                sess = DBSession
 
             with transaction.manager:
 
@@ -71,26 +55,9 @@ class EngineTask(object):
 
                     sess.flush()
                 sess.commit()
-
-        info = venusian.attach(wrapped, callback)
-
-        if info.scope == 'class':  # pylint:disable=E1101
-            # if the decorator was attached to a method in a class, or
-            # otherwise executed at class scope, we need to set an
-            # 'attr' into the settings if one isn't already in there
-            if kwargs.get('attr') is None:
-                kwargs['attr'] = wrapped.__name__
         return wrapped
 
 
-class ITaskRegistry(zope.interface.Interface):
-    registrations = zope.interface.Attribute("""blahblah""")
-
-    def register(name, fun, description, config_scheme, default_config, default_cron):
-        """bar blah blah"""
-
-
-@implementer(ITaskRegistry)
 class TaskRegistry:
     def __init__(self):
         self.registrations = defaultdict(lambda: defaultdict(dict))
@@ -108,3 +75,4 @@ class TaskRegistry:
         if not config:
             config = self.registrations.get(name).get("default_config", None)
         return self.registrations[name]["fun"](config=config)
+

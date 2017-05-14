@@ -27,7 +27,6 @@ from pyramid.view import view_config
 from pyramid.wsgi import wsgiapp2
 from werkzeug import DebuggedApplication
 
-from gengine.app.admin import adminapp
 from gengine.app.formular import FormularEvaluationException
 from gengine.app.model import (
     User,
@@ -513,6 +512,7 @@ def set_messages_read(request):
 @view_config(route_name='admin_app')
 @wsgiapp2
 def admin_tenant(environ, start_response):
+    from gengine.app.admin import adminapp
 
     def admin_app(environ, start_response):
         #return HTTPSProxied(DebuggedApplication(adminapp.wsgi_app, True))(environ, start_response)

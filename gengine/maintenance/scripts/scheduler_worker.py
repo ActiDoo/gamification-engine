@@ -2,28 +2,20 @@
 import sys
 import logging
 
-import datetime
-
 from gengine.base.util import dt_now
 from sqlalchemy.sql.expression import and_, select
 from zope.sqlalchemy.datamanager import mark_changed
 
-from gengine.metadata import MySession
-
-log = logging.getLogger(__name__)
-log.addHandler(logging.StreamHandler())
-
 import os
-import pyramid_dogpile_cache
 import transaction
-from gengine.app.cache import init_caches
-from pyramid.config import Configurator
 from pyramid.paster import (
     get_appsettings,
     setup_logging,
 )
 from pyramid.scripts.common import parse_vars
-from sqlalchemy import engine_from_config
+
+log = logging.getLogger(__name__)
+log.addHandler(logging.StreamHandler())
 
 def usage(argv):
     cmd = os.path.basename(argv[0])
@@ -40,47 +32,18 @@ def main(argv=sys.argv):
     setup_logging(config_uri)
     settings = get_appsettings(config_uri, options=options)
 
-    from gengine.base.settings import set_settings
-    set_settings(settings)
-
-    durl = os.environ.get("DATABASE_URL")  # heroku
-    if durl:
-        settings['sqlalchemy.url'] = durl
-
-    murl = os.environ.get("MEMCACHED_URL")
-    if murl:
-        settings['urlcache_url'] = murl
-
-    engine = engine_from_config(settings, 'sqlalchemy.')
-
-    config = Configurator(settings=settings)
-    pyramid_dogpile_cache.includeme(config)
-
-    from gengine.metadata import (
-        init_session,
-        init_declarative_base,
-        init_db
-    )
-    init_session()
-    init_declarative_base()
-    init_db(engine)
-    init_caches()
+    import gengine
+    gengine.main({}, **settings)
 
     from gengine.metadata import (
         DBSession
     )
     sess = DBSession()
-    init_session(override_session=sess, replace=True)
-
 
     import gengine.app.model as m
-    import crontab
-    from gengine.app.tasksystem import ITaskRegistry
 
-    config.include("gengine.app.tasksystem")
-    config.scan("gengine")
-    taskregistry = config.registry.getUtility(ITaskRegistry)
-    enginetasks = taskregistry.registrations
+    from gengine.app.registries import get_task_registry
+    enginetasks = get_task_registry().registrations
 
     to_run = []
 
@@ -126,7 +89,7 @@ def main(argv=sys.argv):
                 'execution_id': task["execution_id"]
             })
 
-            result = taskregistry.execute(
+            result = get_task_registry().execute(
                 name=task["task_name"],
                 config=task["config"]  # execute contains fallback to default_config
             )

@@ -1764,6 +1764,17 @@ class GoalTriggerStep(ABase):
                 )
                 uS.add(m)
 
+
+class Task(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "Task: %s" % (self.id,)
+
+
+class TaskExecution(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "TaskExecution: %s" % (self.id,)
+
+
 @event.listens_for(GoalTriggerStep, "after_insert")
 @event.listens_for(GoalTriggerStep, 'after_update')
 def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
@@ -1913,6 +1924,14 @@ mapper(Translation, t_translations, properties={
 mapper(UserMessage, t_user_messages, properties = {
     'user' : relationship(User, backref="user_messages"),
     'translationvariable' : relationship(TranslationVariable),
+})
+
+mapper(Task, t_tasks, properties = {
+
+})
+
+mapper(TaskExecution, t_taskexecutions, properties={
+    'task' : relationship(Task, backref="executions"),
 })
 
 @event.listens_for(AchievementProperty, "after_insert")
