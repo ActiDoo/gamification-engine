@@ -163,7 +163,8 @@ def _get_progress(achievements_for_user, requesting_user):
             dr = Achievement.get_datetime_for_evaluation_type(
                 achievement["evaluation_timezone"],
                 achievement["evaluation"],
-                dt=d
+                dt=d,
+                evaluation_shift=achievement["evaluation_shift"],
             )
 
             achievement_dates.add(dr)
@@ -183,7 +184,8 @@ def _get_progress(achievements_for_user, requesting_user):
                     dr = Achievement.get_datetime_for_evaluation_type(
                         achievement["evaluation_timezone"],
                         achievement["evaluation"],
-                        dt=d
+                        dt=d,
+                        evaluation_shift=achievement["evaluation_shift"],
                     )
 
                     if dr <= now:
@@ -195,8 +197,6 @@ def _get_progress(achievements_for_user, requesting_user):
                 # (To not send messages for very old things....)
                 evaluatelist.append(ea(achievement, achievement_date, execute_triggers=(i == 0 or i == 1 or achievement_date == None)))
                 i += 1
-
-
     ret = {
         "achievements" : [
             x for x in evaluatelist if check(x)

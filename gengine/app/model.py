@@ -54,7 +54,7 @@ t_users = Table("users", Base.metadata,
     Column("region", ty.String(), nullable=True, default=None),
     Column("city", ty.String(), nullable=True, default=None),
     Column("additional_public_data", JSON(), nullable=True, default=None),
-    Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
+    Column('created_at', ty.DateTime, nullable=False, default=datetime.datetime.utcnow),
 )
 
 t_auth_users = Table("auth_users", Base.metadata,
@@ -73,7 +73,7 @@ t_auth_tokens = Table("auth_tokens", Base.metadata,
     Column("id", ty.BigInteger, primary_key=True),
     Column("user_id", ty.BigInteger, ForeignKey("auth_users.user_id", ondelete="CASCADE"), nullable=False),
     Column("token", ty.String, nullable=False),
-    Column('valid_until', ty.DateTime, nullable = False, default=get_default_token_valid_time),
+    Column('valid_until', ty.DateTime, nullable=False, default=get_default_token_valid_time),
 )
 
 t_auth_roles = Table("auth_roles", Base.metadata,
@@ -113,9 +113,9 @@ t_achievementcategories = Table('achievementcategories', Base.metadata,
 )
 
 t_achievements = Table('achievements', Base.metadata,
-    Column('id', ty.Integer, primary_key = True),
+    Column('id', ty.Integer, primary_key=True),
     Column("achievementcategory_id", ty.Integer, ForeignKey("achievementcategories.id", ondelete="SET NULL"), index=True, nullable=True),
-    Column('name', ty.String(255), nullable = False), #internal use
+    Column('name', ty.String(255), nullable=False), #internal use
     Column('maxlevel',ty.Integer, nullable=False, default=1),
     Column('hidden',ty.Boolean, nullable=False, default=False),
     Column('valid_start',ty.Date, nullable=True),
@@ -124,11 +124,12 @@ t_achievements = Table('achievements', Base.metadata,
     Column("lng", ty.Float(Precision=64), nullable=True),
     Column("max_distance", ty.Integer, nullable=True),
     Column('priority', ty.Integer, index=True, default=0),
-    Column('evaluation', ty.Enum("immediately","daily","weekly","monthly","yearly","end", name="evaluation_types"), default="immediately", nullable=False),
+    Column('evaluation', ty.Enum("immediately", "daily", "weekly", "monthly", "yearly", "end", name="evaluation_types"), default="immediately", nullable=False),
     Column('evaluation_timezone', ty.String(), default=None, nullable=True),
-    Column('relevance',ty.Enum("global","friends","city","own", name="relevance_types"), default="own"),
-    Column('view_permission',ty.Enum("everyone", "own", name="achievement_view_permission"), default="everyone"),
-    Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
+    Column('evaluation_shift', ty.Integer(), nullable=True, default=None),
+    Column('relevance', ty.Enum("global", "friends", "city", "own", name="relevance_types"), default="own"),
+    Column('view_permission', ty.Enum("everyone", "own", name="achievement_view_permission"), default="everyone"),
+    Column('created_at', ty.DateTime, nullable=False, default=datetime.datetime.utcnow),
 )
 
 t_goals = Table("goals", Base.metadata,
@@ -712,12 +713,12 @@ class Variable(ABase):
         goalsandachievements = cls.map_variables_to_rules().get(variable_id, [])
 
         Goal.clear_goal_caches(user_id, [
-            (entry["goal"]["id"], Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"], dt=dt))
+            (entry["goal"]["id"], Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"], dt=dt, evaluation_shift=entry["achievement"]["evaluation_shift"]))
                 for entry in goalsandachievements
             ]
         )
         for entry in goalsandachievements:
-            achievement_date = Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"],dt=dt)
+            achievement_date = Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"],dt=dt, evaluation_shift=entry["achievement"]["evaluation_shift"])
             Achievement.invalidate_evaluate_cache(user_id, entry["achievement"], achievement_date)
 
     @classmethod
@@ -1136,7 +1137,7 @@ class Achievement(ABase):
                         .fetchall()
 
     @classmethod
-    def get_datetime_for_evaluation_type(cls, evaluation_timezone, evaluation_type, dt=None):
+    def get_datetime_for_evaluation_type(cls, evaluation_timezone, evaluation_type, dt=None, evaluation_shift=None):
         """
             This computes the datetime to identify the time of the achievement.
             Only relevant for repeating achievements (monthly, yearly, weekly, daily)
@@ -1149,20 +1150,27 @@ class Achievement(ABase):
         tzobj = pytz.timezone(evaluation_timezone)
         if not dt:
             dt = datetime.datetime.now(tzobj)
-
         else:
             dt = dt.astimezone(tzobj)
 
         t = None
         if evaluation_type == "yearly":
             t = dt.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                t = (t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)).astimezone(tzobj)
         elif evaluation_type == "monthly":
             t = dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                t = (t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)).astimezone(tzobj)
         elif evaluation_type == "weekly":
             t = dt - datetime.timedelta(days=dt.weekday())
             t = t.replace(hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                t = (t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)).astimezone(tzobj)
         elif evaluation_type == "daily":
             t = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                t = (t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)).astimezone(tzobj)
         elif evaluation_type == "immediately":
             return None
         elif evaluation_type == "end":
@@ -1270,6 +1278,7 @@ class Goal(ABase):
             timespan = goal["timespan"]
             maxmin = goal["maxmin"]
             evaluation_type = achievement["evaluation"]
+            evaluation_shift = achievement["evaluation_shift"]
 
             #prepare
             select_cols=[func.sum(t_values.c.value).label("value"),
@@ -1308,7 +1317,7 @@ class Goal(ABase):
 
             if evaluation_type!="immediately":
 
-                achievement_date = Achievement.get_datetime_for_evaluation_type(timezone, evaluation_type, evaluation_date)
+                achievement_date = Achievement.get_datetime_for_evaluation_type(timezone, evaluation_type, evaluation_date, evaluation_shift=evaluation_shift)
                 if evaluation_type=="daily":
                     q = q.where(and_(
                         t_values.c.datetime >= achievement_date,
@@ -1320,13 +1329,13 @@ class Goal(ABase):
                         t_values.c.datetime < achievement_date + datetime.timedelta(days=7))
                     )
                 elif evaluation_type=="monthly":
-                    next_month = Achievement.get_datetime_for_evaluation_type(timezone, "monthly", achievement_date + datetime.timedelta(days=32))
+                    next_month = Achievement.get_datetime_for_evaluation_type(timezone, "monthly", achievement_date + datetime.timedelta(days=32), evaluation_shift=evaluation_shift)
                     q = q.where(and_(
                         t_values.c.datetime >= achievement_date,
                         t_values.c.datetime < next_month)
                     )
                 elif evaluation_type=="yearly":
-                    next_year = Achievement.get_datetime_for_evaluation_type(timezone, "yearly", achievement_date + datetime.timedelta(days=366))
+                    next_year = Achievement.get_datetime_for_evaluation_type(timezone, "yearly", achievement_date + datetime.timedelta(days=366), evaluation_shift=evaluation_shift)
                     q = q.where(and_(
                         t_values.c.datetime >= achievement_date,
                         t_values.c.datetime < next_year)
@@ -1786,7 +1795,7 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
     achievement = goal.achievement
 
     for user in users:
-        achievement_date = Achievement.get_datetime_for_evaluation_type(evaluation_timezone=achievement["evaluation_timezone"], evaluation_type=achievement["evaluation"])
+        achievement_date = Achievement.get_datetime_for_evaluation_type(evaluation_timezone=achievement["evaluation_timezone"], evaluation_type=achievement["evaluation"], evaluation_shift=achievement["evaluation_shift"])
         user_has_level = Achievement.get_level_int(user["id"], achievement["id"], achievement_date)
         user_wants_level = min((user_has_level or 0) + 1, achievement["maxlevel"])
         goal_eval = Goal.evaluate(goal, achievement, achievement_date, user, user_wants_level, None, execute_triggers=False)

@@ -242,7 +242,8 @@ def create_achievement(
         achievement_evaluation = undefined,
         achievement_relevance = undefined,
         achievement_maxlevel = undefined,
-        achievement_view_permission = undefined
+        achievement_view_permission = undefined,
+        achievement_evaluation_shift = undefined
     ):
     achievement = Achievement()
 
@@ -295,6 +296,11 @@ def create_achievement(
         achievement.view_permission = "everyone"
     else:
         achievement.view_permission = achievement_view_permission
+
+    if achievement_evaluation_shift is undefined:
+        achievement.evaluation_shift = None
+    else:
+        achievement.evaluation_shift = achievement_evaluation_shift
 
     achievement.evaluation_timezone = "UTC"
 
