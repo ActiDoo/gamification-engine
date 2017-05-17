@@ -129,9 +129,11 @@ def delete_user(request):
     User.delete_user(user_id)
     return {"status": "OK"}
 
-def _get_progress(achievements_for_user, requesting_user):
+def _get_progress(achievements_for_user, requesting_user, achievement_id=None, achievement_history=None):
 
     achievements = Achievement.get_achievements_by_user_for_today(achievements_for_user)
+    if achievement_id:
+        achievements = [x for x in achievements if int(x["id"]) == int(achievement_id)]
 
     def ea(achievement, achievement_date, execute_triggers):
         try:
@@ -197,6 +199,10 @@ def _get_progress(achievements_for_user, requesting_user):
                 # (To not send messages for very old things....)
                 evaluatelist.append(ea(achievement, achievement_date, execute_triggers=(i == 0 or i == 1 or achievement_date == None)))
                 i += 1
+
+                if achievement_history is not None and i >= achievement_history:
+                    # achievement_history restricts the number of lookback items
+                    break
     ret = {
         "achievements" : [
             x for x in evaluatelist if check(x)
@@ -221,7 +227,17 @@ def get_progress(request):
     if not user:
         raise APIError(404, "user_not_found", "user not found")
 
-    output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+    try:
+        achievement_id = int(request.GET["achievement_id"])
+    except:
+        achievement_id = None
+
+    try:
+        achievement_history = int(request.GET["achievement_history"])
+    except:
+        achievement_history = 2
+
+    output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_id=achievement_id, achievement_history=achievement_history)
     output = copy.deepcopy(output)
 
     for i in range(len(output["achievements"])):
