@@ -243,7 +243,8 @@ def create_achievement(
         achievement_relevance = undefined,
         achievement_maxlevel = undefined,
         achievement_view_permission = undefined,
-        achievement_evaluation_shift = undefined
+        achievement_evaluation_shift = undefined,
+        achievement_evaluation_timezone = undefined,
     ):
     achievement = Achievement()
 
@@ -302,7 +303,10 @@ def create_achievement(
     else:
         achievement.evaluation_shift = achievement_evaluation_shift
 
-    achievement.evaluation_timezone = "UTC"
+    if achievement_evaluation_shift is undefined:
+        achievement.evaluation_timezone = "UTC"
+    else:
+        achievement.evaluation_timezone = achievement_evaluation_timezone
 
     DBSession.add(achievement)
     DBSession.flush()

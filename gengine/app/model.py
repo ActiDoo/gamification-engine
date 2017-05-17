@@ -1153,24 +1153,32 @@ class Achievement(ABase):
         else:
             dt = dt.astimezone(tzobj)
 
-        t = None
+        t = dt
         if evaluation_type == "yearly":
-            t = dt.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
             if evaluation_shift:
-                t = (t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)).astimezone(tzobj)
+                t = tzobj.localize((t.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
+            t = t.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                t = tzobj.localize((t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
         elif evaluation_type == "monthly":
-            t = dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             if evaluation_shift:
-                t = (t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)).astimezone(tzobj)
+                t = tzobj.localize((t.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
+            t = t.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                t = tzobj.localize((t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
         elif evaluation_type == "weekly":
-            t = dt - datetime.timedelta(days=dt.weekday())
+            if evaluation_shift:
+                t = tzobj.localize((t.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
+            t = t - datetime.timedelta(days=t.weekday())
             t = t.replace(hour=0, minute=0, second=0, microsecond=0)
             if evaluation_shift:
-                t = (t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)).astimezone(tzobj)
+                t = tzobj.localize((t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
         elif evaluation_type == "daily":
-            t = dt.replace(hour=0, minute=0, second=0, microsecond=0)
             if evaluation_shift:
-                t = (t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)).astimezone(tzobj)
+                t = tzobj.localize((t.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
+            t = t.replace(hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                t = tzobj.localize((t.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
         elif evaluation_type == "immediately":
             return None
         elif evaluation_type == "end":

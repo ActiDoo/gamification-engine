@@ -1,4 +1,6 @@
 import datetime
+
+import pytz
 from gengine.app.cache import clear_all_caches
 from gengine.app.tests.base import BaseDBTest
 from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_goals, create_achievement_user
@@ -426,13 +428,16 @@ class TestAchievementEvaluationType(BaseDBTest):
                                          achievement_relevance="friends",
                                          achievement_maxlevel=3,
                                          achievement_evaluation="weekly",
+                                         achievement_evaluation_timezone="Europe/Berlin",
                                          achievement_evaluation_shift=-60*60*24*2)
 
-        user = create_user()
+        user = create_user(timezone="Europe/Berlin")
+
+        tz = pytz.timezone(user.timezone)
 
         achievement_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone,
                                                                         achievement["evaluation"],
-                                                                        dt=datetime.datetime(year=2017, month=10, day=31, hour=3),
+                                                                        dt=tz.localize(datetime.datetime(year=2017, month=10, day=31, hour=3)),
                                                                         evaluation_shift=achievement["evaluation_shift"])
 
         create_achievement_user(user, achievement, achievement_date, level=1)
