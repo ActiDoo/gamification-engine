@@ -276,9 +276,14 @@ def increase_value(request):
         if not Variable.may_increase(variable, request, user_id):
             raise APIError(403, "forbidden", "You may not increase the variable for this user.")
     
-    Value.increase_value(variable_name, user, value, key) 
+    Value.increase_value(variable_name, user, value, key)
+
+    try:
+        achievement_history = int(request.GET["achievement_history"])
+    except:
+        achievement_history = 2
     
-    output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+    output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_history=achievement_history)
     output = copy.deepcopy(output)
     to_delete = list()
     for i in range(len(output["achievements"])):
@@ -303,6 +308,12 @@ def increase_multi_values(request):
         doc = request.json_body
     except:
         raise APIError(400, "invalid_json", "no valid json body")
+
+    try:
+        achievement_history = int(request.GET["achievement_history"])
+    except:
+        achievement_history = 2
+
     ret = {}
     for user_id, values in doc.items():
         user = User.get_user(user_id)
@@ -328,7 +339,7 @@ def increase_multi_values(request):
                 
                 Value.increase_value(variable_name, user, value, key)
 
-        output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+        output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_history=achievement_history)
         output = copy.deepcopy(output)
         to_delete = list()
         for i in range(len(output["achievements"])):
