@@ -13,6 +13,7 @@ import sys
 
 from pyramid.settings import asbool
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.sql.ddl import DDL
 from sqlalchemy.sql.schema import UniqueConstraint, Index
 
 from gengine.app.permissions import perm_global_increase_value
@@ -101,7 +102,86 @@ t_users_users = Table("users_users", Base.metadata,
 
 t_groups = Table("groups", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
+    Column('grouptype_id', ty.BigInteger, ForeignKey("grouptypes.id", ondelete="CASCADE"), nullable=False, index=True)
 )
+
+t_groups_groups = Table("groups_groups", Base.metadata,
+    Column('id', ty.BigInteger, primary_key=True),
+    Column('group_id', ty.BigInteger, ForeignKey("groups.id", ondelete="CASCADE"), index=True, nullable=False),
+    Column('part_of_id', ty.BigInteger, ForeignKey("groups.id", ondelete="CASCADE"), index=True, nullable=False),
+    UniqueConstraint("group_id", "part_of_id")
+)
+t_groups_groups_trig_ddl = DDL("""
+    CREATE OR REPLACE FUNCTION check_groups_groups_cycle() RETURNS trigger AS $$
+DECLARE
+    cycles INTEGER;
+BEGIN
+    LOCK TABLE groups_groups IN ACCESS EXCLUSIVE MODE;
+    WITH RECURSIVE search_graph(part_of_id, group_id, id, depth, path, cycle) AS (
+         SELECT NEW.part_of_id, NEW.group_id, NEW.id, 1,
+     	 ARRAY[NEW.id], false
+          UNION ALL
+            SELECT g.part_of_id, g.group_id, g.id, sg.depth + 1,
+     	 path || g.id,
+     	 g.id = ANY(path)
+            FROM groups_groups g, search_graph sg
+            WHERE g.part_of_id = sg.group_id AND NOT cycle
+    )
+    SELECT INTO cycles COUNT(*) FROM search_graph WHERE cycle=true;
+    RAISE NOTICE 'cycles: %', cycles;
+    IF cycles > 0 THEN
+       RAISE EXCEPTION 'cycle';
+    END IF;
+    RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_groups_groups_cycle AFTER INSERT OR UPDATE ON groups_groups
+    FOR EACH ROW EXECUTE PROCEDURE check_groups_groups_cycle();
+""")
+event.listen(t_groups_groups, 'after_create', t_groups_groups_trig_ddl.execute_if(dialect='postgresql'))
+
+t_grouptypes = Table("grouptypes", Base.metadata,
+    Column('id', ty.BigInteger, primary_key=True),
+    Column("name", ty.String(100), unique=True, nullable=False),
+)
+
+t_grouptypes_grouptypes = Table("grouptypes_grouptypes", Base.metadata,
+    Column('id', ty.BigInteger, primary_key=True),
+    Column('grouptype_id', ty.BigInteger, ForeignKey("grouptypes.id", ondelete="CASCADE"), index=True, nullable=False),
+    Column('part_of_id', ty.BigInteger, ForeignKey("grouptypes.id", ondelete="CASCADE"), index=True, nullable=False),
+    UniqueConstraint("grouptype_id", "part_of_id")
+)
+t_grouptypes_grouptypes_trig_ddl = DDL("""
+    CREATE OR REPLACE FUNCTION check_grouptypes_grouptypes_cycle() RETURNS trigger AS $$
+DECLARE
+    cycles INTEGER;
+BEGIN
+    LOCK TABLE grouptypes_grouptypes IN ACCESS EXCLUSIVE MODE;
+    WITH RECURSIVE search_graph(part_of_id, group_id, id, depth, path, cycle) AS (
+         SELECT NEW.part_of_id, NEW.group_id, NEW.id, 1,
+     	 ARRAY[NEW.id], false
+          UNION ALL
+            SELECT g.part_of_id, g.group_id, g.id, sg.depth + 1,
+     	 path || g.id,
+     	 g.id = ANY(path)
+            FROM grouptypes_grouptypes g, search_graph sg
+            WHERE g.part_of_id = sg.group_id AND NOT cycle
+    )
+    SELECT INTO cycles COUNT(*) FROM search_graph WHERE cycle=true;
+    RAISE NOTICE 'cycles: %', cycles;
+    IF cycles > 0 THEN
+       RAISE EXCEPTION 'cycle';
+    END IF;
+    RETURN NEW;
+END
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER check_grouptypes_grouptypes_cycle AFTER INSERT OR UPDATE ON grouptypes_grouptypes
+    FOR EACH ROW EXECUTE PROCEDURE check_grouptypes_grouptypes_cycle();
+""")
+event.listen(t_grouptypes_grouptypes, 'after_create', t_grouptypes_grouptypes_trig_ddl.execute_if(dialect='postgresql'))
+
 
 t_users_groups = Table("users_groups", Base.metadata,
     Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
