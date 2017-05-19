@@ -31,6 +31,8 @@ requires = [
     'jsl',
     'jsonschema',
     'pyparsing',
+    'python-crontab',
+    'croniter'
 ]
 
 version = ''
