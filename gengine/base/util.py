@@ -1,3 +1,6 @@
+import datetime
+import pytz
+
 class DictObjectProxy:
 
     def __init__(self, obj={}):
@@ -27,4 +30,11 @@ class Proxy(object):
 
     def __call__(self, *args, **kwargs):
         return self.target(*args, **kwargs)
-    
+
+
+def dt_now():
+    return datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
+
+def dt_ago(**kw):
+    return datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(**kw)
+

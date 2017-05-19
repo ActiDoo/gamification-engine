@@ -27,7 +27,6 @@ from pyramid.view import view_config
 from pyramid.wsgi import wsgiapp2
 from werkzeug import DebuggedApplication
 
-from gengine.app.admin import adminapp
 from gengine.app.formular import FormularEvaluationException
 from gengine.app.model import (
     User,
@@ -130,9 +129,11 @@ def delete_user(request):
     User.delete_user(user_id)
     return {"status": "OK"}
 
-def _get_progress(achievements_for_user, requesting_user):
+def _get_progress(achievements_for_user, requesting_user, achievement_id=None, achievement_history=None):
 
     achievements = Achievement.get_achievements_by_user_for_today(achievements_for_user)
+    if achievement_id:
+        achievements = [x for x in achievements if int(x["id"]) == int(achievement_id)]
 
     def ea(achievement, achievement_date, execute_triggers):
         try:
@@ -164,7 +165,8 @@ def _get_progress(achievements_for_user, requesting_user):
             dr = Achievement.get_datetime_for_evaluation_type(
                 achievement["evaluation_timezone"],
                 achievement["evaluation"],
-                dt=d
+                dt=d,
+                evaluation_shift=achievement["evaluation_shift"],
             )
 
             achievement_dates.add(dr)
@@ -184,7 +186,8 @@ def _get_progress(achievements_for_user, requesting_user):
                     dr = Achievement.get_datetime_for_evaluation_type(
                         achievement["evaluation_timezone"],
                         achievement["evaluation"],
-                        dt=d
+                        dt=d,
+                        evaluation_shift=achievement["evaluation_shift"],
                     )
 
                     if dr <= now:
@@ -197,7 +200,9 @@ def _get_progress(achievements_for_user, requesting_user):
                 evaluatelist.append(ea(achievement, achievement_date, execute_triggers=(i == 0 or i == 1 or achievement_date == None)))
                 i += 1
 
-
+                if achievement_history is not None and i >= achievement_history:
+                    # achievement_history restricts the number of lookback items
+                    break
     ret = {
         "achievements" : [
             x for x in evaluatelist if check(x)
@@ -222,7 +227,17 @@ def get_progress(request):
     if not user:
         raise APIError(404, "user_not_found", "user not found")
 
-    output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+    try:
+        achievement_id = int(request.GET["achievement_id"])
+    except:
+        achievement_id = None
+
+    try:
+        achievement_history = int(request.GET["achievement_history"])
+    except:
+        achievement_history = 2
+
+    output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_id=achievement_id, achievement_history=achievement_history)
     output = copy.deepcopy(output)
 
     for i in range(len(output["achievements"])):
@@ -261,9 +276,14 @@ def increase_value(request):
         if not Variable.may_increase(variable, request, user_id):
             raise APIError(403, "forbidden", "You may not increase the variable for this user.")
     
-    Value.increase_value(variable_name, user, value, key) 
+    Value.increase_value(variable_name, user, value, key)
+
+    try:
+        achievement_history = int(request.GET["achievement_history"])
+    except:
+        achievement_history = 2
     
-    output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+    output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_history=achievement_history)
     output = copy.deepcopy(output)
     to_delete = list()
     for i in range(len(output["achievements"])):
@@ -288,6 +308,12 @@ def increase_multi_values(request):
         doc = request.json_body
     except:
         raise APIError(400, "invalid_json", "no valid json body")
+
+    try:
+        achievement_history = int(request.GET["achievement_history"])
+    except:
+        achievement_history = 2
+
     ret = {}
     for user_id, values in doc.items():
         user = User.get_user(user_id)
@@ -313,7 +339,7 @@ def increase_multi_values(request):
                 
                 Value.increase_value(variable_name, user, value, key)
 
-        output = _get_progress(achievements_for_user=user, requesting_user=request.user)
+        output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_history=achievement_history)
         output = copy.deepcopy(output)
         to_delete = list()
         for i in range(len(output["achievements"])):
@@ -564,6 +590,7 @@ def set_messages_read(request):
 @view_config(route_name='admin_app')
 @wsgiapp2
 def admin_tenant(environ, start_response):
+    from gengine.app.admin import adminapp
 
     def admin_app(environ, start_response):
         #return HTTPSProxied(DebuggedApplication(adminapp.wsgi_app, True))(environ, start_response)

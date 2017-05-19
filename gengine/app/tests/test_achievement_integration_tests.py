@@ -1,4 +1,6 @@
 import datetime
+
+import pytz
 from gengine.app.cache import clear_all_caches
 from gengine.app.tests.base import BaseDBTest
 from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_goals, create_achievement_user
@@ -409,6 +411,56 @@ class TestAchievementEvaluationType(BaseDBTest):
 
         next_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, evaluation_type="yearly", dt=achievement_date + datetime.timedelta(110))
 
+        Value.increase_value(variable_name="invite_users", user=user, value=10, key=None, at_datetime=next_date)
+        achievement_result1 = Achievement.evaluate(user, achievement.id, next_date)
+        print("achievement result1: ", achievement_result1)
+
+        self.assertEqual(achievement_result["achievement_date"], achievement_date)
+        self.assertEqual(achievement_result1["achievement_date"], next_date)
+        self.assertEqual(achievement_date, next_date)
+        self.assertIn('1', achievement_result["levels_achieved"])
+        self.assertIn('2', achievement_result1["new_levels"])
+        self.assertIn('3', achievement_result1["new_levels"])
+
+    # Case1:
+    def test_evaluate_achievement_for_weekly_evaluation_with_shift_case1(self):
+        achievement = create_achievement(achievement_name="invite_users_achievement",
+                                         achievement_relevance="friends",
+                                         achievement_maxlevel=3,
+                                         achievement_evaluation="weekly",
+                                         achievement_evaluation_timezone="Europe/Berlin",
+                                         achievement_evaluation_shift=-60*60*24*2)
+
+        user = create_user(timezone="Europe/Berlin")
+
+        tz = pytz.timezone(user.timezone)
+
+        achievement_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone,
+                                                                        achievement["evaluation"],
+                                                                        dt=tz.localize(datetime.datetime(year=2017, month=10, day=31, hour=3)),
+                                                                        evaluation_shift=achievement["evaluation_shift"])
+
+        create_achievement_user(user, achievement, achievement_date, level=1)
+
+        create_variable("invite_users", variable_group="day")
+
+        create_goals(achievement,
+             goal_goal="3*level",
+             goal_operator="geq",
+             goal_group_by_key=False
+        )
+        clear_all_caches()
+
+        # User has not achieved in first week and achieved after few days in a same week
+        print("Weekly evaluation Case 3")
+        Value.increase_value(variable_name="invite_users", user=user, value=5, key=None, at_datetime=achievement_date)
+        achievement_result = Achievement.evaluate(user, achievement.id, achievement_date)
+        print(achievement_result)
+
+        next_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone,
+                                                                 evaluation_type="weekly",
+                                                                 dt=achievement_date + datetime.timedelta(3),
+                                                                 evaluation_shift=achievement["evaluation_shift"])
         Value.increase_value(variable_name="invite_users", user=user, value=10, key=None, at_datetime=next_date)
         achievement_result1 = Achievement.evaluate(user, achievement.id, next_date)
         print("achievement result1: ", achievement_result1)

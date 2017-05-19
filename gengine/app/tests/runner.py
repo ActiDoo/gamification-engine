@@ -21,9 +21,10 @@ __path__ = [x[0] for x in os.walk(os.path.dirname(__file__))]
 def create_test_suite():
     suite = unittest.TestSuite()
     for imp, modname, _ in pkgutil.walk_packages(__path__):
-        mod = imp.find_module(modname).load_module(modname)
-        for test in unittest.defaultTestLoader.loadTestsFromModule(mod):
-            suite.addTests(test)
+        #if modname in ('test_achievement_integration_tests',):
+            mod = imp.find_module(modname).load_module(modname)
+            for test in unittest.defaultTestLoader.loadTestsFromModule(mod):
+                suite.addTests(test)
     return suite
 
 if __name__=="__main__":
@@ -47,9 +48,9 @@ if __name__=="__main__":
         try:
             db.unsetupDB()
         except:
-            log.exception()
+            log.exception("unsetup db failed")
         try:
             redis.stop()
         except:
-            log.exception()
+            log.exception("stopping redis failed")
     sys.exit(exit)
