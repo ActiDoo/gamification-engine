@@ -33,6 +33,7 @@ class EngineTask(object):
 
             with transaction.manager:
 
+                sess.execute("LOCK TABLE tasks IN ACCESS EXCLUSIVE MODE")
                 db_task = sess.execute(t_tasks.select().where(and_(
                     t_tasks.c.task_name.like(self.name),
                     t_tasks.c.is_auto_created == True,
