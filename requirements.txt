@@ -2,6 +2,7 @@ alembic==0.9.1
 appdirs==1.4.3
 Chameleon==3.1
 click==6.7
+croniter==0.3.16
 dogpile.cache==0.6.2
 Flask==0.12
 Flask-Admin==1.5.0
@@ -26,6 +27,7 @@ pyramid-debugtoolbar==3.0.5
 pyramid-dogpile-cache==0.0.4
 pyramid-mako==1.0.2
 pyramid-tm==1.1.1
+python-crontab==2.2.2
 python-editor==1.0.3
 pytz==2016.10
 raven==6.0.0
