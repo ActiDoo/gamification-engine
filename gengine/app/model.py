@@ -47,13 +47,11 @@ log = logging.getLogger(__name__)
 
 t_users = Table("users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
+    Column("name", ty.String, index=True, nullable=True),
     Column("lat", ty.Float(Precision=64), nullable=True),
     Column("lng", ty.Float(Precision=64), nullable=True),
     Column("language_id", ty.Integer, ForeignKey("languages.id"), nullable=True),
     Column("timezone", ty.String(), nullable=False, default="UTC"),
-    Column("country", ty.String(), nullable=True, default=None),
-    Column("region", ty.String(), nullable=True, default=None),
-    Column("city", ty.String(), nullable=True, default=None),
     Column("additional_public_data", JSON(), nullable=True, default=None),
     Column('created_at', ty.DateTime, nullable=False, default=datetime.datetime.utcnow),
 )

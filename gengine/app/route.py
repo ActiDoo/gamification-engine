@@ -1,3 +1,7 @@
+from pyramid_swagger_spec.namespace import create_api_namespace
+from pyramid_swagger_spec.swagger import create_swagger_view
+
+api_route = create_api_namespace(namespace="api")
 
 def config_routes(config):
     config.add_route('get_progress', '/progress/{user_id}')
@@ -14,3 +18,5 @@ def config_routes(config):
     config.add_route('register_device', '/register_device/{user_id}')
     config.add_route('get_messages', '/messages/{user_id}')
     config.add_route('read_messages', '/read_messages/{user_id}')
+
+    create_swagger_view(config, namespace="api", title="Admin Api", version="0.1")
