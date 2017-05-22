@@ -12,7 +12,7 @@ from ..route import api_route
 
 @api_route(path="/users", request_method="POST", name="list", context=UserCollectionResource, renderer='json', api=sw.api(
     tag="users",
-    operation_id="users_list",
+    operation_id="search_list",
     summary="Lists all users",
     parameters=[
         sw.body_parameter(schema=b_userlist.get_json_schema()),
@@ -23,7 +23,7 @@ from ..route import api_route
         """)
     }
 ))
-def users_list(request, *args, **kw):
+def users_search_list(request, *args, **kw):
     context = request.context
     #
     # bottom_group = t_groups_groups.alias()
