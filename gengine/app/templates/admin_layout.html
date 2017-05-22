@@ -5,8 +5,10 @@
   {{ super() }}
   <link href="{{ url_for('static_gengine', filename='admin_layout.css') }}" rel="stylesheet" />
   <script>
-      API_BASE_URL = "{{ urlprefix }}";
+      API_BASE_URL = "{{ urlprefix }}"; // this is read by react and by the old api example scripts
+      ADMIN_API_BASE_URL = API_BASE_URL+"/api";
   </script>
+  <script src="{{jsmain}}"></script>
 {% endblock %}
 
 {% block tail %}

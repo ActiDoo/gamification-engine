@@ -51,10 +51,12 @@ def main(global_config, **settings):
         reset_context()
     config.add_subscriber(reset_context_on_new_request,NewRequest)
     config.include('pyramid_dogpile_cache')
+    config.include('pyramid_swagger_spec')
 
     config.include("pyramid_tm")
     config.include('pyramid_chameleon')
     config.include('gengine.app.tasks')
+    config.include('gengine.app.jsscripts')
 
     urlprefix = settings.get("urlprefix","")
     urlcacheid = settings.get("urlcacheid","gengine")

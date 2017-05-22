@@ -11,6 +11,7 @@ from flask_admin.base import BaseView, expose
 from flask_admin.contrib.sqla.filters import IntEqualFilter
 from flask_admin.contrib.sqla.view import ModelView
 from flask_admin.model.form import InlineFormAdmin
+from gengine.app.jsscripts import get_jsmain
 from gengine.base.util import dt_now
 from pyramid.settings import asbool
 from wtforms import BooleanField
@@ -308,7 +309,8 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     def inject_version():
         return { "gamification_engine_version" : pkg_resources.get_distribution("gamification-engine").version,
                  "settings_enable_authentication" : asbool(get_settings().get("enable_user_authentication",False)),
-                 "urlprefix" : get_settings().get("urlprefix","/")}
+                 "urlprefix" : get_settings().get("urlprefix","/"),
+                 "jsmain": get_jsmain()}
     
     if not override_admin:
         admin = Admin(adminapp,
@@ -352,3 +354,10 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     from gengine.app.registries import get_admin_extension_registry
     get_admin_extension_registry().run_extensions(adminapp=adminapp, admin=admin)
 
+
+    class GroupAssignmentView(BaseView):
+        @expose('/', methods=('GET', 'POST'))
+        def index(self):
+            return self.render(template='jscomponent.html', component="GroupAssignment")
+
+    admin.add_view(GroupAssignmentView(name='Assign Groups', endpoint='group_assignment'))
