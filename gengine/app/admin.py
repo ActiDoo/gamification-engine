@@ -19,7 +19,7 @@ from wtforms.form import Form
 
 from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
                            GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation, \
-    AuthUser, AuthRole, AuthRolePermission, GoalTrigger, GoalTriggerStep, UserMessage, Task, TaskExecution
+    AuthUser, AuthRole, AuthRolePermission, GoalTrigger, GoalTriggerStep, UserMessage, Task, TaskExecution, Group, GroupType
 from gengine.app.permissions import yield_all_perms
 from gengine.base.settings import get_settings
 
@@ -282,7 +282,25 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def __init__(self, session, **kwargs):
             super(ModelViewTaskExecution, self).__init__(TaskExecution, session, **kwargs)
 
-    
+
+    class ModelViewGroup(ModelView):
+        column_list = ('id', 'name', 'type')
+        form_excluded_columns = ('subgroups',)
+        can_view_details = True
+
+        def __init__(self, session, **kwargs):
+            super(ModelViewGroup, self).__init__(Group, session, **kwargs)
+
+
+    class ModelViewGroupType(ModelView):
+        column_list = ('id', 'name')
+        form_excluded_columns = ('groups', 'subtypes')
+        can_view_details = True
+
+        def __init__(self, session, **kwargs):
+            super(ModelViewGroupType, self).__init__(GroupType, session, **kwargs)
+
+
     if not override_flaskadminapp:
         adminapp = Flask(__name__)
         adminapp.debug=True
@@ -347,6 +365,9 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     admin.add_view(ModelViewAuthUser(DBSession, category="Authentication"))
     admin.add_view(ModelViewAuthRole(DBSession, category="Authentication"))
 
+    admin.add_view(ModelViewGroup(DBSession, category="Groups"))
+    admin.add_view(ModelViewGroupType(DBSession, category="Groups"))
+
     admin.add_view(ModelViewValue(DBSession, category="Debug"))
     admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
     admin.add_view(ModelViewUser(DBSession, category="Debug"))
@@ -362,4 +383,4 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def index(self):
             return self.render(template='jscomponent.html', component="GroupAssignment")
 
-    admin.add_view(GroupAssignmentView(name='Assign Groups', endpoint='group_assignment'))
+    admin.add_view(GroupAssignmentView(name='Assign Groups', endpoint='group_assignment', category="Groups"))

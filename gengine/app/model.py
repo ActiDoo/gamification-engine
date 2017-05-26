@@ -157,15 +157,15 @@ t_grouptypes_grouptypes_trig_ddl = DDL("""
         cycles INTEGER;
     BEGIN
         LOCK TABLE grouptypes_grouptypes IN ACCESS EXCLUSIVE MODE;
-        WITH RECURSIVE search_graph(part_of_id, group_id, id, depth, path, cycle) AS (
-             SELECT NEW.part_of_id, NEW.group_id, NEW.id, 1,
+        WITH RECURSIVE search_graph(part_of_id, grouptype_id, id, depth, path, cycle) AS (
+             SELECT NEW.part_of_id, NEW.grouptype_id, NEW.id, 1,
          	 ARRAY[NEW.id], false
               UNION ALL
-                SELECT g.part_of_id, g.group_id, g.id, sg.depth + 1,
+                SELECT g.part_of_id, g.grouptype_id, g.id, sg.depth + 1,
          	 path || g.id,
          	 g.id = ANY(path)
                 FROM grouptypes_grouptypes g, search_graph sg
-                WHERE g.part_of_id = sg.group_id AND NOT cycle
+                WHERE g.part_of_id = sg.grouptype_id AND NOT cycle
         )
         SELECT INTO cycles COUNT(*) FROM search_graph WHERE cycle=true;
         RAISE NOTICE 'cycles: %%', cycles;
@@ -718,12 +718,24 @@ class User(ABase):
 
 class Group(ABase):
     def __unicode__(self, *args, **kwargs):
-        return "(ID: %s)" % (self.id,)
+        return "(ID: %s; Name: %s)" % (self.id, self.name)
 
     @classmethod
     def basic_output(cls, group):
         return {
-            "id" : group["id"]
+            "id" : group["id"],
+            "name": group["name"],
+        }
+
+class GroupType(ABase):
+    def __unicode__(self, *args, **kwargs):
+        return "(ID: %s; Name: %s)" % (self.id, self.name)
+
+    @classmethod
+    def basic_output(cls, grouptype):
+        return {
+            "id" : grouptype["id"],
+            "name" : grouptype["name"],
         }
 
 class Variable(ABase):
@@ -1956,7 +1968,19 @@ mapper(UserDevice, t_user_device, properties={
 })
 
 mapper(Group, t_groups, properties={
-    'users' : relationship(User, secondary=t_users_groups, backref="groups"),
+    'users': relationship(User, secondary=t_users_groups, backref="groups"),
+    'type' : relationship(GroupType,backref="groups"),
+    'subgroups': relationship(Group, secondary=t_groups_groups,
+                                     primaryjoin=t_groups.c.id==t_groups_groups.c.part_of_id,
+                                     secondaryjoin=t_groups.c.id==t_groups_groups.c.group_id,
+                                     backref="part_of_groups"),
+})
+
+mapper(GroupType, t_grouptypes, properties={
+    'subtypes': relationship(GroupType, secondary=t_grouptypes_grouptypes,
+                                    primaryjoin=t_grouptypes.c.id==t_grouptypes_grouptypes.c.part_of_id,
+                                    secondaryjoin=t_grouptypes.c.id==t_grouptypes_grouptypes.c.grouptype_id,
+                                    backref="part_of_types"),
 })
 
 mapper(Variable, t_variables, properties={

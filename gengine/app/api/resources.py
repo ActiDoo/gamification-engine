@@ -14,7 +14,7 @@ The __parent__ of the root resource should be None and its __name__ should be th
 # RootResourceFactory
 from pyramid.security import Allow, DENY_ALL
 
-from ..model import t_users
+from ..model import t_users, t_groups
 
 
 def root_factory(request):
@@ -49,6 +49,7 @@ class ApiResource(BaseResource):
     def __init__(self, *args, **kw):
         super(ApiResource, self).__init__(*args, **kw)
         self['users'] = UserCollectionResource(request=self.request, t_name='users', t_parent=self)
+        self['groups'] = GroupCollectionResource(request=self.request, t_name='groups', t_parent=self)
 
 
 class UserCollectionResource(BaseResource):
@@ -74,5 +75,32 @@ class UserResource(BaseResource):
         self.user_row = user_row
         self.__acl__ = [
             (Allow, 'user:%(user_id)s' % {'user_id': user_row["id"]}, tuple()),
+            DENY_ALL
+        ]
+
+
+class GroupCollectionResource(BaseResource):
+    def __init__(self, *args, **kw):
+        super(GroupCollectionResource, self).__init__(*args, **kw)
+
+    def __getitem__(self, group_id):
+        try:
+            row = self.request.dbsession.execute(t_groups.select().where(t_groups.c.id == group_id)).fetchone()
+            if row:
+                return GroupResource(request=self.request, t_name=group_id, t_parent=self, user_id=group_id, user_row=row)
+            else:
+                raise KeyError()
+        except Exception as e:
+            log.exception("Error creating GroupResource")
+            raise KeyError()
+
+
+class GroupResource(BaseResource):
+    def __init__(self, group_id, group_row, *args, **kw):
+        super(GroupResource, self).__init__(*args, **kw)
+        self.group_id = group_id
+        self.grroup_row = group_row
+        self.__acl__ = [
+            (Allow, 'group:%(group_id)s' % {'user_id': group_row["id"]}, tuple()),
             DENY_ALL
         ]

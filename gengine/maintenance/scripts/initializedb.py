@@ -172,7 +172,9 @@ def populate_demo(DBSession):
         AchievementReward,
         AuthUser,
         AuthRole,
-        AuthRolePermission
+        AuthRolePermission,
+        GroupType,
+        Group
     )
 
     def add_translation_variable(name):
@@ -284,9 +286,9 @@ def populate_demo(DBSession):
         DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_image, value="https://www.gamification-software.com/img/game-characters-622654.jpg", from_level=1))
 
 
-        user1 = User(id=1,lat=10,lng=50,timezone="Europe/Berlin")
-        user2 = User(id=2,lat=10,lng=50,timezone="US/Eastern")
-        user3 = User(id=3,lat=10,lng=50)
+        user1 = User(id=1,lat=10,lng=50,timezone="Europe/Berlin", name="Fritz")
+        user2 = User(id=2,lat=10,lng=50,timezone="US/Eastern", name="Ludwig")
+        user3 = User(id=3,lat=10,lng=50, name="Helene")
 
         user1.friends.append(user2)
         user1.friends.append(user3)
@@ -296,6 +298,30 @@ def populate_demo(DBSession):
 
         user3.friends.append(user1)
         user3.friends.append(user2)
+
+
+        grouptype1 = GroupType(name="Country")
+        grouptype2 = GroupType(name="City")
+        grouptype1.subtypes.append(grouptype2)
+
+        DBSession.add(user1)
+        DBSession.add(user2)
+
+        group0 = Group(name="Germany", type=grouptype1)
+        group1 = Group(name="Paderborn", type=grouptype2)
+        group2 = Group(name="Bielefeld", type=grouptype2)
+
+        group1.part_of_groups.append(group0)
+        group2.part_of_groups.append(group0)
+
+        DBSession.add(group0)
+        DBSession.add(group1)
+        DBSession.add(group2)
+
+        user1.groups.append(group1)
+        user2.groups.append(group2)
+        user3.groups.append(group1)
+        user3.groups.append(group2)
 
         DBSession.add(user1)
         DBSession.add(user2)
