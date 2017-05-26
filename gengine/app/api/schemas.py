@@ -21,12 +21,12 @@ r_userlist = JSchema(schema={
 })
 
 b_userlist = JSchema(schema={
-    "limit": sw.property(sw.Types.number, nullable=False),
-    "offset": sw.property(sw.Types.number, nullable=False),
-    "order": sw.property(sw.Types.string, nullable=False),
-    "include_search": sw.property(sw.Types.string, nullable=False),
-    "include_group_id": sw.property(sw.Types.number, nullable=False),
-    "exclude_group_id": sw.property(sw.Types.number, nullable=False),
-    "include_role_id": sw.property(sw.Types.number, nullable=False),
-    "exclude_role_id": sw.property(sw.Types.number, nullable=False),
+    "limit": sw.property(sw.Types.number, nullable=True),
+    "offset": sw.property(sw.Types.number, nullable=True),
+    "order": sw.property(sw.Types.string, nullable=True),
+    "include_search": sw.property(sw.Types.string, nullable=True),
+    "include_group_id": sw.property(sw.Types.number, nullable=True),
+    "exclude_group_id": sw.property(sw.Types.number, nullable=True),
+    "include_role_id": sw.property(sw.Types.number, nullable=True),
+    "exclude_role_id": sw.property(sw.Types.number, nullable=True),
 })

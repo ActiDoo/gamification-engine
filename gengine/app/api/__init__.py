@@ -1,4 +1,6 @@
 import pyramid_swagger_spec.swagger as sw
+from sqlalchemy.sql.sqltypes import Integer, String
+
 from gengine.app.api.resources import UserCollectionResource
 from gengine.app.api.schemas import r_status, r_userlist, b_userlist
 from gengine.app.model import t_users, t_auth_users, t_auth_users_roles, t_auth_roles, t_groups_groups, t_groups, \
@@ -51,16 +53,16 @@ def users_search_list(request, *args, **kw):
     sq = text("""
     WITH RECURSIVE nodes_cte(group_id, name, part_of_id, depth, path) AS (
         SELECT tn.group_id, g1.name, tn.part_of_id, 1::INT AS depth, g1.id::TEXT AS path
-        FROM groups_groups AS tn JOIN groups g1 ON g1.id=tn.group_id
+        FROM groups_groups AS tn JOIN groups AS g1 ON g1.id=tn.group_id
         WHERE tn.part_of_id IS NULL
     UNION ALL
         SELECT c.group_id, g2.name, c.part_of_id, p.depth + 1 AS depth,
             (p.path || '->' || g2.name ::TEXT)
         FROM nodes_cte AS p, groups_groups AS c
-        JOIN groups g2 ON g2.id=c.group_id
+        JOIN groups AS g2 ON g2.id=c.group_id
         WHERE c.part_of_id = p.group_id
-    )
-    """)
+    ) SELECT * FROM nodes_cte
+    """).columns(group_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
 
     q = select([
         t_users.c.id,
@@ -81,9 +83,6 @@ def users_search_list(request, *args, **kw):
         right=t_auth_roles,
         onclause=t_auth_roles.c.id == t_auth_users_roles.c.role_id
     ).outerjoin(
-        right=t_auth_roles,
-        onclause=t_auth_roles.c.id == t_auth_users_roles.c.role_id
-    ).outerjoin(
         right=t_users_groups,
         onclause=t_users_groups.c.user_id == t_users.c.id
     ).outerjoin(
@@ -91,7 +90,7 @@ def users_search_list(request, *args, **kw):
         onclause=sq.c.group_id == t_users_groups.c.group_id
     ))
 
-    include_search = request.validates_params.body.get("include_search", None)
+    include_search = request.validated_params.body.get("include_search", None)
     if include_search:
         q = q.where(or_(
             t_users.c.id == include_search,
@@ -99,7 +98,7 @@ def users_search_list(request, *args, **kw):
             t_auth_roles.c.name.ilike(include_search),
         ))
 
-    include_group_id = request.validates_params.body.get("include_group_id", None)
+    include_group_id = request.validated_params.body.get("include_group_id", None)
     if include_group_id:
         q = q.where(or_(
             t_users.c.id == include_search,
@@ -107,6 +106,7 @@ def users_search_list(request, *args, **kw):
             t_auth_roles.c.name.ilike(include_search),
         ))
 
+    print(str(q))
     result = DBSession.execute(q).fetchall()
 
     return r_userlist.output({

@@ -1,0 +1,26 @@
+.group-assignment {
+  * {
+    box-sizing: border-box;
+  }
+  width: 100%;
+
+  .side-header {
+    font-size: 1.2em;
+    font-weight: bold;
+    border-bottom: 1px solid #9b9b9b;
+  }
+
+  .users {
+    display: inline-block;
+    width: calc(50% - 1px);
+    border-right: 1px solid #9b9b9b;
+    padding-right: 30px;
+  }
+
+  .groups {
+    display: inline-block;
+    width: 50%;
+    padding-left: 30px;
+  }
+
+}

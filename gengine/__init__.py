@@ -33,8 +33,7 @@ def main(global_config, **settings):
     set_settings(settings)
 
     engine = engine_from_config(settings, 'sqlalchemy.', connect_args={"options": "-c timezone=utc"}, )
-    config = Configurator(settings=settings)
-    
+
     from gengine.app.cache import init_caches
     init_caches()
 
@@ -49,6 +48,9 @@ def main(global_config, **settings):
 
     def reset_context_on_new_request(event):
         reset_context()
+
+    from gengine.app.api.resources import root_factory
+    config = Configurator(settings=settings, root_factory=root_factory)
     config.add_subscriber(reset_context_on_new_request,NewRequest)
     config.include('pyramid_dogpile_cache')
     config.include('pyramid_swagger_spec')
