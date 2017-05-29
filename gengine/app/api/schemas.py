@@ -62,3 +62,12 @@ b_grouplist = JSchema(schema={
     "include_search": sw.property(sw.Types.string, nullable=True),
     "part_of_id": sw.property(sw.Types.number, nullable=True),
 })
+
+r_group_details = JSchema(schema={
+    "name": sw.property(sw.Types.string, nullable=True),
+    "id": sw.property(sw.Types.number, nullable=False),
+})
+
+b_user_id = JSchema(schema={
+    "user_id": sw.property(sw.Types.number, nullable=True)
+})

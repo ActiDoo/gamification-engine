@@ -1,8 +1,9 @@
 import pyramid_swagger_spec.swagger as sw
 from sqlalchemy.sql.sqltypes import Integer, String
 
-from gengine.app.api.resources import UserCollectionResource, GroupCollectionResource
-from gengine.app.api.schemas import r_status, r_userlist, b_userlist, r_grouplist, b_grouplist
+from gengine.app.api.resources import UserCollectionResource, GroupCollectionResource, GroupResource
+from gengine.app.api.schemas import r_status, r_userlist, b_userlist, r_grouplist, b_grouplist, r_group_details, \
+    b_user_id
 from gengine.app.model import t_users, t_auth_users, t_auth_users_roles, t_auth_roles, t_groups_groups, t_groups, \
     t_users_groups
 from gengine.metadata import DBSession
@@ -29,6 +30,7 @@ def users_search_list(request, *args, **kw):
     context = request.context
 
     include_group_id = request.validated_params.body.get("include_group_id", None)
+    exclude_group_id = request.validated_params.body.get("exclude_group_id", None)
 
     sq = text("""
     WITH RECURSIVE nodes_cte(group_id, name, part_of_id, depth, path) AS (
@@ -77,14 +79,14 @@ def users_search_list(request, *args, **kw):
     if include_group_id is not None:
         sq_include_group = text("""
         WITH RECURSIVE nodes_cte(group_id, name, part_of_id, depth, path) AS (
-            SELECT g1.id, g1.name, NULL::bigint as part_of_id, 1::INT as depth, g1.id::TEXT as path
-            FROM groups as g1
-            WHERE g1.id=:part_of_id
+            SELECT gi1.id, gi1.name, NULL::bigint as part_of_id, 1::INT as depth, gi1.id::TEXT as path
+            FROM groups as gi1
+            WHERE gi1.id=:part_of_id
         UNION ALL
-            SELECT c.group_id, g2.name, c.part_of_id, p.depth + 1 AS depth,
-                (p.path || '->' || g2.id ::TEXT)
+            SELECT c.group_id, gi2.name, c.part_of_id, p.depth + 1 AS depth,
+                (p.path || '->' || gi2.id ::TEXT)
             FROM nodes_cte AS p, groups_groups AS c
-            JOIN groups AS g2 ON g2.id=c.group_id
+            JOIN groups AS gi2 ON gi2.id=c.group_id
             WHERE c.part_of_id = p.group_id
         ) SELECT * FROM nodes_cte
         """).bindparams(part_of_id=include_group_id).columns(group_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
@@ -100,6 +102,25 @@ def users_search_list(request, *args, **kw):
             t_auth_users.c.email.ilike("%"+include_search+"%"),
             #t_auth_roles.c.name.ilike(include_search),
         ))
+
+    if exclude_group_id:
+        sq_exclude_group = text("""
+            WITH RECURSIVE nodes_cte(group_id, name, part_of_id, depth, path) AS (
+                SELECT ge1.id, ge1.name, NULL::bigint as part_of_id, 1::INT as depth, ge1.id::TEXT as path
+                FROM groups as ge1
+                WHERE ge1.id=:ex_part_of_id
+            UNION ALL
+                SELECT c.group_id, ge2.name, c.part_of_id, p.depth + 1 AS depth,
+                    (p.path || '->' || ge2.id ::TEXT)
+                FROM nodes_cte AS p, groups_groups AS c
+                JOIN groups AS ge2 ON ge2.id=c.group_id
+                WHERE c.part_of_id = p.group_id
+            ) SELECT * FROM nodes_cte
+            """).bindparams(ex_part_of_id=exclude_group_id).columns(group_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
+        ug = t_users_groups.alias()
+        ej = sq_exclude_group.join(ug, ug.c.group_id==sq_exclude_group.c.group_id)
+        q = q.where(not_(exists(select([sq_exclude_group.c.group_id], from_obj=ej)\
+                                .where(ug.c.user_id == t_users.c.id))))
 
     result = DBSession.execute(q).fetchall()
     users = {}
@@ -210,5 +231,47 @@ def group_search_list(request, *args, **kw):
 
     return r_grouplist.output({
         'groups': list(groups.values())
+    })
+
+@api_route(path="/groups/{group_id}", request_method="GET", name="", context=GroupResource, renderer='json', api=sw.api(
+    tag="groups",
+    operation_id="group_details",
+    summary="Get a single groups",
+    parameters=[
+        sw.path_parameter(name="group_id", parameter_type=sw.Types.number),
+    ],
+    responses={
+        200: sw.response(schema=r_group_details.get_json_schema()),
+        400: sw.response(schema=r_status.get_json_schema(), description="""
+        """)
+    }
+))
+def group_details(request, *args, **kw):
+    context = request.context
+
+    return r_group_details.output({
+        "id": context.group_row["group_id"],
+        "name": context.group_row["group_name"],
+    })
+
+
+@api_route(path="/groups/{group_id}", request_method="POST", name="add_user", context=GroupResource, renderer='json', api=sw.api(
+    tag="groups",
+    operation_id="groups_add_user",
+    summary="Add a user to a group",
+    parameters=[
+        sw.path_parameter(name="group_id", parameter_type=sw.Types.number),
+        sw.body_parameter(schema=b_user_id.get_json_schema()),
+    ],
+    responses={
+        200: sw.response(schema=r_status.get_json_schema()),
+        400: sw.response(schema=r_status.get_json_schema(), description="""""")
+    }
+))
+def group_add_user(request, *args, **kw):
+    context = request.context
+
+    return r_status.output({
+        "status": "ok"
     })
 

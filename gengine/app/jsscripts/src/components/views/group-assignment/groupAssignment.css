@@ -44,3 +44,21 @@
     outline: 0;
     box-shadow: none !important;
     display: inline-block; }
+  .group-assignment .contained-user-list-header {
+    font-weight: bold; }
+  .group-assignment .not-contained-user-list-header {
+    font-weight: bold;
+    margin-top: 20px; }
+  .group-assignment .users-list-item {
+    border-bottom: 1px solid #cccccc;
+    padding: 5px 0px;
+    position: relative; }
+  .group-assignment .users-list-item:last-child {
+    border-bottom: 0px; }
+  .group-assignment .users-list-item-toggle:hover {
+    cursor: pointer;
+    color: #9c9c9c;
+    text-decoration: underline; }
+  .group-assignment .users-list-item-toggle {
+    float: right;
+    color: blue; }

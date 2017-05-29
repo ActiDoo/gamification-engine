@@ -1,4 +1,5 @@
 import logging
+
 log = logging.getLogger(__name__)
 
 """
@@ -58,14 +59,15 @@ class UserCollectionResource(BaseResource):
 
     def __getitem__(self, user_id):
         try:
-            row = self.request.dbsession.execute(t_users.select().where(t_users.c.id == user_id)).fetchone()
+            from gengine.metadata import DBSession
+            row = DBSession.execute(t_users.select().where(t_users.c.id == int(user_id))).fetchone()
             if row:
                 return UserResource(request=self.request, t_name=user_id, t_parent=self, user_id=user_id, user_row=row)
-            else:
-                raise KeyError()
-        except Exception as e:
+        except ValueError:
+            pass
+        except:
             log.exception("Error creating UserResource")
-            raise KeyError()
+        raise KeyError()
 
 
 class UserResource(BaseResource):
@@ -85,14 +87,15 @@ class GroupCollectionResource(BaseResource):
 
     def __getitem__(self, group_id):
         try:
-            row = self.request.dbsession.execute(t_groups.select().where(t_groups.c.id == group_id)).fetchone()
+            from gengine.metadata import DBSession
+            row = DBSession.execute(t_groups.select().where(t_groups.c.id == int(group_id))).fetchone()
             if row:
-                return GroupResource(request=self.request, t_name=group_id, t_parent=self, user_id=group_id, user_row=row)
-            else:
-                raise KeyError()
-        except Exception as e:
+                return GroupResource(request=self.request, t_name=group_id, t_parent=self, group_id=group_id, group_row=row)
+        except ValueError:
+            pass
+        except:
             log.exception("Error creating GroupResource")
-            raise KeyError()
+        raise KeyError()
 
 
 class GroupResource(BaseResource):
@@ -101,6 +104,6 @@ class GroupResource(BaseResource):
         self.group_id = group_id
         self.grroup_row = group_row
         self.__acl__ = [
-            (Allow, 'group:%(group_id)s' % {'user_id': group_row["id"]}, tuple()),
+            (Allow, 'group:%(group_id)s' % {'group_id': group_row["id"]}, tuple()),
             DENY_ALL
         ]

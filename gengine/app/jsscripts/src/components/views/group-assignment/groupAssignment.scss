@@ -62,4 +62,31 @@
     box-shadow:none !important;
     display: inline-block;
   }
+
+  .contained-user-list-header {
+    font-weight: bold;
+  }
+  .not-contained-user-list-header {
+    font-weight: bold;
+    margin-top: 20px;
+  }
+
+  .users-list-item {
+    border-bottom: 1px solid #cccccc;
+    padding: 5px 0px;
+    position: relative;
+  }
+  .users-list-item:last-child {
+    border-bottom: 0px;
+  }
+  .users-list-item-toggle:hover {
+    cursor: pointer;
+    color: #9c9c9c;
+    text-decoration: underline;
+  }
+
+  .users-list-item-toggle {
+    float: right;
+    color: blue;
+  }
 }
