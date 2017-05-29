@@ -1,4 +1,5 @@
 import pyramid_swagger_spec.swagger as sw
+from gengine.base.model import update_connection
 from sqlalchemy.sql.sqltypes import Integer, String
 
 from gengine.app.api.resources import UserCollectionResource, GroupCollectionResource, GroupResource
@@ -233,7 +234,7 @@ def group_search_list(request, *args, **kw):
         'groups': list(groups.values())
     })
 
-@api_route(path="/groups/{group_id}", request_method="GET", name="", context=GroupResource, renderer='json', api=sw.api(
+@api_route(path="/groups/{group_id}", request_method="GET", name="details", context=GroupResource, renderer='json', api=sw.api(
     tag="groups",
     operation_id="group_details",
     summary="Get a single groups",
@@ -264,14 +265,64 @@ def group_details(request, *args, **kw):
         sw.body_parameter(schema=b_user_id.get_json_schema()),
     ],
     responses={
-        200: sw.response(schema=r_status.get_json_schema()),
-        400: sw.response(schema=r_status.get_json_schema(), description="""""")
+        200: sw.response(schema=r_status.get_json_schema())
     }
 ))
 def group_add_user(request, *args, **kw):
     context = request.context
+    group_row = context.group_row
+
+    q = t_users_groups.select().where(and_(
+        t_users_groups.c.user_id == request.validated_params.body["user_id"],
+        t_users_groups.c.group_id == group_row["id"],
+    ))
+
+    r = DBSession.execute(q).fetchone()
+
+    if not r:
+        q = t_users_groups.insert({
+            'user_id': request.validated_params.body["user_id"],
+            'group_id': group_row["id"],
+        })
+
+        update_connection().execute(q)
 
     return r_status.output({
         "status": "ok"
     })
 
+
+@api_route(path="/groups/{group_id}", request_method="POST", name="remove_user", context=GroupResource, renderer='json', api=sw.api(
+    tag="groups",
+    operation_id="groups_remove_user",
+    summary="Remove a user from a group",
+    parameters=[
+        sw.path_parameter(name="group_id", parameter_type=sw.Types.number),
+        sw.body_parameter(schema=b_user_id.get_json_schema()),
+    ],
+    responses={
+        200: sw.response(schema=r_status.get_json_schema())
+    }
+))
+def group_remove_user(request, *args, **kw):
+    context = request.context
+    group_row = context.group_row
+
+    q = t_users_groups.select().where(and_(
+        t_users_groups.c.user_id == request.validated_params.body["user_id"],
+        t_users_groups.c.group_id == group_row["id"],
+    ))
+
+    r = DBSession.execute(q).fetchone()
+
+    if r:
+        q = t_users_groups.delete().where(and_(
+            t_users_groups.c.user_id == request.validated_params.body["user_id"],
+            t_users_groups.c.group_id == group_row["id"],
+        ))
+
+        update_connection().execute(q)
+
+    return r_status.output({
+        "status": "ok"
+    })

@@ -102,7 +102,7 @@ class GroupResource(BaseResource):
     def __init__(self, group_id, group_row, *args, **kw):
         super(GroupResource, self).__init__(*args, **kw)
         self.group_id = group_id
-        self.grroup_row = group_row
+        self.group_row = group_row
         self.__acl__ = [
             (Allow, 'group:%(group_id)s' % {'group_id': group_row["id"]}, tuple()),
             DENY_ALL

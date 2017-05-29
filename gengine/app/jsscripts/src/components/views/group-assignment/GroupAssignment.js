@@ -73,7 +73,10 @@ class GroupAssignment extends Component {
     }
 
     handleRemoveUser = (user,group) => {
-
+      this.props.actions.groupsRemoveUserRequest({
+        user_id: user.id,
+        group_id: group.id
+      })
     }
 
     render = () => {
