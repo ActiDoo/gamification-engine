@@ -7,6 +7,7 @@ import { connect } from "react-redux";
 import * as UIActions from './storeState/ui/actions';
 import { getLocale } from './storeState/ui/selectors';
 import messages from './locales';
+import './App.css'
 
 class App extends Component {
 

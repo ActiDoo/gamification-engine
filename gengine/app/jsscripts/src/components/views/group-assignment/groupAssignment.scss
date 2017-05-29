@@ -38,13 +38,28 @@
     text-decoration: underline;
   }
 
+  .groups-list-item-selected {
+    font-weight: bold;
+    border-bottom: 2px solid #cccccc;
+  }
+
+  .search-field-wrapper {
+    border-bottom: 1px solid #9b9b9b;
+    margin-bottom: 10px;
+  }
+
   .search-field {
     border-top: 0px;
     border-left: 0px;
     border-right: 0px;
-    border-bottom: 1px solid #9b9b9b;
-    padding: 15px 5px 15px 5px;
+    border-bottom: 0px;
+    padding: 5px 5px 5px 5px;
     font-size: 16px;
     border-radius: 0px;
+    width: calc(100% - 30px);
+    height: 30px;
+    outline: 0;
+    box-shadow:none !important;
+    display: inline-block;
   }
 }

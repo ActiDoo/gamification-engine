@@ -26,7 +26,7 @@ def get_jsmain():
 def get_cssmain():
     debug = get_settings().get("load_from_webpack_dev_server", False)
     if debug:
-        return "http://localhost:3000/static/js/bundle.js"
+        return "http://localhost:3000/static/css/bundle.css"
     else:
         modpath = os.path.dirname(sys.modules[__name__].__file__)
 

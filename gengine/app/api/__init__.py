@@ -14,7 +14,7 @@ from ..route import api_route
 
 @api_route(path="/users", request_method="POST", name="list", context=UserCollectionResource, renderer='json', api=sw.api(
     tag="users",
-    operation_id="search_list",
+    operation_id="users_search_list",
     summary="Lists all users",
     parameters=[
         sw.body_parameter(schema=b_userlist.get_json_schema()),
@@ -123,9 +123,9 @@ def users_search_list(request, *args, **kw):
     })
 
 
-@api_route(path="/groups", request_method="POST", name="groups", context=GroupCollectionResource, renderer='json', api=sw.api(
+@api_route(path="/groups", request_method="POST", name="list", context=GroupCollectionResource, renderer='json', api=sw.api(
     tag="groups",
-    operation_id="search_list",
+    operation_id="groups_search_list",
     summary="Lists all groups",
     parameters=[
         sw.body_parameter(schema=b_grouplist.get_json_schema()),
@@ -211,3 +211,4 @@ def group_search_list(request, *args, **kw):
     return r_grouplist.output({
         'groups': list(groups.values())
     })
+
