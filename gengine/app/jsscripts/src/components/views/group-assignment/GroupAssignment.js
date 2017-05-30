@@ -70,6 +70,8 @@ class GroupAssignment extends Component {
         user_id: user.id,
         group_id: group.id
       })
+      user.isInGroup=true;
+      this.setState({})
     }
 
     handleRemoveUser = (user,group) => {
@@ -77,6 +79,26 @@ class GroupAssignment extends Component {
         user_id: user.id,
         group_id: group.id
       })
+      user.isInGroup=false;
+      this.setState({})
+    }
+
+    renderUserRow = (user, active_group) => {
+        return (
+            <div key={user.id} className="users-list-item" onClick={() => this.handleUserClick(user)}>
+                {user.name}
+                {!user.isDirectlyInGroup && user.isInGroup && user.groupInheritedBy ? (
+                    <span> (inherited by <span className="inherited-group-link" onClick={() => this.handleGroupClick(user.groupInheritedBy)}>{user.groupInheritedBy.name})</span></span>
+                ) : (
+                    user.isInGroup ? (
+                            <div onClick={() => this.handleRemoveUser(user, active_group)} className="users-list-item-toggle">Remove</div>
+                    ) : (
+                        <div onClick={() => this.handleAddUser(user, active_group)} className="users-list-item-toggle">Add</div>
+                    )
+
+                )}
+            </div>
+        )
     }
 
     render = () => {
@@ -88,7 +110,35 @@ class GroupAssignment extends Component {
         const not_active_groups = _.filter(groups, (group) => group.id != active_group_id);
 
         const usersInGroup = this.props.usersData && this.props.usersData[this.usersInGroupSearchID] ? this.props.usersData[this.usersInGroupSearchID].users : null;
+        _.each(usersInGroup,(user) => {
+            if(typeof user.isInGroup == 'undefined') {
+                user.isInGroup = true;
+            }
+
+            _.each(user.groups, (ug) => {
+                const pathItems = _.split(ug.path, "->");
+                if(pathItems[pathItems.length-1] == active_group_id) {
+                    user.isDirectlyInGroup = true;
+                }
+            })
+
+            if(!user.isDirectlyInGroup) {
+                _.each(user.groups, (ug) => {
+                    const pathItems = _.split(ug.path, "->");
+                    _.each(pathItems, (pathItem) => {
+                        if(pathItem == active_group_id) {
+                            user.groupInheritedBy = ug;
+                        }
+                    })
+                })
+            }
+        })
         const usersNotInGroup = this.props.usersData && this.props.usersData[this.usersNotInGroupSearchID] ? this.props.usersData[this.usersNotInGroupSearchID].users : null;
+        _.each(usersNotInGroup,(user) => {
+            if(typeof user.isInGroup == 'undefined') {
+                user.isInGroup = false;
+            }
+        })
 
         console.log("props",this.props);
         console.log("groups",groups);
@@ -134,12 +184,7 @@ class GroupAssignment extends Component {
                         <div className="contained-user-list-header">Users in {active_group.name}:</div>
                       ):null}
                       {usersInGroup && usersInGroup.length>0 ? _.map(usersInGroup, (user)=> {
-                          return (
-                              <div key={user.id} className="users-list-item" onClick={() => this.handleUserClick(user)}>
-                                  {user.name}
-                                  <div onClick={() => this.handleRemoveUser(user, active_group)} className="users-list-item-toggle">Remove</div>
-                              </div>
-                          );
+                          return this.renderUserRow(user, active_group)
                       }) : null}
                     </div>
                     <div className="not-contained-user-list">
@@ -147,12 +192,7 @@ class GroupAssignment extends Component {
                         <div className="not-contained-user-list-header">Users not in {active_group.name}:</div>
                       ):null}
                       {usersNotInGroup && usersNotInGroup.length>0 ? _.map(usersNotInGroup, (user)=> {
-                          return (
-                            <div key={user.id} className="users-list-item" onClick={() => this.handleUserClick(user)}>
-                              {user.name}
-                              <div onClick={() => this.handleAddUser(user, active_group)} className="users-list-item-toggle">Add</div>
-                            </div>
-                          );
+                          return this.renderUserRow(user, active_group)
                         }) : null}
                     </div>
                   </div>

@@ -62,3 +62,9 @@
   .group-assignment .users-list-item-toggle {
     float: right;
     color: blue; }
+  .group-assignment .inherited-group-link {
+    color: blue; }
+  .group-assignment .inherited-group-link:hover {
+    cursor: pointer;
+    color: #9c9c9c;
+    text-decoration: underline; }
