@@ -8,6 +8,12 @@ import './groupAssignment.css';
 
 class GroupAssignment extends Component {
 
+    constructor() {
+        super();
+        this.usersInGroupSearchID = "GROUP_ASSIGNMENT_IN_GROUP";
+        this.usersNotInGroupSearchID = "GROUP_ASSIGNMENT_NOT_IN_GROUP";
+    }
+
     componentWillMount = () => {
       this.searchGroups();
       if(URLService.getQueryParameterAsInt("group")) {
@@ -39,14 +45,13 @@ class GroupAssignment extends Component {
 
     searchUsers = () => {
         setTimeout(() => {
-            this.usersInGroupSearchID = generateID();
+
             this.props.actions.usersSearchListRequest({
                 requestID: this.usersInGroupSearchID,
                 include_group_id: URLService.getQueryParameterAsInt("group"),
                 include_search: URLService.getQueryParameterAsString("user_search") || ""
             })
 
-            this.usersNotInGroupSearchID = generateID();
             this.props.actions.usersSearchListRequest({
               requestID: this.usersNotInGroupSearchID,
               exclude_group_id: URLService.getQueryParameterAsInt("group"),
