@@ -15,6 +15,7 @@ from pyramid.settings import asbool
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.sql.ddl import DDL
 from sqlalchemy.sql.schema import UniqueConstraint, Index
+from sqlalchemy.sql.sqltypes import Integer, String
 
 from gengine.app.permissions import perm_global_increase_value
 from gengine.base.model import ABase, exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
@@ -101,7 +102,7 @@ t_users_users = Table("users_users", Base.metadata,
 t_groups = Table("groups", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
     Column("name", ty.String(255), nullable=True, index=True),
-    Column('grouptype_id', ty.BigInteger, ForeignKey("grouptypes.id", ondelete="CASCADE"), nullable=False, index=True)
+    Column('grouptype_id', ty.Integer, ForeignKey("grouptypes.id", ondelete="CASCADE"), nullable=False, index=True)
 )
 
 t_groups_groups = Table("groups_groups", Base.metadata,
@@ -141,7 +142,7 @@ t_groups_groups_trig_ddl = DDL("""
 event.listen(t_groups_groups, 'after_create', t_groups_groups_trig_ddl.execute_if(dialect='postgresql'))
 
 t_grouptypes = Table("grouptypes", Base.metadata,
-    Column('id', ty.BigInteger, primary_key=True),
+    Column('id', ty.Integer, primary_key=True),
     Column("name", ty.String(100), unique=True, nullable=False),
 )
 
@@ -207,7 +208,8 @@ t_achievements = Table('achievements', Base.metadata,
     Column('evaluation', ty.Enum("immediately", "daily", "weekly", "monthly", "yearly", "end", name="evaluation_types"), default="immediately", nullable=False),
     Column('evaluation_timezone', ty.String(), default=None, nullable=True),
     Column('evaluation_shift', ty.Integer(), nullable=True, default=None),
-    Column('relevance', ty.Enum("global", "friends", "city", "own", name="relevance_types"), default="own"),
+    Column('relevant_grouptype_id', ty.Integer(), ForeignKey("grouptypes.id", ondelete="RESTRICT"), nullable=True, index=True),
+    Column('relevance', ty.Enum("global", "groups", "friends", "own", name="relevance_types"), default="own"),
     Column('view_permission', ty.Enum("everyone", "own", name="achievement_view_permission"), default="everyone"),
     Column('created_at', ty.DateTime, nullable=False, default=datetime.datetime.utcnow),
 )
@@ -585,7 +587,7 @@ class User(ABase):
         return int((tomorrow-today).total_seconds())
 
     @classmethod
-    def set_infos(cls,user_id,lat,lng,timezone,country,region,city,language,friends, groups, additional_public_data):
+    def set_infos(cls,user_id,lat,lng,timezone,language,friends, groups, additional_public_data):
         """set the user's metadata like friends,location and timezone"""
 
 
@@ -613,9 +615,6 @@ class User(ABase):
         user.lat = lat
         user.lng = lng
         user.timezone = timezone
-        user.country = country
-        user.region = region
-        user.city = city
         user.additional_public_data = additional_public_data
 
         language = DBSession.execute(t_languages.select().where(t_languages.c.name == language)).fetchone()
@@ -698,9 +697,6 @@ class User(ABase):
             "lng" : user["lng"],
             "timezone" : user["timezone"],
             "language": language,
-            "country": user["country"],
-            "region": user["region"],
-            "city": user["city"],
             "created_at": user["created_at"],
             "additional_public_data": user["additional_public_data"],
             "friends" : [User.basic_output(f) for f in friends],
@@ -946,20 +942,55 @@ class Achievement(ABase):
 
     #TODO:CACHE
     @classmethod
-    def get_relevant_users_by_achievement_and_user(cls,achievement,user_id):
-        """return all relevant other users for the leaderboard.
-
-        depends on the "relevance" attribute of the achivement, can be "friends" or "city" (city is still a todo)
+    def get_relevant_users_by_achievement_and_user(cls,achievement,user_id,group_id=None):
+        """
+        return all relevant other users for the leaderboard. This method is used for collecting all users for the output. the reverse method is used to clear the caches properly
+        depends on the "relevance" attribute of the achievement, can be "friends", "global" or "groups"
         """
         # this is needed to compute the leaderboards
         users=[user_id,]
-        if achievement["relevance"]=="city":
-            #TODO
-            pass
-        elif achievement["relevance"]=="friends":
+        if achievement["relevance"]=="friends":
             users += [x["to_id"] for x in DBSession.execute(select([t_users_users.c.to_id,], t_users_users.c.from_id==user_id)).fetchall()]
         elif achievement["relevance"] == "global":
             users += [x.id for x in DBSession.execute(select([t_users.c.id,])).fetchall()]
+        elif achievement["relevance"] == "groups":
+            if not achievement["relevant_grouptype_id"]:
+                raise Exception("get_relevant_users_by_achievement_and_user: relevance=group but no relevant_grouptype_id provided")
+            if not not group_id:
+                raise Exception("get_relevant_users_by_achievement_and_user: relevance=group but no group_id give to build the leaderboard")
+
+            # find all groups of the grouptype, of which the user is a member
+            grouptype_id = achievement["relevant_grouptype_id"]
+            sq_include_group = text("""
+                WITH RECURSIVE nodes_cte(group_id, name, part_of_id, depth, path) AS (
+                    SELECT gi1.id, gi1.name, NULL::bigint as part_of_id, 1::INT as depth, gi1.id::TEXT as path
+                    FROM groups as gi1
+                    WHERE gi1.id IN (SELECT g3.id FROM groups WHERE id=:group_id AND grouptype_id=:grouptype_id)
+                UNION ALL
+                    SELECT c.group_id, gi2.name, c.part_of_id, p.depth + 1 AS depth,
+                        (p.path || '->' || gi2.id ::TEXT)
+                    FROM nodes_cte AS p, groups_groups AS c
+                    JOIN groups AS gi2 ON gi2.id=c.group_id
+                    WHERE c.part_of_id = p.group_id
+                ) SELECT * FROM nodes_cte
+            """).bindparams(group_id=group_id, grouptype_id=grouptype_id)\
+                .columns(group_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String)\
+                .alias()
+
+            j = t_users.outerjoin(
+                right=t_auth_users,
+                onclause=t_auth_users.c.user_id == t_users.c.id
+            ).join(
+                right=t_users_groups,
+                onclause=t_users_groups.c.user_id == t_users.c.id
+            ).join(sq_include_group, sq_include_group.c.group_id == t_users_groups.c.group_id)
+
+            q = select([
+                t_users.c.id,
+            ], from_obj=j)
+
+            users += [x.id for x in DBSession.execute(q).fetchall()]
+
         return set(users)
 
     #TODO:CACHE
@@ -968,15 +999,57 @@ class Achievement(ABase):
         """return all users which have this user as friends and are relevant for this achievement.
 
         the reversed version is needed to know in whose contact list the user is. when the user's value is updated, all the leaderboards of these users need to be regenerated"""
-        users=[user_id,]
-        if achievement["relevance"]=="city":
-            #TODO
-            pass
-        elif achievement["relevance"]=="friends":
-            users += [x["from_id"] for x in DBSession.execute(select([t_users_users.c.from_id,], t_users_users.c.to_id==user_id)).fetchall()]
+        users={user_id:{},}
+        if achievement["relevance"]=="friends":
+            users.update({x["from_id"]:{} for x in DBSession.execute(select([t_users_users.c.from_id,], t_users_users.c.to_id==user_id)).fetchall()})
         elif achievement["relevance"] == "global":
-            users += [x.id for x in DBSession.execute(select([t_users.c.id, ])).fetchall()]
-        return set(users)
+            users.update({x.id:{} for x in DBSession.execute(select([t_users.c.id, ])).fetchall()})
+        elif achievement["relevance"] == "groups" and achievement["relevant_grouptype_id"]:
+            # find all groups of the grouptype, of which the user is a member
+            # then return all users in these groups, including the path of the group to the root
+            grouptype_id = achievement["relevant_grouptype_id"]
+
+            sq_include_group = text("""
+                WITH RECURSIVE nodes_cte(group_id, name, part_of_id, depth, path) AS (
+                    SELECT gi1.id, gi1.name, NULL::bigint as part_of_id, 1::INT as depth, gi1.id::TEXT as path
+                    FROM groups as gi1
+                    WHERE gi1.id IN (SELECT g3.id FROM groups as g3 WHERE grouptype_id=:grouptype_id)
+                UNION ALL
+                    SELECT c.group_id, gi2.name, c.part_of_id, p.depth + 1 AS depth,
+                        (p.path || '->' || gi2.id ::TEXT)
+                    FROM nodes_cte AS p, groups_groups AS c
+                    JOIN groups AS gi2 ON gi2.id=c.group_id
+                    WHERE c.part_of_id = p.group_id
+                ) SELECT * FROM nodes_cte
+            """).bindparams(grouptype_id=grouptype_id).columns(group_id=Integer, name=String, part_of_id=Integer,
+                                                               depth=Integer, path=String).alias()
+
+            j = t_users.outerjoin(
+                right=t_auth_users,
+                onclause=t_auth_users.c.user_id == t_users.c.id
+            ).join(
+                right=t_users_groups,
+                onclause=t_users_groups.c.user_id == t_users.c.id
+            ).join(sq_include_group, sq_include_group.c.group_id == t_users_groups.c.group_id)
+
+            q = select([
+                t_users.c.id,
+                sq_include_group.c.group_id,
+                sq_include_group.c.path,
+            ], from_obj=j)
+
+            for row in DBSession.execute(q).fetchall():
+                groups = set()
+                groups.add(row["group_id"])
+
+                if not row["id"] in users:
+                    users[row["id"]] = {"groups": groups}
+                elif not "groups" in users[row["id"]]:
+                    users[row["id"]]["groups"] = groups
+                else:
+                    users[row["id"]]["groups"] &= groups
+
+        return users
 
     @classmethod
     def get_level(cls, user_id, achievement_id, achievement_date):
@@ -1048,7 +1121,7 @@ class Achievement(ABase):
         return out
 
     @classmethod
-    def evaluate(cls, user, achievement_id, achievement_date, execute_triggers=True):
+    def evaluate(cls, user, achievement_id, achievement_date, execute_triggers=True, group_id=None):
         """evaluate the achievement including all its subgoals for the user.
 
            return the basic_output for the achievement plus information about the new achieved levels
@@ -1057,7 +1130,7 @@ class Achievement(ABase):
             achievement = Achievement.get_achievement(achievement_id)
 
             user_id = user["id"]
-            user_ids = Achievement.get_relevant_users_by_achievement_and_user(achievement, user_id)
+            user_ids = Achievement.get_relevant_users_by_achievement_and_user(achievement, user_id, group_id)
 
             user_has_level = Achievement.get_level_int(user_id, achievement["id"], achievement_date)
             user_wants_level = min((user_has_level or 0)+1, achievement["maxlevel"])
@@ -1071,7 +1144,7 @@ class Achievement(ABase):
                     Goal.evaluate(goal, achievement, achievement_date, user, user_wants_level,None, execute_triggers=execute_triggers)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
-                if achievement["relevance"]=="friends" or achievement["relevance"]=="city" or achievement["relevance"]=="global":
+                if achievement["relevance"]=="friends" or achievement["relevance"]=="global" or achievement["relevance"]=="groups":
                     goal_eval["leaderboard"] = Goal.get_leaderboard(goal, achievement_date, user_ids)
                     own_filter = list(filter(lambda x: x["user"]["id"] == user_id, goal_eval["leaderboard"]))
                     if len(own_filter)>0:
@@ -1156,15 +1229,20 @@ class Achievement(ABase):
             return output
 
         #TODO ACHIEVEMENT
-        return cache_achievement_eval.get_or_create("%s_%s_%s" % (user["id"],achievement_id,achievement_date),generate)
+        return cache_achievement_eval.get_or_create("%s_%s_%s_%s" % (user["id"], achievement_id, achievement_date, group_id), generate)
 
     @classmethod
-    def invalidate_evaluate_cache(cls,user_id,achievement, achievement_date):
-        """invalidate the evaluation cache for all goals of this achievement for the user."""
+    def invalidate_evaluate_cache(cls, user_id, achievement, achievement_date):
+        """
+            This method is called to invalidate the achievement evaluation output when a value is increased.
+            For leaderboards this means, that we need to reset the achievement evaluation output for all other users in that leaderboard!
+        """
 
         #We neeed to invalidate for all relevant users because of the leaderboards
-        for uid in Achievement.get_relevant_users_by_achievement_and_user_reverse(achievement, user_id):
-            cache_achievement_eval.delete("%s_%s_%s" % (uid, achievement["id"], achievement_date))
+        for user_id, user_meta in Achievement.get_relevant_users_by_achievement_and_user_reverse(achievement, user_id).items():
+            group_ids = user_meta.get("groups", {None,})
+            for gid in group_ids:
+                cache_achievement_eval.delete("%s_%s_%s_%s" % (user_id, achievement["id"], achievement_date, gid))
 
     @classmethod
     @cache_general.cache_on_arguments()
@@ -2001,10 +2079,11 @@ mapper(Achievement, t_achievements, properties={
                            secondaryjoin=t_achievements.c.id==t_denials.c.to_id,
                            ),
    'users': relationship(AchievementUser, backref='achievement'),
-   'properties' : relationship(AchievementAchievementProperty, backref='achievement'),
-   'rewards' : relationship(AchievementReward, backref='achievement'),
+   'properties': relationship(AchievementAchievementProperty, backref='achievement'),
+   'rewards': relationship(AchievementReward, backref='achievement'),
    'goals': relationship(Goal, backref='achievement'),
-   'achievementcategory' : relationship(AchievementCategory, backref='achievements')
+   'achievementcategory': relationship(AchievementCategory, backref='achievements'),
+   'relevant_grouptype': relationship(GroupType, backref="achievements"),
 })
 mapper(AchievementProperty, t_achievementproperties)
 mapper(AchievementAchievementProperty, t_achievements_achievementproperties, properties={

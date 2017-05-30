@@ -24,9 +24,9 @@ default_gen_data = {
         "min_lng" : 8.70,
         "max_lng" : 8.79
     },
-    "country" : "DE",
-    "region" : "NRW",
-    "city" : "Paderborn",
+    #"country" : "DE",
+    #"region" : "NRW",
+    #"city" : "Paderborn",
     "language" : "de",
     "additional_public_data" : {
         "first_name" : "Matthew",
@@ -90,17 +90,17 @@ def create_user(
     if lng is undefined:
         lng = randrange_float(gen_data["area"]["min_lng"], gen_data["area"]["max_lng"])
 
-    if country is undefined:
-        country = gen_data["country"]
-
     if timezone is undefined:
         timezone = gen_data["timezone"]
 
-    if region is undefined:
-        region = gen_data["region"]
+    #if country is undefined:
+    #    country = gen_data["country"]
 
-    if city is undefined:
-        city = gen_data["city"]
+    #if region is undefined:
+    #    region = gen_data["region"]
+
+    #if city is undefined:
+    #    city = gen_data["city"]
 
     if language is undefined:
         language = gen_data["language"]
@@ -110,9 +110,6 @@ def create_user(
         lat = lat,
         lng = lng,
         timezone = timezone,
-        country = country,
-        region = region,
-        city = city,
         language = language,
         groups = groups,
         friends = friends,
@@ -126,9 +123,9 @@ def update_user(
         user_id = undefined,
         lat = undefined,
         lng = undefined,
-        country = undefined,
-        region = undefined,
-        city = undefined,
+        #country = undefined,
+        #region = undefined,
+        #city = undefined,
         timezone = undefined,
         language = undefined,
         friends = [],
@@ -141,9 +138,9 @@ def update_user(
         lat = lat,
         lng = lng,
         timezone = timezone,
-        country = country,
-        region = region,
-        city = city,
+        #country = country,
+        #region = region,
+        #city = city,
         language = language,
         groups = groups,
         friends = friends,

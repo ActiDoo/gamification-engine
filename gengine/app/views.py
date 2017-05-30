@@ -77,18 +77,6 @@ def add_or_update_user(request):
     
     if not valid_timezone(timezone):
         timezone = 'UTC'
-    
-    country=None
-    if len(request.POST.get("country",""))>0:
-        country = request.POST["country"]
-    
-    region=None
-    if len(request.POST.get("region",""))>0:
-        region = request.POST["region"]
-    
-    city=None
-    if len(request.POST.get("city",""))>0:
-        city = request.POST["city"]
 
     language = None
     if len(request.POST.get("language", "")) > 0:
@@ -106,9 +94,6 @@ def add_or_update_user(request):
                    lat=lat,
                    lng=lon,
                    timezone=timezone,
-                   country=country,
-                   region=region,
-                   city=city,
                    language=language,
                    friends=friends,
                    groups=groups,
