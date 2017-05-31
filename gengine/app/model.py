@@ -64,7 +64,7 @@ t_auth_users = Table("auth_users", Base.metadata,
     Column("password_salt", ty.Unicode, nullable=False),
     Column("force_password_change", ty.Boolean, nullable=False, server_default='0'),
     Column("active", ty.Boolean, nullable=False),
-    Column('created_at', ty.DateTime, nullable = False, default=datetime.datetime.utcnow),
+    Column('created_at', ty.DateTime, nullable=False, default=datetime.datetime.utcnow),
 )
 
 def get_default_token_valid_time():
@@ -234,7 +234,8 @@ t_goal_evaluation_cache = Table("goal_evaluation_cache", Base.metadata,
     Column('id', ty.Integer, primary_key=True),
     Column("goal_id", ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True),
     Column('achievement_date', ty.DateTime, nullable=True), # To identify the goals for monthly, weekly, ... achievements;
-    Column("user_id", ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("user_id", ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True),
+    Column("group_id", ty.BigInteger, ForeignKey("groups.id", ondelete="CASCADE"), nullable=True, index=True),
     Column("achieved", ty.Boolean),
     Column("value", ty.Float),
 )
@@ -263,7 +264,8 @@ t_variables = Table('variables', Base.metadata,
 )
 
 t_values = Table('values', Base.metadata,
-    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key = True, nullable=False),
+    Column('user_id', ty.BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), primary_key=True, nullable=False),
+    Column('group_id', ty.BigInteger, ForeignKey("groups.id", ondelete="RESTRICT"), nullable=True, index=True),
     Column('datetime', TIMESTAMP(timezone=True), primary_key = True, default=datetime.datetime.utcnow),
     Column('variable_id', ty.Integer, ForeignKey("variables.id", ondelete="CASCADE"), primary_key = True, nullable=False),
     Column('value', ty.Integer, nullable = False),
@@ -712,6 +714,38 @@ class User(ABase):
 
         return ret
 
+    @classmethod
+    def get_groups(cls, user_id):
+        sq = text("""
+            WITH RECURSIVE nodes_cte(group_id, name, part_of_id, depth, path) AS (
+                SELECT g1.id, g1.name, NULL::bigint as part_of_id, 1::INT as depth, g1.id::TEXT as path
+                FROM groups as g1
+                WHERE NOT EXISTS(SELECT * FROM groups_groups WHERE group_id=g1.id)
+            UNION ALL
+                SELECT c.group_id, g2.name, c.part_of_id, p.depth + 1 AS depth,
+                    (p.path || '->' || g2.id ::TEXT)
+                FROM nodes_cte AS p, groups_groups AS c
+                JOIN groups AS g2 ON g2.id=c.group_id
+                WHERE c.part_of_id = p.group_id
+            ) SELECT * FROM nodes_cte
+        """).columns(group_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
+
+        j = t_users_groups.join(
+            right=sq,
+            onclause=sq.c.group_id == t_users_groups.c.group_id
+        )
+
+        cols = [
+            sq.c.path.label("group_path"),
+            sq.c.group_id.label("group_id"),
+            sq.c.name.label("group_name")
+        ]
+
+        rows = DBSession.execute(select(cols, from_obj=j).where(t_users_groups.c.user_id==user_id)).fetchall()
+        groups = {r["group_id"]: r for r in rows}
+        return groups
+
+
 class Group(ABase):
     def __unicode__(self, *args, **kwargs):
         return "(ID: %s; Name: %s)" % (self.id, self.name)
@@ -801,18 +835,25 @@ class Variable(ABase):
         return m
 
     @classmethod
-    def invalidate_caches_for_variable_and_user(cls, variable_id, user_id, dt):
+    def invalidate_caches_for_variable_and_user(cls, variable_id, user_id, dt, group_ids=[]):
         """ invalidate the relevant caches for this user and all relevant users with concerned leaderboards"""
         goalsandachievements = cls.map_variables_to_rules().get(variable_id, [])
 
-        Goal.clear_goal_caches(user_id, [
-            (entry["goal"]["id"], Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"], dt=dt, evaluation_shift=entry["achievement"]["evaluation_shift"]))
-                for entry in goalsandachievements
-            ]
-        )
+        goal_ids_with_achievement_date = dict([(entry["goal"]["id"], Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"], dt=dt,evaluation_shift=entry["achievement"]["evaluation_shift"]))for entry in goalsandachievements])
+
+        for group_id in group_ids:
+            Goal.clear_group_goal_caches(group_id=group_id, goal_ids_with_achievement_date=goal_ids_with_achievement_date.items())
+
+        if user_id:
+            Goal.clear_user_goal_caches(user_id=user_id, goal_ids_with_achievement_date=goal_ids_with_achievement_date.items())
+
         for entry in goalsandachievements:
-            achievement_date = Achievement.get_datetime_for_evaluation_type(entry["achievement"]["evaluation_timezone"], entry["achievement"]["evaluation"],dt=dt, evaluation_shift=entry["achievement"]["evaluation_shift"])
-            Achievement.invalidate_evaluate_cache(user_id, entry["achievement"], achievement_date)
+            achievement_date = goal_ids_with_achievement_date[entry["goal"]["id"]]
+            # We use group_ids in Achievement.invalidate_evaluate_cache too. These group ids are fetched while fetching all reversely affected users.
+            # The group_ids are at maximum the same, but can also be less (and need however be computed by the sql server)
+            # [An affected user could be in a parent group of a group in which the current user is; so the group set would be a subset for that user]
+            # => We do not pass the group_ids here
+            Achievement.invalidate_evaluate_cache(user_id=user_id, achievement=entry["achievement"], achievement_date=achievement_date)
 
     @classmethod
     def may_increase(cls, variable_row, request, user_id):
@@ -865,9 +906,42 @@ class Value(ABase):
                                            "key": key,
                                            "value": value}))
 
-        Variable.invalidate_caches_for_variable_and_user(variable_id=variable["id"], user_id=user["id"], dt = dt)
+        Variable.invalidate_caches_for_variable_and_user(variable_id=variable["id"], user_id=user["id"], dt=dt)
         new_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
         return new_value
+
+    @classmethod
+    def __increase_value_for_groups(cls, variable, user_id, value, key, dt):
+        """ This method fetches all groups for the user recursively and inserts the values for all groups """
+        groups = User.get_groups(user_id)
+        sess = update_connection()
+        new_values = {}
+
+        for group_id in groups.keys():
+            key = '' if key is None else str(key)
+
+            condition = and_(t_values.c.datetime == dt,
+                             t_values.c.variable_id == variable["id"],
+                             t_values.c.user_id == user_id,
+                             t_values.c.group_id == group_id,
+                             t_values.c.key == key)
+
+            current_value = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
+            if current_value is not None:
+                sess.execute(t_values.update(condition, values={"value": current_value + value}))
+            else:
+                sess.execute(t_values.insert({"datetime": dt,
+                                             "variable_id": variable["id"],
+                                             "user_id": user_id,
+                                             "group_id": group_id,
+                                             "key": key,
+                                             "value": value}))
+
+            new_values[group_id] = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
+
+        Variable.invalidate_caches_for_variable_and_user(variable_id=variable["id"], user_id=user_id, group_ids=groups.keys(), dt=dt)
+        return new_values
+
 
 class AchievementCategory(ABase):
     """A category for grouping achievement types"""
@@ -1141,7 +1215,7 @@ class Achievement(ABase):
             for goal in goals:
                 goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
                 if not goal_eval:
-                    Goal.evaluate(goal, achievement, achievement_date, user, user_wants_level,None, execute_triggers=execute_triggers)
+                    Goal.evaluate(goal, achievement, achievement_date, user, user_wants_level, None, execute_triggers=execute_triggers)
                     goal_eval = Goal.get_goal_eval_cache(goal["id"], achievement_date, user_id)
 
                 if achievement["relevance"]=="friends" or achievement["relevance"]=="global" or achievement["relevance"]=="groups":
@@ -1158,7 +1232,7 @@ class Achievement(ABase):
 
             output = ""
             new_level_output = None
-            full_output = True # will be false, if the full basic_output is generated in a recursion step
+            last_recursion_step = True # will be false, if the full basic_output is generated in a recursion step
 
             if all_goals_achieved and user_has_level < achievement["maxlevel"]:
                 #NEW LEVEL YEAH!
@@ -1202,15 +1276,15 @@ class Achievement(ABase):
                 user_has_level = user_wants_level
                 user_wants_level = user_wants_level+1
 
-                Goal.clear_goal_caches(user_id, [(g["goal_id"],achievement_date) for g in goal_evals.values()])
+                Goal.clear_user_goal_caches(user_id, [(g["goal_id"],achievement_date) for g in goal_evals.values()])
                 #the level has been updated, we need to do recursion now...
                 #but only if there are more levels...
                 if user_has_level < achievement["maxlevel"]:
                     output = generate()
-                    full_output = False
+                    last_recursion_step = False
 
-            if full_output: #is executed, if this is the last recursion step
-                output = Achievement.basic_output(achievement,goals,True,max_level_included=user_has_level+1)
+            if last_recursion_step: #is executed, if this is the last recursion step
+                output = Achievement.basic_output(achievement, goals, True, max_level_included=user_has_level+1)
                 output.update({
                    "level" : user_has_level,
                    "levels_achieved" : {
@@ -1218,7 +1292,7 @@ class Achievement(ABase):
                     },
                    "maxlevel" : achievement["maxlevel"],
                    "new_levels" : {},
-                   "goals":goal_evals,
+                   "goals": goal_evals,
                    "achievement_date": achievement_date,
                    #"updated_at":combine_updated_at([achievement["updated_at"],] + [g["updated_at"] for g in goal_evals])
                 })
@@ -1740,15 +1814,27 @@ class Goal(ABase):
         return goal_output
 
     @classmethod
-    def clear_goal_caches(cls, user_id, goal_ids_with_achievement_date):
+    def clear_user_goal_caches(cls, user_id, goal_ids_with_achievement_date):
         """clear the evaluation cache for the user and gaols"""
         for goal_id, achievement_date in goal_ids_with_achievement_date:
-            cache_goal_evaluation.delete("%s_%s_%s" % (goal_id, achievement_date, user_id))
+            cache_goal_evaluation.delete("%s_%s_%s_%s" % (goal_id, achievement_date, user_id, "nogroup"))
             s = update_connection()
             s.execute(t_goal_evaluation_cache.delete().where(
                 and_(t_goal_evaluation_cache.c.user_id == user_id,
                      t_goal_evaluation_cache.c.goal_id == goal_id,
                      t_goal_evaluation_cache.c.achievement_date == achievement_date ))
+            )
+
+    @classmethod
+    def clear_group_goal_caches(cls, group_id, goal_ids_with_achievement_date):
+        """clear the evaluation cache for the user and gaols"""
+        for goal_id, achievement_date in goal_ids_with_achievement_date:
+            cache_goal_evaluation.delete("%s_%s_%s_%s" % (goal_id, achievement_date, "nouser", group_id))
+            s = update_connection()
+            s.execute(t_goal_evaluation_cache.delete().where(
+                and_(t_goal_evaluation_cache.c.group_id == group_id,
+                     t_goal_evaluation_cache.c.goal_id == goal_id,
+                     t_goal_evaluation_cache.c.achievement_date == achievement_date))
             )
 
     @classmethod
