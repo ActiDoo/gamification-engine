@@ -74,6 +74,6 @@ def main(argv=sys.argv):
 
         messages = sess.execute(m.t_user_messages.select().where(m.t_user_messages.c.has_been_pushed == False))
         for msg in messages:
-            m.UserMessage.deliver(msg)
+            m.SubjectMessage.deliver(msg)
         sess.flush()
         sess.commit()

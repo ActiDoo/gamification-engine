@@ -18,8 +18,8 @@ from wtforms import BooleanField
 from wtforms.form import Form
 
 from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
-                           GoalGoalProperty, Reward, User, GoalEvaluationCache, Value, AchievementUser, TranslationVariable, Language, Translation, \
-    AuthUser, AuthRole, AuthRolePermission, GoalTrigger, GoalTriggerStep, UserMessage, Task, TaskExecution, Group, GroupType
+                           GoalGoalProperty, Reward, Subject, GoalEvaluationCache, Value, AchievementSubject, TranslationVariable, Language, Translation, \
+    AuthUser, AuthRole, AuthRolePermission, GoalTrigger, GoalTriggerStep, SubjectMessage, Task, TaskExecution, SubjectType
 from gengine.app.permissions import yield_all_perms
 from gengine.base.settings import get_settings
 
@@ -138,7 +138,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         # Override displayed fields
         column_list = ('goal','user','achieved','value','updated_at')
 
-        column_filters = (IntEqualFilter(User.id, 'UserID'),
+        column_filters = (IntEqualFilter(Subject.id, 'SubjectID'),
                           Goal.id)
 
         fast_mass_delete = True
@@ -170,12 +170,12 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def __init__(self, session, **kwargs):
             super(ModelViewReward, self).__init__(Reward, session, **kwargs)
 
-    class ModelViewUser(ModelView):
-        column_list = ('id','lat','lng','timezone','country','region','city','created_at')
+    class ModelViewSubject(ModelView):
+        column_list = ('id','type','name','lat','lng','timezone','country','region','city','created_at')
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
-            super(ModelViewUser, self).__init__(User, session, **kwargs)
+            super(ModelViewSubject, self).__init__(Subject, session, **kwargs)
 
     class ClearCacheForm(Form):
         clear_check = BooleanField(label="Delete all caches?")
@@ -223,7 +223,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         can_view_details = True
 
         def __init__(self, session, **kwargs):
-            super(ModelViewUserMessage, self).__init__(UserMessage, session, **kwargs)
+            super(ModelViewUserMessage, self).__init__(SubjectMessage, session, **kwargs)
 
     from gengine.app.registries import get_task_registry
     enginetasks = get_task_registry().registrations
@@ -283,22 +283,13 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             super(ModelViewTaskExecution, self).__init__(TaskExecution, session, **kwargs)
 
 
-    class ModelViewGroup(ModelView):
-        column_list = ('id', 'name', 'type')
-        form_excluded_columns = ('subgroups',)
-        can_view_details = True
-
-        def __init__(self, session, **kwargs):
-            super(ModelViewGroup, self).__init__(Group, session, **kwargs)
-
-
-    class ModelViewGroupType(ModelView):
+    class ModelViewSubjectType(ModelView):
         column_list = ('id', 'name')
-        form_excluded_columns = ('groups', 'subtypes')
+        #form_excluded_columns = ('groups', 'subtypes')
         can_view_details = True
 
         def __init__(self, session, **kwargs):
-            super(ModelViewGroupType, self).__init__(GroupType, session, **kwargs)
+            super(ModelViewSubjectType, self).__init__(SubjectType, session, **kwargs)
 
 
     if not override_flaskadminapp:
@@ -365,13 +356,12 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     admin.add_view(ModelViewAuthUser(DBSession, category="Authentication"))
     admin.add_view(ModelViewAuthRole(DBSession, category="Authentication"))
 
-    admin.add_view(ModelViewGroup(DBSession, category="Groups"))
-    admin.add_view(ModelViewGroupType(DBSession, category="Groups"))
+    admin.add_view(ModelViewSubjectType(DBSession, category="Subjects"))
 
     admin.add_view(ModelViewValue(DBSession, category="Debug"))
     admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
-    admin.add_view(ModelViewUser(DBSession, category="Debug"))
-    admin.add_view(ModelView(AchievementUser, DBSession, category="Debug"))
+    admin.add_view(ModelViewUser(DBSession, category="Subjects"))
+    admin.add_view(ModelView(AchievementSubject, DBSession, category="Debug"))
     admin.add_view(ModelViewUserMessage(DBSession, category="Debug"))
 
     from gengine.app.registries import get_admin_extension_registry

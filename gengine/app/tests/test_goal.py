@@ -21,7 +21,7 @@ class TestEvaluateGoal(BaseDBTest):
 
         # goal is for invite_users, its group_by_key is false, progress is sum of all the values
         achievement_date = Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement["evaluation"])
-        users_progress_goal = Goal.compute_progress(goal=goal, achievement=achievement, user=user, evaluation_date=achievement_date)
+        users_progress_goal = Goal.compute_progress(goal=goal, achievement=achievement, subject=user, evaluation_date=achievement_date)
         goal_evaluation = {e["user_id"]: e["value"] for e in users_progress_goal}
         print(goal_evaluation)
 
@@ -31,7 +31,7 @@ class TestEvaluateGoal(BaseDBTest):
         achievement1 = create_achievement(achievement_name="participate_achievement")
         goal1 = create_goals(achievement1)
         achievement_date1= Achievement.get_datetime_for_evaluation_type(User.get_user(user.id)["timezone"], achievement1["evaluation"])
-        users_progress_goal1 = Goal.compute_progress(goal=goal1, achievement=achievement1, user=user, evaluation_date=achievement_date1)
+        users_progress_goal1 = Goal.compute_progress(goal=goal1, achievement=achievement1, subject=user, evaluation_date=achievement_date1)
         goal_evaluation1 = {e["user_id"]: e["value"] for e in users_progress_goal1}
         print(goal_evaluation1)
 
@@ -39,7 +39,7 @@ class TestEvaluateGoal(BaseDBTest):
 
         # Check with group_by_key for goals participate = False
         goal2 = create_goals(achievement1, goal_group_by_key=False)
-        users_progress_goal1 = Goal.compute_progress(goal=goal2, achievement=achievement1, user=user, evaluation_date=achievement_date1)
+        users_progress_goal1 = Goal.compute_progress(goal=goal2, achievement=achievement1, subject=user, evaluation_date=achievement_date1)
         goal_evaluation2 = {e["user_id"]: e["value"] for e in users_progress_goal1}
         print(goal_evaluation2)
         self.assertLessEqual(goal_evaluation2.get(user.id), 10)

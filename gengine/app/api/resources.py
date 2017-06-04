@@ -15,7 +15,7 @@ The __parent__ of the root resource should be None and its __name__ should be th
 # RootResourceFactory
 from pyramid.security import Allow, DENY_ALL
 
-from ..model import t_users, t_groups
+from ..model import t_subjects, t_groups
 
 
 def root_factory(request):
@@ -60,7 +60,7 @@ class UserCollectionResource(BaseResource):
     def __getitem__(self, user_id):
         try:
             from gengine.metadata import DBSession
-            row = DBSession.execute(t_users.select().where(t_users.c.id == int(user_id))).fetchone()
+            row = DBSession.execute(t_subjects.select().where(t_subjects.c.id == int(user_id))).fetchone()
             if row:
                 return UserResource(request=self.request, t_name=user_id, t_parent=self, user_id=user_id, user_row=row)
         except ValueError:

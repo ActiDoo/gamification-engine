@@ -5,7 +5,7 @@ from sqlalchemy.sql.sqltypes import Integer, String
 from gengine.app.api.resources import UserCollectionResource, GroupCollectionResource, GroupResource
 from gengine.app.api.schemas import r_status, r_userlist, b_userlist, r_grouplist, b_grouplist, r_group_details, \
     b_user_id
-from gengine.app.model import t_users, t_auth_users, t_auth_users_roles, t_auth_roles, t_groups_groups, t_groups, \
+from gengine.app.model import t_subjects, t_auth_users, t_auth_users_roles, t_auth_roles, t_groups_groups, t_groups, \
     t_users_groups
 from gengine.metadata import DBSession
 from pyramid_swagger_spec.errors import APIError
@@ -47,31 +47,31 @@ def users_search_list(request, *args, **kw):
     ) SELECT * FROM nodes_cte
         """).columns(group_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
 
-    j =t_users.outerjoin(
+    j =t_subjects.outerjoin(
         right=t_auth_users,
-        onclause=t_auth_users.c.user_id == t_users.c.id
+        onclause=t_auth_users.c.user_id == t_subjects.c.id
     ).outerjoin(
         right=t_auth_users_roles,
         onclause=t_auth_users_roles.c.user_id == t_auth_users.c.user_id
     ).outerjoin(
         right=t_auth_roles,
-        onclause=t_auth_roles.c.id == t_auth_users_roles.c.role_id
+        onclause=t_auth_roles.c.id == t_auth_users_roles.c.auth_role_id
     ).outerjoin(
         right=t_users_groups,
-        onclause=t_users_groups.c.user_id == t_users.c.id
+        onclause=t_users_groups.c.user_id == t_subjects.c.id
     ).outerjoin(
         right=sq,
         onclause=sq.c.group_id == t_users_groups.c.group_id
     )
 
     cols = [
-        t_users.c.id,
-        t_users.c.name,
-        t_users.c.lat,
-        t_users.c.lng,
-        t_users.c.language_id,
-        t_users.c.timezone,
-        t_users.c.created_at,
+        t_subjects.c.id,
+        t_subjects.c.name,
+        t_subjects.c.lat,
+        t_subjects.c.lng,
+        t_subjects.c.language_id,
+        t_subjects.c.timezone,
+        t_subjects.c.created_at,
         sq.c.path.label("group_path"),
         sq.c.group_id.label("group_id"),
         sq.c.name.label("group_name")
@@ -99,7 +99,7 @@ def users_search_list(request, *args, **kw):
     include_search = request.validated_params.body.get("include_search", None)
     if include_search:
         q = q.where(or_(
-            t_users.c.name.ilike("%"+include_search+"%"),
+            t_subjects.c.name.ilike("%" + include_search + "%"),
             t_auth_users.c.email.ilike("%"+include_search+"%"),
             #t_auth_roles.c.name.ilike(include_search),
         ))
@@ -120,8 +120,8 @@ def users_search_list(request, *args, **kw):
             """).bindparams(ex_part_of_id=exclude_group_id).columns(group_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
         ug = t_users_groups.alias()
         ej = sq_exclude_group.join(ug, ug.c.group_id==sq_exclude_group.c.group_id)
-        q = q.where(not_(exists(select([sq_exclude_group.c.group_id], from_obj=ej)\
-                                .where(ug.c.user_id == t_users.c.id))))
+        q = q.where(not_(exists(select([sq_exclude_group.c.group_id], from_obj=ej) \
+                                .where(ug.c.user_id == t_subjects.c.id))))
 
     result = DBSession.execute(q).fetchall()
     users = {}
@@ -196,16 +196,16 @@ def group_search_list(request, *args, **kw):
         sq.c.group_id.label("group_id"),
         sq.c.name.label("group_name"),
         sq.c.path.label("group_path"),
-        t_users.c.id.label("user_id"),
-        t_users.c.name.label("user_name"),
+        t_subjects.c.id.label("user_id"),
+        t_subjects.c.name.label("user_name"),
     ], from_obj=sq.join(
         t_groups, t_groups.c.id == sq.c.group_id
     ).outerjoin(
         right=t_users_groups,
         onclause=sq.c.group_id == t_users_groups.c.group_id
     ).outerjoin(
-        right=t_users,
-        onclause=t_users_groups.c.user_id == t_users.c.id
+        right=t_subjects,
+        onclause=t_users_groups.c.user_id == t_subjects.c.id
     ))
 
     include_search = request.validated_params.body.get("include_search", None)

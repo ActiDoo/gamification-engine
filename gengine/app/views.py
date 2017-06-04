@@ -34,7 +34,7 @@ from gengine.app.model import (
     Value,
     Variable,
     AuthUser, AuthToken, t_users, t_auth_users, t_auth_users_roles, t_auth_roles, t_auth_roles_permissions, UserDevice,
-    t_user_device, t_user_messages, UserMessage)
+    t_user_device, t_user_messages, SubjectMessage)
 from gengine.base.settings import get_settings
 from gengine.metadata import DBSession
 from gengine.wsgiutil import HTTPSProxied
@@ -527,7 +527,7 @@ def get_messages(request):
     return {
         "messages" : [{
             "id" : message["id"],
-            "text" : UserMessage.get_text(message),
+            "text" : SubjectMessage.get_text(message),
             "is_read" : message["is_read"],
             "created_at" : message["created_at"]
         } for message in rows]

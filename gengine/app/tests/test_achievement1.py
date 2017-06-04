@@ -6,7 +6,7 @@ from gengine.app.cache import clear_all_caches
 from gengine.app.tests.base import BaseDBTest
 from gengine.app.tests.helpers import create_user, create_achievement, create_variable, create_goals, create_achievement_rewards, create_achievement_user
 from gengine.metadata import DBSession
-from gengine.app.model import Achievement, User, AchievementUser, Value, AchievementReward, Reward, AchievementProperty, AchievementAchievementProperty, t_values
+from gengine.app.model import Achievement, User, AchievementSubject, Value, AchievementReward, Reward, AchievementProperty, AchievementAchievementProperty, t_values
 from gengine.base.model import update_connection
 
 class TestAchievement(BaseDBTest):
@@ -241,7 +241,7 @@ class TestAchievement(BaseDBTest):
         achievement_date = Achievement.get_datetime_for_evaluation_type(achievement.evaluation_timezone, achievement.evaluation)
 
         current_level = 1
-        achievement_user = AchievementUser()
+        achievement_user = AchievementSubject()
         achievement_user.user_id = user.id
         achievement_user.achievement_id = achievement.id
         achievement_user.achievement_date = achievement_date

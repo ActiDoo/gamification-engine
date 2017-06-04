@@ -29,7 +29,8 @@ desc_global_read_messages = "(Admin) Read messages of all users"
 perm_own_read_messages = "perm_own_read_messages"
 desc_own_read_messages = "Read own messages"
 
+
 def yield_all_perms():
-    for k,v in globals().items():
+    for k, v in globals().items():
         if k.startswith("perm_"):
-            yield (v, globals().get("desc_"+k.lstrip("perm_"),k))
+            yield (v, globals().get("desc_"+k.lstrip("perm_"), k))

@@ -32,8 +32,8 @@ b_userlist = JSchema(schema={
     "include_search": sw.property(sw.Types.string, nullable=True),
     "include_group_id": sw.property(sw.Types.number, nullable=True),
     "exclude_group_id": sw.property(sw.Types.number, nullable=True),
-    "include_role_id": sw.property(sw.Types.number, nullable=True),
-    "exclude_role_id": sw.property(sw.Types.number, nullable=True),
+    "include_auth_role_id": sw.property(sw.Types.number, nullable=True),
+    "exclude_auth_role_id": sw.property(sw.Types.number, nullable=True),
 })
 
 
