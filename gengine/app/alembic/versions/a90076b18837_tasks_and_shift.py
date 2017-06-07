@@ -26,13 +26,13 @@ def upgrade():
     sa.Column('cron', sa.String(length=100), nullable=True),
     sa.Column('is_removed', sa.Boolean(), nullable=False),
     sa.Column('is_auto_created', sa.Boolean(), nullable=False),
-    sa.Column('is_user_modified', sa.Boolean(), nullable=False),
+    sa.Column('is_manually_modified', sa.Boolean(), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_tasks'))
     )
     op.create_index(op.f('ix_tasks_entry_name'), 'tasks', ['entry_name'], unique=False)
     op.create_index(op.f('ix_tasks_is_auto_created'), 'tasks', ['is_auto_created'], unique=False)
     op.create_index(op.f('ix_tasks_is_removed'), 'tasks', ['is_removed'], unique=False)
-    op.create_index(op.f('ix_tasks_is_user_modified'), 'tasks', ['is_user_modified'], unique=False)
+    op.create_index(op.f('ix_tasks_is_manually_modified'), 'tasks', ['is_manually_modified'], unique=False)
     op.create_index(op.f('ix_tasks_task_name'), 'tasks', ['task_name'], unique=False)
     op.create_table('taskexecutions',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -67,7 +67,7 @@ def downgrade():
     op.drop_index(op.f('ix_taskexecutions_canceled_at'), table_name='taskexecutions')
     op.drop_table('taskexecutions')
     op.drop_index(op.f('ix_tasks_task_name'), table_name='tasks')
-    op.drop_index(op.f('ix_tasks_is_user_modified'), table_name='tasks')
+    op.drop_index(op.f('ix_tasks_is_manually_modified'), table_name='tasks')
     op.drop_index(op.f('ix_tasks_is_removed'), table_name='tasks')
     op.drop_index(op.f('ix_tasks_is_auto_created'), table_name='tasks')
     op.drop_index(op.f('ix_tasks_entry_name'), table_name='tasks')

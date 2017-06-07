@@ -16,7 +16,7 @@ from pyramid.response import Response
 from pyramid.settings import asbool
 from sqlalchemy.sql.expression import select, and_
 
-from gengine.app.permissions import perm_own_update_user_infos, perm_global_update_user_infos, perm_global_delete_user, perm_own_delete_user, \
+from gengine.app.permissions import perm_own_update_subject_infos, perm_global_update_subject_infos, perm_global_delete_subject, perm_own_delete_subject, \
     perm_global_access_admin_ui, perm_global_register_device, perm_own_register_device, perm_global_read_messages, \
     perm_own_read_messages
 from gengine.base.model import valid_timezone, exists_by_expr, update_connection
@@ -29,30 +29,31 @@ from werkzeug import DebuggedApplication
 
 from gengine.app.formular import FormularEvaluationException
 from gengine.app.model import (
-    User,
+    Subject,
     Achievement,
     Value,
     Variable,
-    AuthUser, AuthToken, t_users, t_auth_users, t_auth_users_roles, t_auth_roles, t_auth_roles_permissions, UserDevice,
-    t_user_device, t_user_messages, SubjectMessage)
+    AuthUser, AuthToken, t_subjects, t_auth_users, t_auth_users_roles, t_auth_roles, t_auth_roles_permissions,
+    SubjectDevice,
+    t_subject_device, t_subject_messages, SubjectMessage, AchievementDate)
 from gengine.base.settings import get_settings
 from gengine.metadata import DBSession
 from gengine.wsgiutil import HTTPSProxied
 
-@view_config(route_name='add_or_update_user', renderer='string', request_method="POST")
-def add_or_update_user(request):
-    """add a user and set its metadata"""
+@view_config(route_name='add_or_update_subject', renderer='string', request_method="POST")
+def add_or_update_subject(request):
+    """add a subject and set its metadata"""
 
-    user_id = int(request.matchdict["user_id"])
+    subject_id = int(request.matchdict["subject_id"])
 
     if asbool(get_settings().get("enable_user_authentication", False)):
-        #ensure that the user exists and we have the permission to update it
-        may_update = request.has_perm(perm_global_update_user_infos) or request.has_perm(perm_own_update_user_infos) and request.user.id == user_id
+        #ensure that the subject exists and we have the permission to update it
+        may_update = request.has_perm(perm_global_update_subject_infos) or request.has_perm(perm_own_update_subject_infos) and request.subject.id == subject_id
         if not may_update:
-            raise APIError(403, "forbidden", "You may not edit this user.")
+            raise APIError(403, "forbidden", "You may not edit this subject.")
 
-        #if not exists_by_expr(t_users,t_users.c.id==user_id):
-        #    raise APIError(403, "forbidden", "The user does not exist. As the user authentication is enabled, you need to create the AuthUser first.")
+        #if not exists_by_expr(t_subjects,t_subjects.c.id==subject_id):
+        #    raise APIError(403, "forbidden", "The subject does not exist. As the user authentication is enabled, you need to create the AuthUser first.")
 
 
     lat=None
@@ -90,7 +91,7 @@ def add_or_update_user(request):
             additional_public_data = {}
 
 
-    User.set_infos(user_id=user_id,
+    Subject.set_infos(subject_id=subject_id,
                    lat=lat,
                    lng=lon,
                    timezone=timezone,
@@ -98,31 +99,31 @@ def add_or_update_user(request):
                    friends=friends,
                    groups=groups,
                    additional_public_data = additional_public_data)
-    return {"status": "OK", "user" : User.full_output(user_id)}
+    return {"status": "OK", "subject" : Subject.full_output(subject_id)}
 
-@view_config(route_name='delete_user', renderer='string', request_method="DELETE")
-def delete_user(request):
-    """delete a user completely"""
-    user_id = int(request.matchdict["user_id"])
+@view_config(route_name='delete_subject', renderer='string', request_method="DELETE")
+def delete_subject(request):
+    """delete a subject completely"""
+    subject_id = int(request.matchdict["subject_id"])
 
     if asbool(get_settings().get("enable_user_authentication", False)):
-        # ensure that the user exists and we have the permission to update it
-        may_delete = request.has_perm(perm_global_delete_user) or request.has_perm(perm_own_delete_user) and request.user.id == user_id
+        # ensure that the subject exists and we have the permission to update it
+        may_delete = request.has_perm(perm_global_delete_subject) or request.has_perm(perm_own_delete_subject) and request.subject.id == subject_id
         if not may_delete:
-            raise APIError(403, "forbidden", "You may not delete this user.")
+            raise APIError(403, "forbidden", "You may not delete this subject.")
 
-    User.delete_user(user_id)
+    Subject.delete_subject(subject_id)
     return {"status": "OK"}
 
-def _get_progress(achievements_for_user, requesting_user, achievement_id=None, achievement_history=None):
+def _get_progress(achievements_for_subject, requesting_subject, achievement_id=None, achievement_history=None):
 
-    achievements = Achievement.get_achievements_by_user_for_today(achievements_for_user)
+    achievements = Achievement.get_achievements_by_subject_for_today(achievements_for_subject)
     if achievement_id:
         achievements = [x for x in achievements if int(x["id"]) == int(achievement_id)]
 
     def ea(achievement, achievement_date, execute_triggers):
         try:
-            return Achievement.evaluate(achievements_for_user, achievement["id"], achievement_date, execute_triggers=execute_triggers)
+            return Achievement.evaluate(achievements_for_subject, achievement["id"], achievement_date, execute_triggers=execute_triggers)
         except FormularEvaluationException as e:
             return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
         except Exception as e:
@@ -131,26 +132,26 @@ def _get_progress(achievements_for_user, requesting_user, achievement_id=None, a
 
     check = lambda x : x!=None and not "error" in x and (x["hidden"]==False or x["level"]>0)
 
-    def may_view(achievement, requesting_user):
+    def may_view(achievement, requesting_subject):
         if not asbool(get_settings().get("enable_user_authentication", False)):
             return True
 
         if achievement["view_permission"] == "everyone":
             return True
-        if achievement["view_permission"] == "own" and achievements_for_user["id"] == requesting_user["id"]:
+        if achievement["view_permission"] == "own" and achievements_for_subject["id"] == requesting_subject["id"]:
             return True
         return False
 
     evaluatelist = []
-    now = datetime.datetime.now(pytz.timezone(achievements_for_user["timezone"]))
+    now = datetime.datetime.now(pytz.timezone(achievements_for_subject["timezone"]))
     for achievement in achievements:
-        if may_view(achievement, requesting_user):
+        if may_view(achievement, requesting_subject):
             achievement_dates = set()
-            d = max(achievement["created_at"], achievements_for_user["created_at"]).replace(tzinfo=pytz.utc)
-            dr = Achievement.get_datetime_for_evaluation_type(
-                achievement["evaluation_timezone"],
-                achievement["evaluation"],
-                dt=d,
+            d = max(achievement["created_at"], achievements_for_subject["created_at"]).replace(tzinfo=pytz.utc)
+            dr = AchievementDate.compute(
+                evaluation_timezone=achievement["evaluation_timezone"],
+                evaluation_type=achievement["evaluation"],
+                context_datetime=d,
                 evaluation_shift=achievement["evaluation_shift"],
             )
 
@@ -168,10 +169,10 @@ def _get_progress(achievements_for_user, requesting_user, achievement_id=None, a
                     else:
                         break # should not happen
 
-                    dr = Achievement.get_datetime_for_evaluation_type(
-                        achievement["evaluation_timezone"],
-                        achievement["evaluation"],
-                        dt=d,
+                    dr = AchievementDate.compute(
+                        evaluation_timezone=achievement["evaluation_timezone"],
+                        evaluation_type=achievement["evaluation"],
+                        context_datetime=d,
                         evaluation_shift=achievement["evaluation_shift"],
                     )
 
@@ -202,15 +203,15 @@ def _get_progress(achievements_for_user, requesting_user, achievement_id=None, a
 
 @view_config(route_name='get_progress', renderer='json', request_method="GET")
 def get_progress(request):
-    """get all relevant data concerning the user's progress"""
+    """get all relevant data concerning the subject's progress"""
     try:
-        user_id = int(request.matchdict["user_id"])
+        subject_id = int(request.matchdict["subject_id"])
     except:
-        raise APIError(400, "illegal_user_id", "no valid user_id given")
+        raise APIError(400, "illegal_subject_id", "no valid subject_id given")
     
-    user = User.get_user(user_id)
-    if not user:
-        raise APIError(404, "user_not_found", "user not found")
+    subject = Subject.get_subject(subject_id)
+    if not subject:
+        raise APIError(404, "subject_not_found", "subject not found")
 
     try:
         achievement_id = int(request.GET["achievement_id"])
@@ -222,7 +223,7 @@ def get_progress(request):
     except:
         achievement_history = 2
 
-    output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_id=achievement_id, achievement_history=achievement_history)
+    output = _get_progress(achievements_for_subject=subject, requesting_subject=request.subject, achievement_id=achievement_id, achievement_history=achievement_history)
     output = copy.deepcopy(output)
 
     for i in range(len(output["achievements"])):
@@ -234,9 +235,9 @@ def get_progress(request):
 @view_config(route_name='increase_value', renderer='json', request_method="POST")
 @view_config(route_name='increase_value_with_key', renderer='json', request_method="POST")
 def increase_value(request):
-    """increase a value for the user"""
+    """increase a value for the subject"""
     
-    user_id = int(request.matchdict["user_id"])
+    subject_id = int(request.matchdict["subject_id"])
     try:
         value = float(request.POST["value"])
     except:
@@ -249,26 +250,26 @@ def increase_value(request):
     key = request.matchdict["key"] if ("key" in request.matchdict and request.matchdict["key"] is not None) else ""
     variable_name = request.matchdict["variable_name"]
     
-    user = User.get_user(user_id)
-    if not user:
-        raise APIError(404, "user_not_found", "user not found")
+    subject = Subject.get_subject(subject_id)
+    if not subject:
+        raise APIError(404, "subject_not_found", "subject not found")
     
     variable = Variable.get_variable_by_name(variable_name)
     if not variable:
         raise APIError(404, "variable_not_found", "variable not found")
 
     if asbool(get_settings().get("enable_user_authentication", False)):
-        if not Variable.may_increase(variable, request, user_id):
-            raise APIError(403, "forbidden", "You may not increase the variable for this user.")
+        if not Variable.may_increase(variable, request, subject_id):
+            raise APIError(403, "forbidden", "You may not increase the variable for this subject.")
     
-    Value.increase_value(variable_name, user, value, key)
+    Value.increase_value(variable_name, subject, value, key)
 
     try:
         achievement_history = int(request.GET["achievement_history"])
     except:
         achievement_history = 2
     
-    output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_history=achievement_history)
+    output = _get_progress(achievements_for_subject=subject, requesting_subject=request.subject, achievement_history=achievement_history)
     output = copy.deepcopy(output)
     to_delete = list()
     for i in range(len(output["achievements"])):
@@ -300,18 +301,18 @@ def increase_multi_values(request):
         achievement_history = 2
 
     ret = {}
-    for user_id, values in doc.items():
-        user = User.get_user(user_id)
-        if not user:
-            raise APIError(404, "user_not_found", "user %s not found" % (user_id,))
+    for subject_id, values in doc.items():
+        subject = Subject.get_subject(subject_id)
+        if not subject:
+            raise APIError(404, "subject_not_found", "subject %s not found" % (subject_id,))
 
         for variable_name, values_and_keys in values.items():
             for value_and_key in values_and_keys:
                 variable = Variable.get_variable_by_name(variable_name)
 
                 if asbool(get_settings().get("enable_user_authentication", False)):
-                    if not Variable.may_increase(variable, request, user_id):
-                        raise APIError(403, "forbidden", "You may not increase the variable %s for user %s." % (variable_name, user_id))
+                    if not Variable.may_increase(variable, request, subject_id):
+                        raise APIError(403, "forbidden", "You may not increase the variable %s for subject %s." % (variable_name, subject_id))
                 
                 if not variable:
                     raise APIError(404, "variable_not_found", "variable %s not found" % (variable_name,))
@@ -322,9 +323,9 @@ def increase_multi_values(request):
                 value = value_and_key['value']
                 key = value_and_key.get('key','')
                 
-                Value.increase_value(variable_name, user, value, key)
+                Value.increase_value(variable_name, subject, value, key)
 
-        output = _get_progress(achievements_for_user=user, requesting_user=request.user, achievement_history=achievement_history)
+        output = _get_progress(achievements_for_subject=subject, requesting_subject=request.subject, achievement_history=achievement_history)
         output = copy.deepcopy(output)
         to_delete = list()
         for i in range(len(output["achievements"])):
@@ -342,7 +343,7 @@ def increase_multi_values(request):
             del output["achievements"][i]
 
         if len(output["achievements"])>0 :
-            ret[user_id]=output
+            ret[subject_id]=output
     
     return ret
 
@@ -376,13 +377,13 @@ def auth_login(request):
     except:
         raise APIError(400, "invalid_json", "no valid json body")
 
-    user = request.user
+    subject = request.subject
     email = doc.get("email")
     password = doc.get("password")
 
-    if user:
+    if subject:
         #already logged in
-        token = user.get_or_create_token().token
+        token = subject.get_or_create_token().token
     else:
         if not email or not password:
             raise APIError(400, "login.email_and_password_required", "You need to send your email and password.")
@@ -408,7 +409,7 @@ def auth_login(request):
 
     return {
         "token" : token,
-        "user" : User.full_output(user.user_id),
+        "subject" : Subject.full_output(user.subject_id),
     }
 
 
@@ -455,7 +456,7 @@ def change_password(request):
 
     return {
         "token": token,
-        "user": User.full_output(user.user_id),
+        "subject": Subject.full_output(user.subject_id),
     }
 
 
@@ -466,7 +467,7 @@ def register_device(request):
     except:
         raise APIError(400, "invalid_json", "no valid json body")
 
-    user_id = int(request.matchdict["user_id"])
+    subject_id = int(request.matchdict["subject_id"])
 
     device_id = doc.get("device_id")
     push_id = doc.get("push_id")
@@ -475,7 +476,7 @@ def register_device(request):
 
     if not device_id \
             or not push_id \
-            or not user_id \
+            or not subject_id \
             or not device_os \
             or not app_version:
         raise APIError(400, "register_device.required_fields",
@@ -483,15 +484,15 @@ def register_device(request):
 
     if asbool(get_settings().get("enable_user_authentication", False)):
         may_register = request.has_perm(perm_global_register_device) or request.has_perm(
-            perm_own_register_device) and str(request.user.id) == str(user_id)
+            perm_own_register_device) and str(request.subject.id) == str(subject_id)
         if not may_register:
-            raise APIError(403, "forbidden", "You may not register devices for this user.")
+            raise APIError(403, "forbidden", "You may not register devices for this subject.")
 
-    if not exists_by_expr(t_users, t_users.c.id==user_id):
-        raise APIError(404, "register_device.user_not_found",
-                       "There is no user with this id.")
+    if not exists_by_expr(t_subjects, t_subjects.c.id==subject_id):
+        raise APIError(404, "register_device.subject_not_found",
+                       "There is no subject with this id.")
 
-    UserDevice.add_or_update_device(user_id = user_id, device_id = device_id, push_id = push_id, device_os = device_os, app_version = app_version)
+    SubjectDevice.add_or_update_device(subject_id = subject_id, device_id = device_id, push_id = push_id, device_os = device_os, app_version = app_version)
 
     return {
         "status" : "ok"
@@ -500,9 +501,9 @@ def register_device(request):
 @view_config(route_name='get_messages', renderer='json', request_method="GET")
 def get_messages(request):
     try:
-        user_id = int(request.matchdict["user_id"])
+        subject_id = int(request.matchdict["subject_id"])
     except:
-        user_id = None
+        subject_id = None
 
     try:
         offset = int(request.GET.get("offset",0))
@@ -513,15 +514,15 @@ def get_messages(request):
 
     if asbool(get_settings().get("enable_user_authentication", False)):
         may_read_messages = request.has_perm(perm_global_read_messages) or request.has_perm(
-            perm_own_read_messages) and str(request.user.id) == str(user_id)
+            perm_own_read_messages) and str(request.subject.id) == str(subject_id)
         if not may_read_messages:
-            raise APIError(403, "forbidden", "You may not read the messages of this user.")
+            raise APIError(403, "forbidden", "You may not read the messages of this subject.")
 
-    if not exists_by_expr(t_users, t_users.c.id == user_id):
-        raise APIError(404, "get_messages.user_not_found",
-                       "There is no user with this id.")
+    if not exists_by_expr(t_subjects, t_subjects.c.id == subject_id):
+        raise APIError(404, "get_messages.subject_not_found",
+                       "There is no subject with this id.")
 
-    q = t_user_messages.select().where(t_user_messages.c.user_id==user_id).order_by(t_user_messages.c.created_at.desc()).limit(limit).offset(offset)
+    q = t_subject_messages.select().where(t_subject_messages.c.subject_id==subject_id).order_by(t_subject_messages.c.created_at.desc()).limit(limit).offset(offset)
     rows = DBSession.execute(q).fetchall()
 
     return {
@@ -541,31 +542,31 @@ def set_messages_read(request):
     except:
         raise APIError(400, "invalid_json", "no valid json body")
 
-    user_id = int(request.matchdict["user_id"])
+    subject_id = int(request.matchdict["subject_id"])
 
     if asbool(get_settings().get("enable_user_authentication", False)):
         may_read_messages = request.has_perm(perm_global_read_messages) or request.has_perm(
-            perm_own_read_messages) and str(request.user.id) == str(user_id)
+            perm_own_read_messages) and str(request.subject.id) == str(subject_id)
         if not may_read_messages:
-            raise APIError(403, "forbidden", "You may not read the messages of this user.")
+            raise APIError(403, "forbidden", "You may not read the messages of this subject.")
 
-    if not exists_by_expr(t_users, t_users.c.id == user_id):
-        raise APIError(404, "set_messages_read.user_not_found", "There is no user with this id.")
+    if not exists_by_expr(t_subjects, t_subjects.c.id == subject_id):
+        raise APIError(404, "set_messages_read.subject_not_found", "There is no subject with this id.")
 
     message_id = doc.get("message_id")
-    q = select([t_user_messages.c.id,
-        t_user_messages.c.created_at], from_obj=t_user_messages).where(and_(t_user_messages.c.id==message_id,
-                                                                       t_user_messages.c.user_id==user_id))
+    q = select([t_subject_messages.c.id,
+        t_subject_messages.c.created_at], from_obj=t_subject_messages).where(and_(t_subject_messages.c.id==message_id,
+                                                                       t_subject_messages.c.subject_id==subject_id))
     msg = DBSession.execute(q).fetchone()
     if not msg:
         raise APIError(404, "set_messages_read.message_not_found", "There is no message with this id.")
 
     uS = update_connection()
-    uS.execute(t_user_messages.update().values({
+    uS.execute(t_subject_messages.update().values({
         "is_read" : True
     }).where(and_(
-        t_user_messages.c.user_id == user_id,
-        t_user_messages.c.created_at <= msg["created_at"]
+        t_subject_messages.c.subject_id == subject_id,
+        t_subject_messages.c.created_at <= msg["created_at"]
     )))
 
     return {

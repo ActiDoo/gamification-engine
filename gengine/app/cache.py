@@ -20,7 +20,7 @@ def init_caches():
     global cache_achievements_by_subject_for_today
     cache_achievements_by_subject_for_today = create_cache("achievements_by_subject_for_today")
 
-    global cache_achievements_users_levels
+    global cache_achievements_subjects_levels
     cache_achievements_subjects_levels = create_cache("achievements_subjects_levels")
 
     global cache_translations

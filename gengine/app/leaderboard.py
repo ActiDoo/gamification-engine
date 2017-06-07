@@ -49,28 +49,34 @@ class FriendsLeaderBoardSubjectSet:
 
         q = select([t_subjectrelations.c.to_id, ], t_subjectrelations.c.from_id == subject_id)
 
-        if whole_time_required:
-            q = q.where(and_(
-                t_subjectrelations.c.created_at <= from_date,
-                or_(
-                    t_subjectrelations.c.deleted_at == None,
-                    t_subjectrelations.c.deleted_at >= to_date
-                )
-            ))
-        else:
-            q = q.where(or_(
-                and_(
+        if from_date and to_date:
+            if whole_time_required:
+                q = q.where(and_(
                     t_subjectrelations.c.created_at <= from_date,
                     or_(
-                        t_subjectrelations.c.deleted_at >= from_date,
                         t_subjectrelations.c.deleted_at == None,
+                        t_subjectrelations.c.deleted_at >= to_date
                     )
-                ),
-                and_(
-                    t_subjectrelations.c.created_at >= from_date,
-                    t_subjectrelations.c.created_at <= to_date,
-                )
-            ))
+                ))
+            else:
+                q = q.where(or_(
+                    and_(
+                        t_subjectrelations.c.created_at <= from_date,
+                        or_(
+                            t_subjectrelations.c.deleted_at >= from_date,
+                            t_subjectrelations.c.deleted_at == None,
+                        )
+                    ),
+                    and_(
+                        t_subjectrelations.c.created_at >= from_date,
+                        t_subjectrelations.c.created_at <= to_date,
+                    )
+                ))
+        else:
+            q = q.where(
+                t_subjectrelations.c.deleted_at == None,
+            )
+
         subjects += [x["to_id"] for x in DBSession.execute(q).fetchall()]
 
         return subjects

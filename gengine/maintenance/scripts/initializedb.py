@@ -14,7 +14,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy.sql.schema import Table
 
 from gengine.app.cache import init_caches
-from gengine.app.permissions import perm_global_delete_user, perm_global_increase_value, perm_global_update_user_infos, \
+from gengine.app.permissions import perm_global_delete_subject, perm_global_increase_value, perm_global_update_subject_infos, \
     perm_global_access_admin_ui, perm_global_read_messages, perm_global_register_device
 from gengine.base.model import exists_by_expr
 
@@ -104,7 +104,7 @@ def initialize(settings,options):
     admin_password = options.get("admin_password", False)
 
     if admin_user and admin_password:
-        create_user(DBSession = DBSession, user=admin_user,password=admin_password)
+        create_user(DBSession=DBSession, user=admin_user, password=admin_password)
 
     engine.dispose()
 
@@ -122,27 +122,34 @@ def get_or_create_role(DBSession, name):
 def create_user(DBSession, user, password):
     from gengine.app.model import (
         AuthUser,
-        User,
+        Subject,
         AuthRole,
-        AuthRolePermission
+        AuthRolePermission,
+        SubjectType
     )
     with transaction.manager:
+        subjecttype = DBSession.query(SubjectType).filter_by(name="User").first()
+        if not subjecttype:
+            subjecttype_user = SubjectType(name="User")
+            DBSession.add(subjecttype_user)
+
         existing = DBSession.query(AuthUser).filter_by(email=user).first()
+        DBSession.flush()
         if not existing:
             try:
-                user1 = User(id=1, lat=10, lng=50, timezone="Europe/Berlin")
+                user1 = Subject(id=1, lat=10, lng=50, timezone="Europe/Berlin", subjecttype_id=subjecttype_user.id)
                 DBSession.add(user1)
                 DBSession.flush()
 
-                auth_user = AuthUser(user_id=user1.id, email=user, password=password, active=True)
+                auth_user = AuthUser(subject=user1, email=user, password=password, active=True)
                 DBSession.add(auth_user)
 
                 auth_role = get_or_create_role(DBSession=DBSession, name="Global Admin")
 
                 DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_user))
+                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_subject))
                 DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_user_infos))
+                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_subject_infos))
                 DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_read_messages))
                 DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_register_device))
 
@@ -160,7 +167,7 @@ def populate_demo(DBSession):
         AchievementCategory,
         Goal,
         Variable,
-        User,
+        Subject,
         Language,
         TranslationVariable,
         Translation,
@@ -173,8 +180,7 @@ def populate_demo(DBSession):
         AuthUser,
         AuthRole,
         AuthRolePermission,
-        GroupType,
-        Group
+        SubjectType,
     )
 
     def add_translation_variable(name):
@@ -188,6 +194,75 @@ def populate_demo(DBSession):
         return tr
 
     with transaction.manager:
+        subjecttype_country = SubjectType(name="Country")
+        DBSession.add(subjecttype_country)
+
+        subjecttype_region = SubjectType(name="Region")
+        subjecttype_region.part_of_types.append(subjecttype_country)
+        DBSession.add(subjecttype_region)
+
+        subjecttype_city = SubjectType(name="City")
+        subjecttype_city.part_of_types.append(subjecttype_region)
+        DBSession.add(subjecttype_city)
+
+        subjecttype_position = SubjectType(name="Position")
+        DBSession.add(subjecttype_position)
+
+        subjecttype_team = SubjectType(name="Team")
+        DBSession.add(subjecttype_team)
+
+        subjecttype_user = DBSession.query(SubjectType).filter_by(name="User").first()
+        if not subjecttype_user:
+            subjecttype_user = SubjectType(name="User")
+            DBSession.add(subjecttype_user)
+        subjecttype_user.part_of_types.append(subjecttype_city)
+        subjecttype_user.part_of_types.append(subjecttype_team)
+        subjecttype_user.part_of_types.append(subjecttype_position)
+        DBSession.add(subjecttype_user)
+
+        subject_germany = Subject(type=subjecttype_country, name="Germany")
+        DBSession.add(subject_germany)
+        subject_france = Subject(type=subjecttype_country, name="France")
+        DBSession.add(subject_france)
+        subject_india = Subject(type=subjecttype_country, name="India")
+        DBSession.add(subject_india)
+
+        subject_germany_north = Subject(type=subjecttype_region, name="Germany-North")
+        DBSession.add(subject_germany_north)
+        subject_germany_west = Subject(type=subjecttype_region, name="Germany-West")
+        DBSession.add(subject_germany_west)
+        subject_germany_east = Subject(type=subjecttype_region, name="Germany-East")
+        DBSession.add(subject_germany_east)
+        subject_germany_south = Subject(type=subjecttype_region, name="Germany-South")
+        DBSession.add(subject_germany_south)
+
+        subject_paderborn = Subject(type=subjecttype_city, name="Paderborn")
+        DBSession.add(subject_paderborn)
+        subject_bielefeld = Subject(type=subjecttype_city, name="Bielefeld")
+        DBSession.add(subject_bielefeld)
+        subject_detmold = Subject(type=subjecttype_city, name="Detmold")
+        DBSession.add(subject_detmold)
+        subject_berlin = Subject(type=subjecttype_city, name="Berlin")
+        DBSession.add(subject_berlin)
+
+        subject_sales = Subject(type=subjecttype_team, name="Sales")
+        DBSession.add(subject_sales)
+
+        subject_tech = Subject(type=subjecttype_team, name="Tech")
+        DBSession.add(subject_tech)
+
+        subject_junior_developer = Subject(type=subjecttype_position, name="Junior Developer")
+        DBSession.add(subject_junior_developer)
+
+        subject_senior_developer = Subject(type=subjecttype_position, name="Senior Developer")
+        DBSession.add(subject_senior_developer)
+
+        subject_manager = Subject(type=subjecttype_position, name="Manager")
+        DBSession.add(subject_manager)
+
+        subject_promoter = Subject(type=subjecttype_position, name="Promoter")
+        DBSession.add(subject_promoter)
+
         lang_de = Language(name="de")
         lang_en = Language(name="en")
         DBSession.add(lang_de)
@@ -285,10 +360,11 @@ def populate_demo(DBSession):
         DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_badge, value="https://www.gamification-software.com/img/easel.png", from_level=1))
         DBSession.add(AchievementReward(achievement=achievement_fittest, reward=reward_image, value="https://www.gamification-software.com/img/game-characters-622654.jpg", from_level=1))
 
+        DBSession.flush()
 
-        user1 = User(id=1,lat=10,lng=50,timezone="Europe/Berlin", name="Fritz")
-        user2 = User(id=2,lat=10,lng=50,timezone="US/Eastern", name="Ludwig")
-        user3 = User(id=3,lat=10,lng=50, name="Helene")
+        user1 = Subject(lat=10, lng=50, timezone="Europe/Berlin", name="Fritz", type=subjecttype_user)
+        user2 = Subject(lat=10, lng=50, timezone="US/Eastern", name="Ludwig", type=subjecttype_user)
+        user3 = Subject(lat=10, lng=50, name="Helene", type=subjecttype_user)
 
         user1.friends.append(user2)
         user1.friends.append(user3)
@@ -299,46 +375,33 @@ def populate_demo(DBSession):
         user3.friends.append(user1)
         user3.friends.append(user2)
 
+        user1.part_of_subjects.append(subject_bielefeld)
+        user1.part_of_subjects.append(subject_sales)
+        user1.part_of_subjects.append(subject_manager)
 
-        grouptype1 = GroupType(name="Country")
-        grouptype2 = GroupType(name="City")
-        grouptype1.subtypes.append(grouptype2)
+        user2.part_of_subjects.append(subject_bielefeld)
+        user2.part_of_subjects.append(subject_sales)
+        user2.part_of_subjects.append(subject_promoter)
 
-        DBSession.add(user1)
-        DBSession.add(user2)
+        user3.part_of_subjects.append(subject_paderborn)
+        user3.part_of_subjects.append(subject_sales)
+        user3.part_of_subjects.append(subject_promoter)
 
-        group0 = Group(name="Germany", type=grouptype1)
-        group1 = Group(name="Paderborn", type=grouptype2)
-        group2 = Group(name="Bielefeld", type=grouptype2)
-
-        group1.part_of_groups.append(group0)
-        group2.part_of_groups.append(group0)
-
-        DBSession.add(group0)
-        DBSession.add(group1)
-        DBSession.add(group2)
-
-        user1.groups.append(group1)
-        user2.groups.append(group2)
-        user3.groups.append(group1)
-        user3.groups.append(group2)
-
-        DBSession.add(user1)
         DBSession.add(user2)
         DBSession.add(user3)
         DBSession.flush()
 
         try:
-            auth_user = AuthUser(user_id=user1.id,email="admin@gamification-software.com",password="test123",active=True)
+            auth_user = AuthUser(subject=user1, email="admin@gamification-software.com", password="test123", active=True)
             DBSession.add(auth_user)
 
             auth_role = AuthRole(name="Global Admin")
             DBSession.add(auth_role)
 
             DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
-            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_user))
+            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_subject))
             DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
-            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_user_infos))
+            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_subject_infos))
 
             auth_user.roles.append(auth_role)
             DBSession.add(auth_user)

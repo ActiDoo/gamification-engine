@@ -71,7 +71,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     class ModelViewAchievement(ModelView):
         column_list = ('name','evaluation','valid_start','valid_end','relevance')
         column_searchable_list = ('name',)
-        form_excluded_columns =('rewards','users','goals','properties','updated_at')
+        form_excluded_columns =('rewards','subjects','goals','properties','updated_at')
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
@@ -122,7 +122,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         can_delete = False
 
         # Override displayed fields
-        column_list = ('user','variable','datetime','key','value')
+        column_list = ('subject','variable','datetime','key','value')
 
         fast_mass_delete = True
 
@@ -136,7 +136,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         can_delete = False
 
         # Override displayed fields
-        column_list = ('goal','user','achieved','value','updated_at')
+        column_list = ('goal','subject','achieved','value','updated_at')
 
         column_filters = (IntEqualFilter(Subject.id, 'SubjectID'),
                           Goal.id)
@@ -172,6 +172,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
 
     class ModelViewSubject(ModelView):
         column_list = ('id','type','name','lat','lng','timezone','country','region','city','created_at')
+        form_columns = ('name', 'type', 'timezone', 'language', 'lat', 'lng', 'additional_public_data')
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
@@ -194,8 +195,8 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             return self.render(template="admin_maintenance.html")
 
     class ModelViewAuthUser(ModelView):
-        column_list = ('user_id', 'email', 'active', 'created_at')
-        form_columns = ('user_id','email', 'password', 'active', 'roles')
+        column_list = ('id', 'subject_id', 'email', 'active', 'created_at')
+        form_columns = ('subject_id', 'email', 'password', 'active', 'roles')
         column_labels = {'password': 'Password'}
 
         def __init__(self, session, **kwargs):
@@ -216,14 +217,14 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             super(ModelViewAuthRole, self).__init__(AuthRole, session, **kwargs)
 
 
-    class ModelViewUserMessage(ModelView):
-        column_list = ('user','text','created_at','is_read')
-        column_details_list = ('user', 'text', 'created_at', 'is_read', 'params')
+    class ModelViewSubjectMessage(ModelView):
+        column_list = ('subject','text','created_at','is_read')
+        column_details_list = ('subject', 'text', 'created_at', 'is_read', 'params')
         can_edit = False
         can_view_details = True
 
         def __init__(self, session, **kwargs):
-            super(ModelViewUserMessage, self).__init__(SubjectMessage, session, **kwargs)
+            super(ModelViewSubjectMessage, self).__init__(SubjectMessage, session, **kwargs)
 
     from gengine.app.registries import get_task_registry
     enginetasks = get_task_registry().registrations
@@ -232,8 +233,8 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         can_view_details = True
 
         column_list = ('entry_name', 'task_name', 'config', 'cron')
-        column_details_list = ('id','entry_name', 'task_name', 'config', 'cron', 'is_removed', 'is_auto_created', 'is_user_modified')
-        form_excluded_columns = ('is_removed', 'is_auto_created', 'is_user_modified', 'executions')
+        column_details_list = ('id','entry_name', 'task_name', 'config', 'cron', 'is_removed', 'is_auto_created', 'is_manually_modified')
+        form_excluded_columns = ('is_removed', 'is_auto_created', 'is_manually_modified', 'executions')
         form_choices = {'task_name': [
             (x, x) for x in enginetasks.keys()
         ]}
@@ -285,7 +286,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
 
     class ModelViewSubjectType(ModelView):
         column_list = ('id', 'name')
-        #form_excluded_columns = ('groups', 'subtypes')
+        form_columns = ('name', 'part_of_types')
         can_view_details = True
 
         def __init__(self, session, **kwargs):
@@ -360,9 +361,9 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
 
     admin.add_view(ModelViewValue(DBSession, category="Debug"))
     admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
-    admin.add_view(ModelViewUser(DBSession, category="Subjects"))
+    admin.add_view(ModelViewSubject(DBSession, category="Subjects"))
     admin.add_view(ModelView(AchievementSubject, DBSession, category="Debug"))
-    admin.add_view(ModelViewUserMessage(DBSession, category="Debug"))
+    admin.add_view(ModelViewSubjectMessage(DBSession, category="Debug"))
 
     from gengine.app.registries import get_admin_extension_registry
     get_admin_extension_registry().run_extensions(adminapp=adminapp, admin=admin)

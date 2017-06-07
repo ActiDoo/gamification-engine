@@ -58,23 +58,23 @@ t_subjecttypes = Table("subjecttypes", Base.metadata,
 )
 
 t_subjecttypes_subjecttypes = Table("subjecttypes_subjecttypes", Base.metadata,
-    Column('id', ty.BigInteger, primary_key=True),
-    Column('subjecttype_id', ty.BigInteger, ForeignKey("subjecttypes.id", ondelete="RESTRICT"), index=True, nullable=False),
-    Column('part_of_id', ty.BigInteger, ForeignKey("subjecttypes.id", ondelete="RESTRICT"), index=True, nullable=False),
+    Column('id', ty.Integer, primary_key=True),
+    Column('subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="RESTRICT"), index=True, nullable=False),
+    Column('part_of_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="RESTRICT"), index=True, nullable=False),
     UniqueConstraint("subjecttype_id", "part_of_id")
 )
 t_subjecttypes_subjecttypes_ddl = DDL("""
-        CREATE OR REPLACE FUNCTION check_subjecttypes_subjecttypes_cycle() RETURNS trigger AS $$
+    CREATE OR REPLACE FUNCTION check_subjecttypes_subjecttypes_cycle() RETURNS trigger AS $$
     DECLARE
         cycles INTEGER;
     BEGIN
         LOCK TABLE subjecttypes_subjecttypes IN ACCESS EXCLUSIVE MODE;
-        WITH RECURSIVE search_graph(part_of_id, subjecttype_id, id, depth, path, cycle) AS (
-                SELECT t1.part_of_id, t1.subjecttype_id, t1.id, 1, ARRAY[t1.id], false FROM subjecttypes t1
+        WITH RECURSIVE search_graph(part_of_id, subjecttype_id, depth, path, cycle) AS (
+                SELECT tt.part_of_id, t1.id, 1, ARRAY[t1.id], false FROM subjecttypes t1
                 LEFT JOIN subjecttypes_subjecttypes AS tt ON tt.subjecttype_id=t1.id
-                WHERE tt.part_of_id IS NULL AND t1.deleted_at IS NULL
+                WHERE t1.deleted_at IS NULL
             UNION ALL
-                SELECT g.part_of_id, g.subjecttype_id, g.id, sg.depth + 1, path || g.id, g.id = ANY(path)
+                SELECT g.part_of_id, g.subjecttype_id, sg.depth + 1, path || g.subjecttype_id, g.subjecttype_id = ANY(path)
                 FROM subjecttypes_subjecttypes g, search_graph sg
                 WHERE g.part_of_id = sg.subjecttype_id AND NOT cycle
         )
@@ -117,17 +117,17 @@ t_subjects_subjects = Table("subjects_subjects", Base.metadata,
     UniqueConstraint("subject_id", "part_of_id", "joined_at")
 )
 t_subjects_subjects_ddl = DDL("""
-        CREATE OR REPLACE FUNCTION check_subjects_subjects_cycle() RETURNS trigger AS $$
+    CREATE OR REPLACE FUNCTION check_subjects_subjects_cycle() RETURNS trigger AS $$
     DECLARE
         cycles INTEGER;
     BEGIN
         LOCK TABLE subjects_subjects IN ACCESS EXCLUSIVE MODE;
-        WITH RECURSIVE search_graph(part_of_id, subject_id, id, depth, path, cycle) AS (
-                SELECT t1.part_of_id, t1.subject_id, t1.id, 1, ARRAY[t1.id], false FROM subject t1
-                LEFT JOIN subject_subject AS tt ON tt.subject_id=t1.id
-                WHERE tt.part_of_id IS NULL AND t1.deleted_at IS NULL
+        WITH RECURSIVE search_graph(part_of_id, subject_id, depth, path, cycle) AS (
+                SELECT tt.part_of_id, t1.id, 1, ARRAY[t1.id], false FROM subjects t1
+                LEFT JOIN subjects_subjects AS tt ON tt.subject_id=t1.id
+                WHERE t1.deleted_at IS NULL
             UNION ALL
-                SELECT g.part_of_id, g.subject_id, g.id, sg.depth + 1, path || g.id, g.id = ANY(path)
+                SELECT g.part_of_id, g.subject_id, sg.depth + 1, path || g.subject_id, g.subject_id = ANY(path)
                 FROM subjects_subjects g, search_graph sg
                 WHERE g.part_of_id = sg.subject_id AND NOT cycle
         )
@@ -220,12 +220,30 @@ t_achievements = Table('achievements', Base.metadata,
     Column('evaluation', ty.Enum("immediately", "daily", "weekly", "monthly", "yearly", "end", name="evaluation_types"), default="immediately", nullable=False),
     Column('evaluation_timezone', ty.String(), default=None, nullable=True),
     Column('evaluation_shift', ty.Integer(), nullable=True, default=None),
-    Column('relevant_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="RESTRICT"), nullable=True, index=True),
     Column('relevance', ty.Enum("global", "context_subject", "friends", "own", name="relevance_types"), default="own"),
-    Column('lb_subject_part_whole_time', ty.Boolean, nullable=False, default=False, server_default='0'), # do only members count, that have been part of the context subject for the whole time?
+
+    Column('context_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="RESTRICT"), nullable=True, index=True),
+
+    # This one is the actual player, that will "win" the achievement
+    Column('player_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="RESTRICT"), nullable=True, index=True),
+
+    # do only members count, that have been part of the context subject for the whole time?
+    Column('lb_subject_part_whole_time', ty.Boolean, nullable=False, default=False, server_default='0'),
     Column('view_permission', ty.Enum("everyone", "own", name="achievement_view_permission"), default="everyone"),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now),
     Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
+)
+
+t_achievement_compared_subjecttypes = Table('achievement_compared_subjects', Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column('subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
+)
+
+t_achievement_domain_subjects = Table('achievement_domain_subjects', Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True),
 )
 
 t_goals = Table("goals", Base.metadata,
@@ -1037,8 +1055,9 @@ class AchievementDate:
     def __json__(self, *args, **kw):
         return self.from_date.isoformat()
 
-    def db_format(self):
-        return self.from_date
+    @classmethod
+    def db_format(cls, instance):
+        return instance.from_date if instance else None
 
     @classmethod
     def compute(cls, evaluation_timezone, evaluation_type, evaluation_shift, context_datetime):
@@ -1095,7 +1114,7 @@ class AchievementDate:
 
             return AchievementDate(
                 from_date = from_date.astimezone(tzobj),
-                to_date = from_date.astimezone(tzobj)
+                to_date = to_date.astimezone(tzobj)
             )
 
 
@@ -1160,6 +1179,7 @@ class Achievement(ABase):
 
         return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id']))>0]
 
+    @classmethod
     def get_relevant_subjects_by_achievement_and_subject(cls, achievement, subject, context_subject_id, from_date, to_date):
         """
         return all relevant other subjects for the leaderboard. This method is used for collecting all subjects for the output. the reverse method is used to clear the caches properly
@@ -1170,6 +1190,8 @@ class Achievement(ABase):
 
         from gengine.app.leaderboard import FriendsLeaderBoardSubjectSet, GlobalLeaderBoardSubjectSet, \
             ContextSubjectLeaderBoardSubjectSet
+
+        subjects=[]
 
         if achievement["relevance"] == "friends":
             subjects = FriendsLeaderBoardSubjectSet.forward(
@@ -1203,7 +1225,7 @@ class Achievement(ABase):
                         t_achievements_subjects.c.achievement_date,
                         t_achievements_subjects.c.updated_at],
                        and_(t_achievements_subjects.c.subject_id == subject_id,
-                            t_achievements_subjects.c.achievement_date == achievement_date.db_format(),
+                            t_achievements_subjects.c.achievement_date == AchievementDate.db_format(achievement_date),
                             t_achievements_subjects.c.achievement_id == achievement_id)).order_by(t_achievements_subjects.c.level.desc())
             return [x for x in DBSession.execute(q).fetchall()]
         return cache_achievements_subjects_levels.get_or_create("%s_%s_%s" % (subject_id, achievement_id, str(achievement_date)), generate)
@@ -1274,8 +1296,8 @@ class Achievement(ABase):
                 achievement=achievement,
                 subject=subject,
                 context_subject_id=context_subject_id,
-                from_date=achievement_date.from_date,
-                to_date=achievement_date.to_date
+                from_date=achievement_date.from_date if achievement_date else None,
+                to_date=achievement_date.to_date if achievement_date else None
             )
 
             subject_has_level = Achievement.get_level_int(
@@ -1288,9 +1310,7 @@ class Achievement(ABase):
 
             goal_evals = {}
             all_goals_achieved = True
-            goals = Goal.get_goals(
-                achievement_id=achievement["id"]
-            )
+            goals = Goal.get_goals(achievement["id"])
             for goal in goals:
                 goal_eval = Goal.get_goal_eval_cache(
                     goal_id=goal["id"],
@@ -1365,7 +1385,7 @@ class Achievement(ABase):
                 update_connection().execute(t_achievements_subjects.insert().values({
                     "subject_id": subject_id,
                     "achievement_id": achievement["id"],
-                    "achievement_date": achievement_date.db_format(),
+                    "achievement_date": AchievementDate.db_format(achievement_date),
                     "level": subject_wants_level
                 }))
 
@@ -1538,8 +1558,8 @@ class Goal(ABase):
     """A Goal defines a rule on variables that needs to be reached to get achievements"""
 
     def __unicode__(self, *args, **kwargs):
-        if self.name_translation_id != None:
-            name = Translation.trs(self.name_translation.id, {"level": 1, "goal": '0'})[get_settings().get("fallback_language", "en")]
+        if self.name != None:
+            name = evaluate_string(self.name, {"level": 1, "goal": '0'})[get_settings().get("fallback_language", "en")]
             return str(name) + " (ID: %s)" % (self.id,)
         else:
             return self.name + " (ID: %s)" % (self.id,)
@@ -1587,7 +1607,7 @@ class Goal(ABase):
             j = t_values.join(t_variables)
 
             # We need to access the subject's timezone later
-            j = j.join(t_subjects)
+            j = j.join(t_subjects, t_subjects.c.id == t_values.c.subject_id)
 
             datetime_col = None
             if group_by_dateformat:
@@ -1794,7 +1814,7 @@ class Goal(ABase):
         """set cache entry after evaluation"""
         cache_query = t_goal_evaluation.select().where(and_(t_goal_evaluation.c.goal_id == goal["id"],
                                                             t_goal_evaluation.c.subject_id == subject_id,
-                                                            t_goal_evaluation.c.achievement_date == achievement_date.db_format()))
+                                                            t_goal_evaluation.c.achievement_date == AchievementDate.db_format(achievement_date)))
         cache = DBSession.execute(cache_query).fetchone()
 
         if not cache:
@@ -1803,25 +1823,25 @@ class Goal(ABase):
                                                 "goal_id": goal["id"],
                                                 "value": value,
                                                 "achieved": achieved,
-                                                "achievement_date": achievement_date.db_format()})
+                                                "achievement_date": AchievementDate.db_format(achievement_date)})
             update_connection().execute(q)
         elif cache["value"] != value or cache["achieved"] != achieved:
             #update
             q = t_goal_evaluation.update()\
                                        .where(and_(t_goal_evaluation.c.goal_id == goal["id"],
                                                    t_goal_evaluation.c.subject_id == subject_id,
-                                                   t_goal_evaluation.c.achievement_date == achievement_date.db_format()))\
+                                                   t_goal_evaluation.c.achievement_date == AchievementDate.db_format(achievement_date)))\
                                        .values({"value": value,
                                                 "achieved": achieved,
-                                                "achievement_date": achievement_date.db_format()})
+                                                "achievement_date": AchievementDate.db_format(achievement_date)})
             update_connection().execute(q)
 
         data = {
             "id": goal["id"],
             "value": value,
             "achieved": achieved,
-            "name_translation_id": goal["name_translation_id"],
             "goal": goal["goal"],
+            "name": goal["name"],
             "achievement_id": goal["achievement_id"],
             "priority": goal["priority"]
         }
@@ -1851,7 +1871,7 @@ class Goal(ABase):
             s.execute(t_goal_evaluation.delete().where(
                 and_(t_goal_evaluation.c.subject_id == subject_id,
                      t_goal_evaluation.c.goal_id == goal_id,
-                     t_goal_evaluation.c.achievement_date == achievement_date.db_format()))
+                     t_goal_evaluation.c.achievement_date == AchievementDate.db_format(achievement_date)))
             )
 
     @classmethod
@@ -1862,7 +1882,7 @@ class Goal(ABase):
                     t_goal_evaluation.c.value])\
                 .where(and_(t_goal_evaluation.c.subject_id.in_(subject_ids),
                             t_goal_evaluation.c.goal_id == goal["id"],
-                            t_goal_evaluation.c.achievement_date == achievement_date.db_format(),
+                            t_goal_evaluation.c.achievement_date == AchievementDate.db_format(achievement_date),
                             ))\
                 .order_by(t_goal_evaluation.c.value.desc(),
                           t_goal_evaluation.c.subject_id.desc())
@@ -1926,7 +1946,7 @@ class Goal(ABase):
         }
         return {
             "goal_id": goal["id"],
-            "goal_name": Translation.trs(goal["name_translation_id"], {"level": level, "goal": goal_goal}),
+            "goal_name": evaluate_string(goal["name"], {"level": level, "goal": goal_goal}),
             "goal_goal": goal_goal,
             "priority": goal["priority"],
             "properties": properties,
@@ -2045,7 +2065,7 @@ class GoalTriggerStep(ABase):
             'subject_id': subject_id,
             'trigger_step_id': trigger_step["id"],
             'execution_level': goal_level,
-            'achievement_date': achievement_date.db_format()
+            'achievement_date': AchievementDate.db_format(achievement_date)
         }))
         if not suppress_actions:
             if trigger_step["action_type"] == "subject_message":
@@ -2130,7 +2150,8 @@ def relationship(*args,**kw):
     return sa_relationship(*args,**kw)
 
 mapper(AuthUser, t_auth_users, properties={
-    'roles': relationship(AuthRole, secondary=t_auth_users_roles, backref="users")
+    'roles': relationship(AuthRole, secondary=t_auth_users_roles, backref="users"),
+    'subject': relationship(Subject, backref="auth_users")
 })
 
 mapper(AuthToken, t_auth_tokens, properties={
@@ -2172,8 +2193,9 @@ mapper(Variable, t_variables, properties={
    'values': relationship(Value),
 })
 
-mapper(Value, t_values,properties={
-   'subject': relationship(Subject),
+mapper(Value, t_values, properties={
+   'subject': relationship(Subject, primaryjoin=t_values.c.subject_id == t_subjects.c.id),
+   'agent': relationship(Subject, primaryjoin=t_values.c.agent_id == t_subjects.c.id),
    'variable': relationship(Variable)
 })
 
@@ -2208,7 +2230,7 @@ mapper(AchievementReward, t_achievements_rewards, properties={
 mapper(AchievementSubject, t_achievements_subjects)
 
 mapper(Goal, t_goals, properties={
-    'name_translation' : relationship(TranslationVariable),
+
 })
 mapper(GoalProperty, t_goalproperties)
 mapper(GoalGoalProperty, t_goals_goalproperties, properties={

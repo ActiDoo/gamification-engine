@@ -15,7 +15,7 @@ The __parent__ of the root resource should be None and its __name__ should be th
 # RootResourceFactory
 from pyramid.security import Allow, DENY_ALL
 
-from ..model import t_subjects, t_groups
+from ..model import t_subjects
 
 
 def root_factory(request):
@@ -49,20 +49,19 @@ class BaseResource(object):
 class ApiResource(BaseResource):
     def __init__(self, *args, **kw):
         super(ApiResource, self).__init__(*args, **kw)
-        self['users'] = UserCollectionResource(request=self.request, t_name='users', t_parent=self)
-        self['groups'] = GroupCollectionResource(request=self.request, t_name='groups', t_parent=self)
+        self['subjects'] = SubjectCollectionResource(request=self.request, t_name='subjects', t_parent=self)
 
 
-class UserCollectionResource(BaseResource):
+class SubjectCollectionResource(BaseResource):
     def __init__(self, *args, **kw):
-        super(UserCollectionResource, self).__init__(*args, **kw)
+        super(SubjectCollectionResource, self).__init__(*args, **kw)
 
     def __getitem__(self, user_id):
         try:
             from gengine.metadata import DBSession
             row = DBSession.execute(t_subjects.select().where(t_subjects.c.id == int(user_id))).fetchone()
             if row:
-                return UserResource(request=self.request, t_name=user_id, t_parent=self, user_id=user_id, user_row=row)
+                return SubjectResource(request=self.request, t_name=user_id, t_parent=self, subject_id=user_id, subject_row=row)
         except ValueError:
             pass
         except:
@@ -70,40 +69,40 @@ class UserCollectionResource(BaseResource):
         raise KeyError()
 
 
-class UserResource(BaseResource):
-    def __init__(self, user_id, user_row, *args, **kw):
-        super(UserResource, self).__init__(*args, **kw)
-        self.user_id = user_id
-        self.user_row = user_row
+class SubjectResource(BaseResource):
+    def __init__(self, subject_id, subject_row, *args, **kw):
+        super(SubjectResource, self).__init__(*args, **kw)
+        self.user_id = subject_id
+        self.user_row = subject_row
         self.__acl__ = [
-            (Allow, 'user:%(user_id)s' % {'user_id': user_row["id"]}, tuple()),
+            (Allow, 'subject:%(subject_id)s' % {'subject_id': subject_row["id"]}, tuple()),
             DENY_ALL
         ]
 
 
-class GroupCollectionResource(BaseResource):
-    def __init__(self, *args, **kw):
-        super(GroupCollectionResource, self).__init__(*args, **kw)
+#class GroupCollectionResource(BaseResource):
+#    def __init__(self, *args, **kw):
+#        super(GroupCollectionResource, self).__init__(*args, **kw)
+#
+#    def __getitem__(self, group_id):
+#        try:
+#            from gengine.metadata import DBSession
+#            row = DBSession.execute(t_groups.select().where(t_groups.c.id == int(group_id))).fetchone()
+#            if row:
+#                return GroupResource(request=self.request, t_name=group_id, t_parent=self, group_id=group_id, group_row=row)
+#        except ValueError:
+#            pass
+#        except:
+#            log.exception("Error creating GroupResource")
+#        raise KeyError()
 
-    def __getitem__(self, group_id):
-        try:
-            from gengine.metadata import DBSession
-            row = DBSession.execute(t_groups.select().where(t_groups.c.id == int(group_id))).fetchone()
-            if row:
-                return GroupResource(request=self.request, t_name=group_id, t_parent=self, group_id=group_id, group_row=row)
-        except ValueError:
-            pass
-        except:
-            log.exception("Error creating GroupResource")
-        raise KeyError()
 
-
-class GroupResource(BaseResource):
-    def __init__(self, group_id, group_row, *args, **kw):
-        super(GroupResource, self).__init__(*args, **kw)
-        self.group_id = group_id
-        self.group_row = group_row
-        self.__acl__ = [
-            (Allow, 'group:%(group_id)s' % {'group_id': group_row["id"]}, tuple()),
-            DENY_ALL
-        ]
+#class GroupResource(BaseResource):
+#    def __init__(self, group_id, group_row, *args, **kw):
+#        super(GroupResource, self).__init__(*args, **kw)
+#        self.group_id = group_id
+#        self.group_row = group_row
+#        self.__acl__ = [
+#            (Allow, 'group:%(group_id)s' % {'group_id': group_row["id"]}, tuple()),
+#            DENY_ALL
+#        ]

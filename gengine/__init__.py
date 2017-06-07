@@ -75,9 +75,9 @@ def main(global_config, **settings):
         token = request.headers.get('X-Auth-Token')
         if token is not None:
             from gengine.app.model import DBSession, AuthUser, AuthToken
-            tokenObj = DBSession.query(AuthToken).filter(AuthToken.token==token).first()
+            tokenObj = DBSession.query(AuthToken).filter(AuthToken.token.like(token)).first()
             user = None
-            if tokenObj and tokenObj.valid_until<datetime.datetime.utcnow():
+            if tokenObj and tokenObj.valid_until < datetime.datetime.utcnow():
                 tokenObj.extend()
             if tokenObj:
                 user = tokenObj.user
@@ -97,10 +97,14 @@ def main(global_config, **settings):
         q = select([t_auth_roles_permissions.c.name],from_obj=j).where(t_auth_tokens.c.token==request.headers.get("X-Auth-Token"))
         return [r["name"] for r in DBSession.execute(q).fetchall()]
 
+    def get_subject(request):
+        return request.user.subject if request.user else None
+
     def has_perm(request, name):
         return name in request.permissions
 
     config.add_request_method(get_user, 'user', reify=True)
+    config.add_request_method(get_subject, 'subject', reify=True)
     config.add_request_method(get_permissions, 'permissions', reify=True)
     config.add_request_method(has_perm, 'has_perm')
 
@@ -116,7 +120,7 @@ def main(global_config, **settings):
     json_renderer.add_adapter(datetime.datetime, datetime_adapter)
     config.add_renderer('json', json_renderer)
 
-    config.scan()
+    config.scan(ignore=["gengine.app.tests"])
 
     config.add_route('admin_app', '/admin/*subpath')
     from gengine.app.admin import init_admin as init_tenantadmin
