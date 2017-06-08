@@ -2,6 +2,7 @@ import pytz
 from pytz.exceptions import UnknownTimeZoneError
 from sqlalchemy.inspection import inspect
 from sqlalchemy.orm.exc import DetachedInstanceError
+from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.functions import func
 from sqlalchemy.util.compat import with_metaclass
@@ -115,3 +116,4 @@ def update_connection():
     session = meta.DBSession() if callable(meta.DBSession) else meta.DBSession
     mark_changed(session)
     return session
+

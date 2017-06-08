@@ -2215,7 +2215,8 @@ mapper(Achievement, t_achievements, properties={
    'rewards': relationship(AchievementReward, backref='achievement'),
    'goals': relationship(Goal, backref='achievement'),
    'achievementcategory': relationship(AchievementCategory, backref='achievements'),
-   'relevant_subjecttype': relationship(SubjectType, backref="achievements"),
+   'player_subjecttype': relationship(SubjectType, primaryjoin=t_achievements.c.player_subjecttype_id == t_subjecttypes.c.id),
+   'context_subjecttype': relationship(SubjectType, primaryjoin=t_achievements.c.context_subjecttype_id == t_subjecttypes.c.id),
 })
 mapper(AchievementProperty, t_achievementproperties)
 mapper(AchievementAchievementProperty, t_achievements_achievementproperties, properties={
