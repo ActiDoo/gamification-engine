@@ -41,7 +41,7 @@ from sqlalchemy.orm import (
 from sqlalchemy.sql import bindparam
 
 from gengine.base.settings import get_settings
-from gengine.base.util import dt_now, dt_ago
+from gengine.base.util import dt_now, dt_ago, dt_in, normalize_key
 from gengine.metadata import Base, DBSession
 
 from gengine.app.formular import evaluate_condition, evaluate_value_expression, evaluate_string
@@ -336,13 +336,13 @@ t_evaluations = Table("evaluations", Base.metadata,
     # For which period?
     Column('achievement_date', TIMESTAMP(timezone=True), nullable=True, index=True), # To identify the goals for monthly, weekly, ... achievements;
 
-    # In which context?
-    Column("context_id", ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True, index=True),
-
     # The current value
-    Column("value", ty.Float),
+    Column("value", ty.Float, index=True, nullable=False),
 
-    # Which level is already achieved
+    # Is this achieved?
+    Column("achieved", ty.Boolean, nullable=False, server_default='0', default=False, index=True),
+
+    # Which level is this
     Column('level', ty.Integer, default=0, nullable=False, index=True),
 )
 
@@ -367,9 +367,6 @@ t_variables = Table('variables', Base.metadata,
 
     # The name; is used by the API to increase the values
     Column('name', ty.String(255), nullable = False, index=True, unique=True),
-
-    # To improve the storage efficiency, we can sum up the values for a specific time (be sure that you consider all achievements you might want to construct)
-    Column('group', ty.Enum("year","month","week","day","none", name="variable_group_types"), nullable = False, default="none"),
 
     # Who may increase this? (API permissions)
     Column('increase_permission',ty.Enum("own", "admin", name="variable_increase_permission"), default="admin"),
@@ -397,7 +394,7 @@ t_values = Table('values', Base.metadata,
     Column('value', ty.Float, nullable = False),
 
     # In which context did this happen (e.g. a product_id; s.th. unique to the application)
-    Column('key', ty.String(100), nullable=True, index=True, default=None),
+    Column('key', ty.String(100), nullable=False, index=True, default=''),
 )
 
 # Achievements can trigger things (like messages)
@@ -449,16 +446,13 @@ t_achievement_trigger_step_executions = Table('achievement_trigger_executions', 
     # For which period?
     Column('achievement_date', TIMESTAMP(timezone=True), nullable=True, index=True),
 
-    # In which context?
-    Column("context_id", ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True, index=True),
-
     # For which level?
     Column('execution_level', ty.Integer, nullable = False, default=0),
 
     # When did the execution happen (autofilled)
     Column('execution_date', TIMESTAMP(timezone=True), nullable=False, default=datetime.datetime.utcnow, index=True),
 
-    Index("ix_achievement_trigger_executions_combined", "trigger_step_id", "subject_id", "execution_level", "achievement_date", "context_id")
+    Index("ix_achievement_trigger_executions_combined", "trigger_step_id", "subject_id", "execution_level", "achievement_date")
 )
 
 # We can add properties to achievements, that are used to described them
@@ -689,7 +683,7 @@ class AuthUser(ABase):
 
     def get_or_create_token(self):
         tokenObj = DBSession.query(AuthToken).filter(and_(
-            AuthToken.valid_until >= datetime.datetime.utcnow(),
+            AuthToken.valid_until >= dt_now(),
             AuthToken.subject_id == self.subject_id,
             AuthToken.deleted_at == None
         )).first()
@@ -705,6 +699,18 @@ class AuthUser(ABase):
 
         return tokenObj
 
+    @classmethod
+    def may_increase(cls, variable_row, request, auth_user_id):
+        if not asbool(get_settings().get("enable_user_authentication", False)):
+            #Authentication deactivated
+            return True
+        if request.has_perm(perm_global_increase_value):
+            # I'm the global admin
+            return True
+        if variable_row["increase_permission"] == "own" and request.user and str(request.user.id) == str(auth_user_id):
+            #The variable may be updated for myself
+            return True
+        return False
 
 class AuthToken(ABase):
 
@@ -714,7 +720,7 @@ class AuthToken(ABase):
         return str(crypt.mksalt()+crypt.mksalt())
 
     def extend(self):
-        self.valid_until = datetime.datetime.utcnow() + datetime.timedelta(days=30)
+        self.valid_until = dt_in(days=30)
         DBSession.add(self)
 
     def __unicode__(self, *args, **kwargs):
@@ -783,7 +789,6 @@ class Subject(ABase):
         """
         ABase.__init__(self, *args, **kw)
 
-    #TODO:Cache
     @classmethod
     def get_subject(cls,subject_id):
         return DBSession.execute(t_subjects.select().where(t_subjects.c.id == subject_id)).fetchone()
@@ -796,92 +801,44 @@ class Subject(ABase):
         }
 
     @classmethod
-    def get_cache_expiration_time_for_today(cls,subject):
-        """return the seconds until the day of the subject ends (timezone of the subject).
+    def set_relations(cls, subject_id, relation_ids):
 
-        This is needed as achievements may be limited to a specific time (e.g. only during holidays)."""
-
-        tzobj = pytz.timezone(subject["timezone"])
-        now = datetime.datetime.now(tzobj)
-        today = now.replace(hour=0,minute=0,second=0,microsecond=0)
-        tomorrow = today+timedelta(days=1)
-        return int((tomorrow-today).total_seconds())
-
-    @classmethod
-    def set_infos(cls,subject_id,lat,lng,timezone,language,friends, part_of_ids, additional_public_data):
-        """set the subject's metadata like friends,location and timezone"""
-
-
-        new_friends_set = set(friends)
-        existing_subjects_set = {x["id"] for x in DBSession.execute(select([t_subjects.c.id]).where(t_subjects.c.id.in_([subject_id, ] + friends))).fetchall()}
+        new_friends_set = set(relation_ids)
+        existing_subjects_set = {x["id"] for x in DBSession.execute(select([t_subjects.c.id]).where(t_subjects.c.id.in_([subject_id, ] + relation_ids))).fetchall()}
         existing_friends = {x["to_id"] for x in DBSession.execute(select([t_subjectrelations.c.to_id]).where(t_subjectrelations.c.from_id==subject_id)).fetchall()}
-        friends_to_create = (new_friends_set-existing_subjects_set-{subject_id,})
-        friends_to_append = (new_friends_set-existing_friends)
-        friends_to_delete = (existing_friends-new_friends_set)
-
-        new_groups_set = set(part_of_ids)
-        existing_parents_set = {x["id"] for x in DBSession.execute(select([t_subjects.c.id]).where(t_subjects.c.id.in_(part_of_ids))).fetchall()}
-        existing_parents_of_subject = {x["part_of_id"] for x in DBSession.execute(select([t_subjects_subjects.c.part_of_id]).where(t_subjects_subjects.c.subject_id == subject_id)).fetchall()}
-        subjects_to_create = (new_groups_set-existing_parents_set)
-        parents_to_append = (new_groups_set-existing_parents_of_subject)
-        parents_to_delete = (existing_parents_of_subject - new_groups_set)
-
-        #add or select subject
-        if subject_id in existing_subjects_set:
-            subject = DBSession.query(Subject).filter_by(id=subject_id).first()
-        else:
-            subject = Subject()
-
-        subject.id = subject_id
-        subject.lat = lat
-        subject.lng = lng
-        subject.timezone = timezone
-        subject.additional_public_data = additional_public_data
-
-        language = DBSession.execute(t_languages.select().where(t_languages.c.name == language)).fetchone()
-        if language:
-            subject.language_id = language["id"]
-        else:
-            subject.language_id = None
-
-        DBSession.add(subject)
-        DBSession.flush()
-
-        #FRIENDS
-
-        #insert missing friends in subject table
-        if len(friends_to_create)>0:
-            update_connection().execute(t_subjects.insert(), [{"id":f} for f in friends_to_create])
+        not_existing_friends = (new_friends_set-existing_subjects_set-{subject_id,})
+        friends_to_append = ((new_friends_set - existing_friends) - not_existing_friends)
+        friends_to_delete = ((existing_friends - new_friends_set) - not_existing_friends)
 
         #delete old friends
         if len(friends_to_delete)>0:
             update_connection().execute(t_subjectrelations.delete().where(and_(t_subjectrelations.c.from_id==subject_id,
                                                                                t_subjectrelations.c.to_id.in_(friends_to_delete))))
-
         #insert missing friends
         if len(friends_to_append)>0:
             update_connection().execute(t_subjectrelations.insert(),[{"from_id":subject_id,"to_id":f} for f in friends_to_append])
 
-        #GROUPS
+    @classmethod
+    def set_parent_subjects(cls, subject_id, parent_subject_ids):
+        pass
 
-        #insert missing groups in group table
-        if len(subjects_to_create)>0:
-            update_connection().execute(t_subjects.insert(), [{"id":f} for f in subjects_to_create])
+    @classmethod
+    def set_infos(cls, subject_id, lat, lng, timezone, language_id, additional_public_data):
+        """set the subject's metadata like friends,location and timezone"""
 
-        #delete old groups of subject
-        if len(parents_to_delete)>0:
-            update_connection().execute(t_subjects.delete().where(and_(t_subjects_subjects.c.subject_id==subject_id,
-                                                                       t_subjects_subjects.c.part_of_id.in_(parents_to_delete))))
-
-        #insert missing groups of subject
-        if len(parents_to_append)>0:
-            update_connection().execute(t_subjects_subjects.insert(),[{"subject_id":subject_id,"part_of_id":f} for f in parents_to_append])
+        # add or select subject
+        subject = DBSession.query(Subject).filter_by(id=subject_id).first()
+        subject.lat = lat
+        subject.lng = lng
+        subject.timezone = timezone
+        subject.additional_public_data = additional_public_data
+        subject.language_id = language_id
+        DBSession.add(subject)
+        DBSession.flush()
 
     @classmethod
     def delete_subject(cls,subject_id):
         """delete a subject including all dependencies."""
-        #TODO: Better set to is_deleted ?
-        update_connection().execute(t_achievements_subjects.delete().where(t_achievements_subjects.c.subject_id == subject_id))
         update_connection().execute(t_evaluations.delete().where(t_evaluations.c.subject_id == subject_id))
         update_connection().execute(t_subjectrelations.delete().where(t_subjectrelations.c.to_id==subject_id))
         update_connection().execute(t_subjectrelations.delete().where(t_subjectrelations.c.from_id==subject_id))
@@ -937,29 +894,42 @@ class Subject(ABase):
         return ret
 
     @classmethod
-    def get_ancestor_subjects(cls, subject_id):
+    def get_ancestor_subjects(cls, subject_id, of_type_id, from_date, to_date, whole_time_required):
+        if whole_time_required:
+            datestr = "(%(ss)s.joined_at<=:from_date AND (%(ss)s.left_at IS NULL OR %(ss)s.left_at >= :to_date))"
+        else:
+            datestr = "((%(ss)s.joined_at<=:from_date AND (%(ss)s.left_at IS NULL OR %(ss)s.left_at >= :from_date))" \
+                      "OR (%(ss)s.joined_at >= :from_date AND %(ss)s.joined_at <= :to_date)" \
+                      "OR (%(ss)s.left_at >= :from_date AND %(ss)s.left_at <= :to_date))"
+
         sq = text("""
             WITH RECURSIVE nodes_cte(subject_id, name, part_of_id, depth, path) AS (
                 SELECT g1.id, g1.name, NULL::bigint as part_of_id, 1::INT as depth, g1.id::TEXT as path
                 FROM subjects as g1
                 OUTER JOIN subjects_subjects ss ON ss.subject_id=g1.id
-                WHERE ss.subject_id = :subject_id
+                WHERE ss.subject_id = :subject_id AND """+(datestr % {'ss': 'ss'})+"""
             UNION ALL
                 SELECT c.subject_id, g2.name, c.part_of_id, p.depth + 1 AS depth,
                     (p.path || '->' || g2.id ::TEXT)
                 FROM nodes_cte AS p, subjects_subjects AS c
                 JOIN subjects AS g2 ON g2.id=c.subject_id
-                WHERE p.part_of_id = c.subject_id
+                WHERE p.part_of_id = c.subject_id AND """+(datestr % {'ss': 'c'})+"""
             ) SELECT * FROM nodes_cte
-        """).bindparams(subject_id=subject_id).columns(subject_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
+        """).bindparams(subject_id=subject_id, from_date=from_date, to_date=to_date).columns(subject_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
 
-        cols = [
+        j = t_subjects.join(sq, sq.c.subject_id == t_subjects.c.id)
+
+        q = select([
             sq.c.path.label("subject_path"),
             sq.c.subject_id.label("subject_id"),
-            sq.c.name.label("subject_name")
-        ]
+            sq.c.name.label("subject_name"),
+            t_subjects.c.subjecttype_id.label("subjecttype_id")
+        ], from_obj=j)
 
-        rows = DBSession.execute(select(cols, from_obj=sq)).fetchall()
+        if of_type_id is not None:
+            q = q.where(t_subjects.c.subjecttype_id == of_type_id)
+
+        rows = DBSession.execute(q).fetchall()
         groups = {r["part_of_id"]: r for r in rows if r["part_of_id"]}
         return groups
 
@@ -992,7 +962,8 @@ class Subject(ABase):
         q = select([
             sq.c.path.label("subject_path"),
             sq.c.subject_id.label("subject_id"),
-            sq.c.name.label("subject_name")
+            sq.c.name.label("subject_name"),
+            t_subjects.c.subjecttype_id.label("subjecttype_id")
         ], from_obj=j)
 
         if of_type_id is not None:
@@ -1018,7 +989,7 @@ class Variable(ABase):
     """A Variable is anything that should be meassured in your application and be used in :class:`.Goal`.
 
        To save database rows, variables may be grouped by time:
-       group needs to be set to "year","month","week","day","timeslot" or "none" (default)
+       group needs to be set to "year","month","day","timeslot" or "none" (default)
     """
 
     def __unicode__(self, *args, **kwargs):
@@ -1030,97 +1001,47 @@ class Variable(ABase):
         return DBSession.execute(t_variables.select(t_variables.c.name==name)).fetchone()
 
     @classmethod
-    def get_datetime_for_tz_and_group(cls,tz,group,at_datetime=None):
-        """
-            get the datetime of the current row, needed for grouping
-            the optional parameter at_datetime can provide a timezone-aware datetime which overrides the default "now"
-        """
-        tzobj = pytz.timezone(tz)
-
-
-        if not at_datetime:
-            now = datetime.datetime.now(tzobj)
-        else:
-            now = at_datetime
-
-        t = None
-        if group=="year":
-            t = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-        elif group=="month":
-            t = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        elif group=="week":
-            t = now-datetime.timedelta(days=now.weekday())
-            t = t.replace(hour=0, minute=0, second=0, microsecond=0)
-        elif group=="day":
-            t = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        elif group=="none":
-            t = now
-        else:
-            #return datetime.datetime.max.replace
-            return datetime.datetime(year=2000,month=1,day=1,hour=0,minute=0,second=0,microsecond=0).replace(tzinfo=pytz.utc)
-
-
-        return t.astimezone(tzobj)
-
-    @classmethod
     @cache_general.cache_on_arguments()
     def map_variables_to_rules(cls):
-        """return a map from variable_ids to {"goal":goal_obj,"achievement":achievement_obj} dictionaries.
-
-        Used to know which goals need to be reevaluated after a value for the variable changes.
-        """
-        q = select([t_goals,t_variables.c.id.label("variable_id")])\
-            .where(or_(t_goals.c.condition.ilike(func.concat('%"',t_variables.c.name,'"%')),
-                       t_goals.c.condition.ilike(func.concat("%'",t_variables.c.name,"'%"))))
+        """return a map from variable_ids to [achievement1,..] lists.
+           Used to know which achievements need to be reevaluated after a value for the variable changes."""
+        q = select([t_achievements.c.id.label("achievement_id"), t_variables.c.id.label("variable_id")])\
+            .where(or_(t_achievements.c.condition.ilike(func.concat('%"',t_variables.c.name,'"%')),
+                       t_achievements.c.condition.ilike(func.concat("%'",t_variables.c.name,"'%"))))
+        rows = DBSession.execute(q).fetchall()
+        achievements = { a["achievement_id"] : Achievement.get_achievement(a["achievement_id"]) for a in { r["achievement_id"] for r in rows } }
         m={}
-        for row in DBSession.execute(q).fetchall():
+        for row in rows:
             if not row["variable_id"] in m:
                 m[row["variable_id"]] = []
 
-            m[row["variable_id"]].append({"goal":row,"achievement":Achievement.get_achievement(row["achievement_id"])})
+            m[row["variable_id"]].append(achievements[row["achievement_id"]])
         return m
-
-    @classmethod
-    def may_increase(cls, variable_row, request, auth_user_id):
-        if not asbool(get_settings().get("enable_user_authentication", False)):
-            #Authentication deactivated
-            return True
-        if request.has_perm(perm_global_increase_value):
-            # I'm the global admin
-            return True
-        if variable_row["increase_permission"] == "own" and request.user and str(request.user.id) == str(auth_user_id):
-            #The variable may be updated for myself
-            return True
-        return False
 
 
 class Value(ABase):
     """A Value describes the relation of the subject to a variable.
-
     (e.g. it counts the occurences of the "events" which the variable represents) """
 
-
     @classmethod
-    def increase_value(cls, variable_name, subject, value, key, at_datetime=None):
+    def increase_value(cls, variable_name, subject, value, key, at_datetime):
         """increase the value of the variable for the subject.
 
-        In addition to the variable_name there may be an application-specific key which can be used in your :class:`.Goal` definitions
+        In addition to the variable_name there may be an application-specific key which can be used in your :class:`.Achievement` definitions
         The parameter at_datetime is optional and can specify a timezone-aware datetime to define when the event happened
         """
 
         subject_id = subject["id"]
-        tz = subject["timezone"]
-
         variable = Variable.get_variable_by_name(variable_name)
-        dt = Variable.get_datetime_for_tz_and_group(tz, variable["group"], at_datetime=at_datetime)
-
-        key = '' if key is None else str(key)
-
+        key = normalize_key(key)
         part_of_ids = list(Subject.get_groups(subject_id).keys())
+
         sid_set = set([subject_id, ] + part_of_ids)
 
+        # Populate the value for all relevant subjects:
+
         for sid in sid_set:
-            condition = and_(t_values.c.datetime == dt,
+            condition = and_(t_values.c.datetime == at_datetime,
                              t_values.c.variable_id == variable["id"],
                              t_values.c.subject_id == sid,
                              t_values.c.agent_id == subject_id,
@@ -1130,45 +1051,49 @@ class Value(ABase):
             if current_value is not None:
                 update_connection().execute(t_values.update(condition, values={"value":current_value+value}))
             else:
-                update_connection().execute(t_values.insert({"datetime": dt,
+                update_connection().execute(t_values.insert({"datetime": at_datetime,
                                                "variable_id": variable["id"],
                                                "subject_id": sid,
                                                "agent_id": subject_id,
                                                "key": key,
                                                "value": value}))
 
+        # Clear the relevant achievement caches!
 
-        goalsandachievements = cls.map_variables_to_rules().get(variable["id"], [])
+        achievements = cls.map_variables_to_rules().get(variable["id"], [])
 
-        goal_ids_with_achievement_date = dict([(entry["goal"]["id"],
-                                                AchievementDate.compute(
-                                                    evaluation_timezone=entry["achievement"]["evaluation_timezone"],
-                                                    evaluation_type=entry["achievement"]["evaluation"],
-                                                    context_datetime=dt,
-                                                    evaluation_shift=entry["achievement"]["evaluation_shift"]))
-                                               for entry in goalsandachievements])
+        achievement_id_to_achievement_date = {
+            entry["id"]: AchievementDate.compute(
+                evaluation_timezone=entry["evaluation_timezone"],
+                evaluation_type=entry["evaluation"],
+                context_datetime=at_datetime,
+                evaluation_shift=entry["evaluation_shift"]
+            ) for entry in achievements
+        }
 
-        # There are two types of caches:
-        # - The Goal evaluation cache which contains the actual value for a subject
-        # - The Achievement evaluation cache which contains the comparison of the subjects in a context
-        # We need to invalidate the caches for:
-        # - (goal evaluation cache)         the agent and all ancestor subjects
-        # - (achievement evaluation cache)  the agent in context of every ancestor groups
-        # - (achievement evaluation cache)  each ancestor group in context of their ancestor groups
-        # The recursion of the achievement evaluation contexts is done in Achievement.invalidate_evaluate_cache
+        # get the subjects...
+        subjects = {}
+        for sid in sid_set:
+            subjects[sid] = Subject.get_ancestor_subjects(
+                subject_id=sid,
+                of_type_id=None,
+                from_date=at_datetime,
+                to_date=at_datetime,
+                whole_time_required=False
+            )
 
         for sid in sid_set:
-            # The goal cache is just the value without the context
-            Goal.clear_subject_goal_caches(subject_id=sid, goal_ids_with_achievement_date=goal_ids_with_achievement_date.items())
-            for entry in goalsandachievements:
-                achievement_date = goal_ids_with_achievement_date[entry["goal"]["id"]]
-                Achievement.invalidate_evaluate_cache(
-                    subject_id=sid,
-                    achievement=entry["achievement"],
-                    achievement_date=achievement_date,
-                )
-
-        #return new_value
+            for achievement in achievements:
+                achievement_date = achievement_id_to_achievement_date[achievement["id"]]
+                compared_subjects = [s for s in subjects[sid] if s["subjecttype_id"] in achievement["compared_subjecttypes"]]
+                for compared_subject in compared_subjects:
+                    q = t_evaluations.delete().where(and_(
+                        t_evaluations.c.subject_id == compared_subject["subject_id"],
+                        t_evaluations.c.achievement_id == achievement["id"],
+                        t_evaluations.c.achievement_date == achievement_date,
+                        t_evaluations.c.achieved == False,
+                    ))
+                    update_connection().execute(q)
 
 
 class AchievementCategory(ABase):
@@ -1203,61 +1128,61 @@ class AchievementDate:
 
     @classmethod
     def compute(cls, evaluation_timezone, evaluation_type, evaluation_shift, context_datetime):
-            """
-                This computes the datetime to identify the time of the achievement.
-                Only relevant for repeating achievements (monthly, yearly, weekly, daily)
-                Returns None for all other achievement types
-            """
+        """
+            This computes the datetime to identify the time of the achievement.
+            Only relevant for repeating achievements (monthly, yearly, weekly, daily)
+            Returns None for all other achievement types
+        """
 
-            if evaluation_type and not evaluation_timezone:
-                evaluation_timezone = "UTC"
+        if evaluation_type and not evaluation_timezone:
+            evaluation_timezone = "UTC"
 
-            tzobj = pytz.timezone(evaluation_timezone)
-            if not context_datetime:
-                dt = datetime.datetime.now(tzobj)
-            else:
-                dt = context_datetime.astimezone(tzobj)
+        tzobj = pytz.timezone(evaluation_timezone)
+        if not context_datetime:
+            dt = datetime.datetime.now(tzobj)
+        else:
+            dt = context_datetime.astimezone(tzobj)
 
-            from_date = dt
-            to_date = dt
-            if evaluation_type == "yearly":
-                if evaluation_shift:
-                    from_date = tzobj.localize((from_date.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
-                from_date = from_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-                if evaluation_shift:
-                    from_date = tzobj.localize((from_date.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
-                to_date = from_date + relativedelta(years=1)
-            elif evaluation_type == "monthly":
-                if evaluation_shift:
-                    from_date = tzobj.localize((from_date.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
-                from_date = from_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                if evaluation_shift:
-                    from_date = tzobj.localize((from_date.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
-                to_date = from_date + relativedelta(months=1)
-            elif evaluation_type == "weekly":
-                if evaluation_shift:
-                    from_date = tzobj.localize((from_date.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
-                from_date = from_date - datetime.timedelta(days=from_date.weekday())
-                from_date = from_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                if evaluation_shift:
-                    from_date = tzobj.localize((from_date.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
-                to_date = from_date + relativedelta(weeks=1)
-            elif evaluation_type == "daily":
-                if evaluation_shift:
-                    from_date = tzobj.localize((from_date.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
-                from_date = from_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                if evaluation_shift:
-                    from_date = tzobj.localize((from_date.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
-                to_date = from_date + relativedelta(days=1)
-            elif evaluation_type == "immediately":
-                return None
-            elif evaluation_type == "end":
-                return None
+        from_date = dt
+        to_date = dt
+        if evaluation_type == "yearly":
+            if evaluation_shift:
+                from_date = tzobj.localize((from_date.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
+            from_date = from_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                from_date = tzobj.localize((from_date.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
+            to_date = from_date + relativedelta(years=1)
+        elif evaluation_type == "monthly":
+            if evaluation_shift:
+                from_date = tzobj.localize((from_date.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
+            from_date = from_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                from_date = tzobj.localize((from_date.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
+            to_date = from_date + relativedelta(months=1)
+        elif evaluation_type == "weekly":
+            if evaluation_shift:
+                from_date = tzobj.localize((from_date.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
+            from_date = from_date - datetime.timedelta(days=from_date.weekday())
+            from_date = from_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                from_date = tzobj.localize((from_date.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
+            to_date = from_date + relativedelta(weeks=1)
+        elif evaluation_type == "daily":
+            if evaluation_shift:
+                from_date = tzobj.localize((from_date.replace(tzinfo=None) - datetime.timedelta(seconds=evaluation_shift)))
+            from_date = from_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            if evaluation_shift:
+                from_date = tzobj.localize((from_date.replace(tzinfo=None) + datetime.timedelta(seconds=evaluation_shift)))
+            to_date = from_date + relativedelta(days=1)
+        elif evaluation_type == "immediately":
+            return None
+        elif evaluation_type == "end":
+            return None
 
-            return AchievementDate(
-                from_date = from_date.astimezone(tzobj),
-                to_date = to_date.astimezone(tzobj)
-            )
+        return AchievementDate(
+            from_date = from_date.astimezone(tzobj),
+            to_date = to_date.astimezone(tzobj)
+        )
 
 
 
@@ -1273,7 +1198,11 @@ class Achievement(ABase):
         achievement = DBSession.execute(t_achievements.select().where(t_achievements.c.id == achievement_id)).fetchone()
         compared_subjecttypes = DBSession.execute(t_achievement_compared_subjecttypes.select().where(t_achievement_compared_subjecttypes.c.achievement_id == achievement_id)).fetchall()
         domain_subjects = DBSession.execute(t_achievement_compared_subjecttypes.select().where(t_achievement_compared_subjecttypes.c.achievement_id == achievement_id)).fetchall()
-        return
+
+        achievement['compared_subjecttypes'] = compared_subjecttypes
+        achievement['domain_subjects'] = domain_subjects
+
+        return achievement
 
     @classmethod
     def get_achievements_by_subject_for_today(cls,subject):
