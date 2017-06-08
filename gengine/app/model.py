@@ -19,8 +19,8 @@ from sqlalchemy.sql.schema import UniqueConstraint, Index
 from sqlalchemy.sql.sqltypes import Integer, String
 
 from gengine.app.permissions import perm_global_increase_value
-from gengine.base.model import ABase, exists_by_expr, datetime_trunc, calc_distance, coords, update_connection
-from gengine.app.cache import cache_general, cache_goal_evaluation, cache_achievement_eval, cache_achievements_subjects_levels, \
+from gengine.base.model import ABase, exists_by_expr, calc_distance, coords, update_connection
+from gengine.app.cache import cache_general, cache_goal_evaluation, cache_achievements_subjects_levels, \
     cache_achievements_by_subject_for_today, cache_translations
 from sqlalchemy import (
     Table,
@@ -49,20 +49,23 @@ from gengine.app.formular import evaluate_condition, evaluate_value_expression, 
 log = logging.getLogger(__name__)
 
 
-
+# Subjects are the actors and the organization of actors
+# Which type of subjects do we have? (e.g. User, Team, City, Country,...)
 t_subjecttypes = Table("subjecttypes", Base.metadata,
     Column('id', ty.Integer, primary_key=True),
     Column("name", ty.String(100), unique=True, nullable=False),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
+# Defined the allowed hierarchy of subjects (users in teams and citys; cities in countries)
 t_subjecttypes_subjecttypes = Table("subjecttypes_subjecttypes", Base.metadata,
     Column('id', ty.Integer, primary_key=True),
-    Column('subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="RESTRICT"), index=True, nullable=False),
-    Column('part_of_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="RESTRICT"), index=True, nullable=False),
+    Column('subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="CASCADE"), index=True, nullable=False),
+    Column('part_of_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="CASCADE"), index=True, nullable=False),
     UniqueConstraint("subjecttype_id", "part_of_id")
 )
+
+# Check for Cycle!
 t_subjecttypes_subjecttypes_ddl = DDL("""
     CREATE OR REPLACE FUNCTION check_subjecttypes_subjecttypes_cycle() RETURNS trigger AS $$
     DECLARE
@@ -72,7 +75,6 @@ t_subjecttypes_subjecttypes_ddl = DDL("""
         WITH RECURSIVE search_graph(part_of_id, subjecttype_id, depth, path, cycle) AS (
                 SELECT tt.part_of_id, t1.id, 1, ARRAY[t1.id], false FROM subjecttypes t1
                 LEFT JOIN subjecttypes_subjecttypes AS tt ON tt.subjecttype_id=t1.id
-                WHERE t1.deleted_at IS NULL
             UNION ALL
                 SELECT g.part_of_id, g.subjecttype_id, sg.depth + 1, path || g.subjecttype_id, g.subjecttype_id = ANY(path)
                 FROM subjecttypes_subjecttypes g, search_graph sg
@@ -92,6 +94,8 @@ t_subjecttypes_subjecttypes_ddl = DDL("""
 """)
 event.listen(t_subjecttypes_subjecttypes, 'after_create', t_subjecttypes_subjecttypes_ddl.execute_if(dialect='postgresql'))
 
+# Subjects are the actors and the organization of actors.
+# These are the instances (e.g. users, cities, teams)
 t_subjects = Table("subjects", Base.metadata,
    Column('id', ty.BigInteger, primary_key = True),
    Column('subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
@@ -104,18 +108,20 @@ t_subjects = Table("subjects", Base.metadata,
    Column("timezone", ty.String(), nullable=False, default="UTC"),
    Column("additional_public_data", JSON(), nullable=True, default=None),
 
-   Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
+# The relations of subjects (directed acyclic graph)
 t_subjects_subjects = Table("subjects_subjects", Base.metadata,
     Column('id', ty.BigInteger, primary_key=True),
-    Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="RESTRICT"), index=True, nullable=False),
-    Column('part_of_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="RESTRICT"), index=True, nullable=False),
+    Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), index=True, nullable=False),
+    Column('part_of_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), index=True, nullable=False),
     Column('joined_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
     Column('left_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     UniqueConstraint("subject_id", "part_of_id", "joined_at")
 )
+
+# Check for Cycle!
 t_subjects_subjects_ddl = DDL("""
     CREATE OR REPLACE FUNCTION check_subjects_subjects_cycle() RETURNS trigger AS $$
     DECLARE
@@ -125,11 +131,11 @@ t_subjects_subjects_ddl = DDL("""
         WITH RECURSIVE search_graph(part_of_id, subject_id, depth, path, cycle) AS (
                 SELECT tt.part_of_id, t1.id, 1, ARRAY[t1.id], false FROM subjects t1
                 LEFT JOIN subjects_subjects AS tt ON tt.subject_id=t1.id
-                WHERE t1.deleted_at IS NULL
+                WHERE tt.left_at IS NULL
             UNION ALL
                 SELECT g.part_of_id, g.subject_id, sg.depth + 1, path || g.subject_id, g.subject_id = ANY(path)
                 FROM subjects_subjects g, search_graph sg
-                WHERE g.part_of_id = sg.subject_id AND NOT cycle
+                WHERE g.part_of_id = sg.subject_id AND g.left_at IS NULL AND NOT cycle
         )
         SELECT INTO cycles COUNT(*) FROM search_graph WHERE cycle=true;
         RAISE NOTICE 'cycles: %%', cycles;
@@ -146,6 +152,8 @@ t_subjects_subjects_ddl = DDL("""
 event.listen(t_subjects_subjects, 'after_create', t_subjects_subjects_ddl.execute_if(dialect='postgresql'))
 #TODO: Add constraints that checks if ancestor is actually allowed by the ancestor hierarchy. (on update/insert of subject OR subjecttype)
 
+# Authentication Stuff (user, role, permission system); Token based authentication
+
 t_auth_users = Table("auth_users", Base.metadata,
     Column('id', ty.BigInteger, primary_key = True),
     Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="RESTRICT"), index=True, nullable=False),
@@ -154,7 +162,6 @@ t_auth_users = Table("auth_users", Base.metadata,
     Column("password_salt", ty.Unicode, nullable=False),
     Column("force_password_change", ty.Boolean, nullable=False, server_default='0'),
     Column("active", ty.Boolean, nullable=False, index=True, server_default='1'),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
@@ -166,268 +173,437 @@ t_auth_tokens = Table("auth_tokens", Base.metadata,
     Column("auth_user_id", ty.BigInteger, ForeignKey("auth_users.id", ondelete="CASCADE"), nullable=False),
     Column("token", ty.String, nullable=False),
     Column('valid_until', TIMESTAMP(timezone=True), nullable=False, default=get_default_token_valid_time),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
 t_auth_roles = Table("auth_roles", Base.metadata,
     Column("id", ty.Integer, primary_key=True),
     Column("name", ty.String(100), unique=True),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
 t_auth_users_roles = Table("auth_users_roles", Base.metadata,
-    Column("auth_user_id", ty.BigInteger, ForeignKey("auth_users.id", ondelete="RESTRICT"), primary_key=True, nullable=False),
-    Column("auth_role_id", ty.Integer, ForeignKey("auth_roles.id", ondelete="RESTRICT"), primary_key=True, nullable=False),
+    Column("id", ty.BigInteger, primary_key=True),
+    Column("auth_user_id", ty.BigInteger, ForeignKey("auth_users.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("auth_role_id", ty.Integer, ForeignKey("auth_roles.id", ondelete="CASCADE"), nullable=False, index=True),
 )
 
 t_auth_roles_permissions = Table("auth_roles_permissions", Base.metadata,
     Column("id", ty.Integer, primary_key=True),
-    Column("auth_role_id", ty.Integer, ForeignKey("auth_roles.id", use_alter=True, ondelete="RESTRICT"), nullable=False, index=True),
-    Column("name", ty.String(255), nullable=False),
+    Column("auth_role_id", ty.Integer, ForeignKey("auth_roles.id", use_alter=True, ondelete="CASCADE"), nullable=False, index=True),
+    Column("name", ty.String(255), nullable=False), # taken from gengine.app.permissions
     UniqueConstraint("auth_role_id", "name")
 )
 
+# Directed relations (like friendships)
 t_subjectrelations = Table("subjectrelations", Base.metadata,
     Column("id", ty.BigInteger, primary_key=True),
     Column('from_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True),
     Column('to_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
     UniqueConstraint("from_id", "to_id")
 )
 
+# Achievements can be categorized (for better organization in the client)
 t_achievementcategories = Table('achievementcategories', Base.metadata,
     Column('id', ty.Integer, primary_key=True),
-    Column('name', ty.String(255), nullable=False),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
+
+    # The name is used to filter the achievements in the client and api requests
+    Column('name', ty.String(255), nullable=False, unique=True),
+
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
+# Achievements! (The core of this application)
 t_achievements = Table('achievements', Base.metadata,
     Column('id', ty.Integer, primary_key=True),
-    Column('name', ty.String(255), nullable=False), #internal use
-    Column("achievementcategory_id", ty.Integer, ForeignKey("achievementcategories.id", ondelete="RESTRICT"), index=True, nullable=True),
+
+    # Internal Use, external should be added by using a property
+    Column('name', ty.String(255), nullable=False),
+
+    # For ordering in the UI
+    Column('priority', ty.Integer, index=True, default=0),
+
+    # We assign the achievement to a category
+    Column("achievementcategory_id", ty.Integer, ForeignKey("achievementcategories.id", ondelete="SET NULL"), index=True, nullable=True),
+
+    # An achievement can have multiple levels. What is the maximum level? (For leaderboards this is typically always 1)
     Column('maxlevel', ty.Integer, nullable=False, default=1),
+
+    # May the user see this achievement and the progress before it is reached?
     Column('hidden', ty.Boolean, nullable=False, default=False),
+
+    # The achievement can be valid for only a specific time
     Column('valid_start', ty.Date, nullable=True),
     Column('valid_end', ty.Date, nullable=True),
+
+    # The achievement can be constrained to geo-position (radius)
     Column("lat", ty.Float(Precision=64), nullable=True),
     Column("lng", ty.Float(Precision=64), nullable=True),
     Column("max_distance", ty.Integer, nullable=True),
-    Column('priority', ty.Integer, index=True, default=0),
-    Column('evaluation', ty.Enum("immediately", "daily", "weekly", "monthly", "yearly", "end", name="evaluation_types"), default="immediately", nullable=False),
-    Column('evaluation_timezone', ty.String(), default=None, nullable=True),
-    Column('evaluation_shift', ty.Integer(), nullable=True, default=None),
-    Column('relevance', ty.Enum("global", "context_subject", "friends", "own", name="relevance_types"), default="own"),
 
-    Column('context_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="RESTRICT"), nullable=True, index=True),
+    # Some achievements occur periodically. This fields defines when and how often they are evaluated.
+    # "immediately" means, it is evaluated each time a value changes
+    # "end" means, it is evaluated after "valid_end" is reached
+    Column('evaluation', ty.Enum("immediately", "daily", "weekly", "monthly", "yearly", "end", name="evaluation_types"), default="immediately", nullable=False),
+
+    # For time-related achievements, the timezone should be fixed im multiple subjects are involved (leaderboard), as otherwise the comparison is not in sync
+    # For single-user achievements (no leaderboard), we can use the timezone of each subject
+    Column('evaluation_timezone', ty.String(), default=None, nullable=True),
+
+    # Weeks don't start on the same day everywhere and in every use-cases. Same for years, days and months.
+    # We can shift them by a fixed amount of seconds!
+    Column('evaluation_shift', ty.Integer(), nullable=True, default=None),
+
+    # If this is just a normal achievement, we don't want to compare the value to other subjects
+    # For leaderaboard, we need to define who is compared to whom:
+    #   - global: the subject is compared to all other subjects of the same subjecttype
+    #   - context_subject: the subject is compared inside the defined context_subjecttype.
+    #     As the player can be part of multiple subjects of this type, the achievement can be evaluated and achieved for each of these subjects!
+    #   - relations: The player is compared to all his relations (they are directed)
+    #   - none: no leaderboard, just single achievement
+    Column('comparison_type', ty.Enum("global", "context_subject", "relations", "none", name="comparison_types"), default="none"),
 
     # This one is the actual player, that will "win" the achievement
-    Column('player_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="RESTRICT"), nullable=True, index=True),
+    Column('player_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
 
-    # do only members count, that have been part of the context subject for the whole time?
+    # If this is a leaderboard: In which group of subjects do we compare the current subject?
+    # It may also make sense to compare the groups inbetween:
+    #  - User is the Player
+    #  - Country is the Context
+    #  - We may also see how the team performs in comparison to other teams in the country (though the team cannot "achieve" anything)
+    # These "compared subject types" are defined in the table achievement_compared_subjects
+    Column('context_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="RESTRICT"), nullable=True, index=True),
+
+    # Do only members count, that have been part of the context subject for the whole time?
+    # For achievements with a lower bound (geq) this will mostly be true, as a later joined user gets no advantage
+    # For upper bound achievements ("do at most x times event e  in this month") a later joined user would have an advantage and this should be set to true
     Column('lb_subject_part_whole_time', ty.Boolean, nullable=False, default=False, server_default='0'),
+
+    # Who may see this Achievement?
     Column('view_permission', ty.Enum("everyone", "own", name="achievement_view_permission"), default="everyone"),
+
+    # filter condition for the event values that are aggregated for the achievement value
+    Column('condition', ty.String(255), nullable=True),
+
+    # How old may the values be, that are considered in this achievement?
+    Column('timespan', ty.Integer, nullable=True),
+
+    # We can group the values by a key or date (eg. achieve sth. on a sunday)
+    Column('group_by_key', ty.Boolean(), default=False),
+    Column('group_by_dateformat', ty.String(255), nullable=True),
+
+    # The value that has to be achieved to be reached to achieve this / is NULL for pure leaderboards
+    Column('goal', ty.String(255), nullable=True),
+
+    # Is the goal value a lower or upper bound?
+    Column('operator', ty.Enum("geq","leq", name="goal_operators"), nullable=True),
+
+    # When we group by key or dateformat: Should we select the max or min value of the groups?
+    Column('maxmin', ty.Enum("max","min", name="goal_maxmin"), nullable=True, default="max"),
+
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
 )
 
+# Between the achievement player and the context, there can be other levels of comparison (e.g. compare the team instead of the user)
+# These cannot achieve the achievement, but can only be looked at!
 t_achievement_compared_subjecttypes = Table('achievement_compared_subjects', Base.metadata,
     Column('id', ty.Integer, primary_key=True),
     Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True),
     Column('subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
+    UniqueConstraint("achievement_id", "subjecttype_id")
 )
 
+# The achievements can be restricted to be valid inside a specific subject set (e.g. only in Germany)
+# This restriction applies to the players, compared subjects and the context subjects
 t_achievement_domain_subjects = Table('achievement_domain_subjects', Base.metadata,
     Column('id', ty.Integer, primary_key=True),
     Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True),
     Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True),
+    UniqueConstraint("achievement_id", "subject_id")
 )
 
-t_goals = Table("goals", Base.metadata,
+# We store the evaluated values in a table to generate the leaderboard and return the achievement's progress efficiently
+t_evaluations = Table("evaluations", Base.metadata,
     Column('id', ty.Integer, primary_key=True),
-    Column('name', ty.String(255), nullable=False, default=""), #internal use
-    Column('condition', ty.String(255), nullable=True),
-    Column('timespan', ty.Integer, nullable=True),
-    Column('group_by_key', ty.Boolean(), default=False),
-    Column('group_by_dateformat', ty.String(255), nullable=True),
-    Column('goal', ty.String(255), nullable=True),
-    Column('operator', ty.Enum("geq","leq", name="goal_operators"), nullable=True),
-    Column('maxmin', ty.Enum("max","min", name="goal_maxmin"), nullable=True, default="max"),
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False),
-    Column('priority', ty.Integer, index=True, default=0),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
-)
 
-t_goal_evaluation = Table("goal_evaluation", Base.metadata,
-    Column('id', ty.Integer, primary_key=True),
-    Column("goal_id", ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True),
-    Column('achievement_date', ty.DateTime, nullable=True),  # To identify the goals for monthly, weekly, ... achievements;
-    Column("subject_id", ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True, index=True),
-    Column("achieved", ty.Boolean),
+    # For whom?
+    Column("subject_id", ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    # Which achievement?
+    Column("achievement_id", ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    # For which period?
+    Column('achievement_date', TIMESTAMP(timezone=True), nullable=True, index=True), # To identify the goals for monthly, weekly, ... achievements;
+
+    # In which context?
+    Column("context_id", ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True, index=True),
+
+    # The current value
     Column("value", ty.Float),
+
+    # Which level is already achieved
+    Column('level', ty.Integer, default=0, nullable=False, index=True),
 )
 
-Index("idx_goal_evaluation_date_not_null_unique",
-      t_goal_evaluation.c.subject_id,
-      t_goal_evaluation.c.goal_id,
-      t_goal_evaluation.c.achievement_date,
-      unique=True,
-      postgresql_where=t_goal_evaluation.c.achievement_date != None
-  )
-
-Index("idx_goal_evaluation_cache_date_null_unique",
-      t_goal_evaluation.c.subject_id,
-      t_goal_evaluation.c.goal_id,
-      unique=True,
-      postgresql_where=t_goal_evaluation.c.achievement_date == None
+Index("idx_evaluations_date_not_null_unique",
+    t_evaluations.c.subject_id,
+    t_evaluations.c.achievement_id,
+    t_evaluations.c.achievement_date,
+    unique=True,
+    postgresql_where=t_evaluations.c.achievement_date != None
 )
 
+Index("idx_evaluations_date_null_unique",
+    t_evaluations.c.subject_id,
+    t_evaluations.c.achievement_id,
+    unique=True,
+    postgresql_where=t_evaluations.c.achievement_date == None
+)
 
+# The event types that can happen. The types of values we use to construct achievements.
 t_variables = Table('variables', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
-    Column('name', ty.String(255), nullable = False, index=True),
+
+    # The name; is used by the API to increase the values
+    Column('name', ty.String(255), nullable = False, index=True, unique=True),
+
+    # To improve the storage efficiency, we can sum up the values for a specific time (be sure that you consider all achievements you might want to construct)
     Column('group', ty.Enum("year","month","week","day","none", name="variable_group_types"), nullable = False, default="none"),
+
+    # Who may increase this? (API permissions)
     Column('increase_permission',ty.Enum("own", "admin", name="variable_increase_permission"), default="admin"),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
+
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
+# These are the actual values
 t_values = Table('values', Base.metadata,
     Column('id', ty.Integer, primary_key=True),
-    Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="RESTRICT"), index=True, nullable=False),
+
+    # For whom we count the value
+    Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), index=True, nullable=False),
+
+    # Who invoked the increasement?
     Column('agent_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="SET NULL"), index=True, nullable=False),
-    Column('datetime', TIMESTAMP(timezone=True), primary_key=True, default=dt_now),
-    Column('variable_id', ty.Integer, ForeignKey("variables.id", ondelete="RESTRICT"), index=True, nullable=False),
-    Column('value', ty.Integer, nullable = False),
-    Column('key', ty.String(100), primary_key=True, default=""),
+
+    # When did it happen
+    Column('datetime', TIMESTAMP(timezone=True), nullable=False, index=True, default=dt_now),
+
+    # Which type of event happened?
+    Column('variable_id', ty.Integer, ForeignKey("variables.id", ondelete="CASCADE"), index=True, nullable=False),
+
+    # The value
+    Column('value', ty.Float, nullable = False),
+
+    # In which context did this happen (e.g. a product_id; s.th. unique to the application)
+    Column('key', ty.String(100), nullable=True, index=True, default=None),
 )
 
+# Achievements can trigger things (like messages)
+t_achievement_triggers = Table('achievement_triggers', Base.metadata,
+   Column('id', ty.Integer, primary_key = True),
+
+   # internal use only
+   Column("name", ty.String(100), nullable=False),
+
+   Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True),
+
+   # Should this also be executed when the achievement is completed (e.g. a message like "10 events to go" should not be send if you do 20 events at once
+   Column('execute_when_complete', ty.Boolean, nullable=False, server_default='0', default=False),
+
+   Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
+)
+
+# The triggers can be divided into multiple steps (e.g. 10 to go; 5 to go; 3 to go)
+t_achievement_trigger_steps = Table('achievement_trigger_steps', Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+    Column('achievement_trigger_id', ty.Integer, ForeignKey("achievement_triggers.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    # the number of the step (order in which they are executed)
+    Column('step', ty.Integer, nullable=False, default=0),
+
+    # The condition type. currently we only support a percentage of the goal value
+    Column('condition_type', ty.Enum("percentage", name="goal_trigger_condition_types"), default="percentage"),
+    Column('condition_percentage', ty.Float, nullable=True),
+
+    # type of action to execute (currently only creation of a message)
+    Column('action_type', ty.Enum("subject_message", name="goal_trigger_action_types"), default="subject_message"),
+    Column('action_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable=True),
+
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
+
+    UniqueConstraint("goal_trigger_id", "step")
+)
+
+# Which steps have already been executed. This is used to prevent duplicate executions.
+t_achievement_trigger_step_executions = Table('achievement_trigger_executions', Base.metadata,
+    Column('id', ty.BigInteger, primary_key=True),
+
+    # Which step?
+    Column('trigger_step_id', ty.Integer, ForeignKey("achievement_trigger_steps.id", ondelete="CASCADE"), nullable=False),
+
+    # For whom?
+    Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False),
+
+    # For which period?
+    Column('achievement_date', TIMESTAMP(timezone=True), nullable=True, index=True),
+
+    # In which context?
+    Column("context_id", ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True, index=True),
+
+    # For which level?
+    Column('execution_level', ty.Integer, nullable = False, default=0),
+
+    # When did the execution happen (autofilled)
+    Column('execution_date', TIMESTAMP(timezone=True), nullable=False, default=datetime.datetime.utcnow, index=True),
+
+    Index("ix_achievement_trigger_executions_combined", "trigger_step_id", "subject_id", "execution_level", "achievement_date", "context_id")
+)
+
+# We can add properties to achievements, that are used to described them
+# E.g. names, texts, urls to graphics etc.
+# This table describes the types of properties that can be created
 t_achievementproperties = Table('achievementproperties', Base.metadata,
     Column('id', ty.Integer, primary_key=True),
-    Column('name', ty.String(255), nullable=False),
-    Column('is_variable', ty.Boolean, nullable=False, default=False),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
+
+    Column('name', ty.String(255), nullable=False, unique=True),
+
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
+# This are the instances.
 t_achievements_achievementproperties = Table('achievements_achievementproperties', Base.metadata,
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="RESTRICT"), primary_key=True, nullable=False),
-    Column('property_id', ty.Integer, ForeignKey("achievementproperties.id", ondelete="RESTRICT"), primary_key=True, nullable=False),
-    Column('value', ty.String(255), nullable = True),
-    Column('value_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable=True),
-    Column('from_level', ty.Integer, nullable=False, default=0, primary_key=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
-)
-
-t_goalproperties = Table('goalproperties', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
-    Column('name', ty.String(255), nullable = False),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
-)
 
-t_goals_goalproperties = Table('goals_goalproperties', Base.metadata,
-    Column('goal_id', ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), primary_key = True, nullable=False),
-    Column('property_id', ty.Integer, ForeignKey("goalproperties.id", ondelete="CASCADE"), primary_key=True, nullable=False),
-    Column('value', ty.String(255), nullable=True),
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index=True, nullable=False),
+
+    Column('property_id', ty.Integer, ForeignKey("achievementproperties.id", ondelete="CASCADE"), index=True, nullable=False),
+
+    # Can be a formula...
+    Column('value', ty.String(255), nullable = True),
+
+    # ...or a text with translation
     Column('value_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable=True),
-    Column('from_level', ty.Integer, nullable=False, default=0, primary_key = True),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
+
+    # Valid from which level (higher level overrides entries for lower levels)
+    Column('from_level', ty.Integer, nullable=False, default=0, index=True),
+
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now),
+
+    UniqueConstraint("achievement_id", "property_id", "from_level")
 )
 
+# There are two types of rewards for achievements:
+# - (Rewards)       Rewards that are collected and can be achieved only once (like Badges, Backgrounds, etc.)
+# - (Rewardpoints)  Points (like EXP) that are earned with every achievement / level
+# This table described the available reward types...
 t_rewards = Table('rewards', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
-    Column('name', ty.String(255), nullable = False),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
+
+    # For internal use and identification in frontend
+    Column('name', ty.String(255), nullable = False, unique=True),
+
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
+
+    # Which subjecttype can collect this type of reward (user? team?)
+    # If this is added to an achievement and the achievement player does not equal this subjecttype,
+    # the path to this subjecttype is constructed and all relevant subjects are rewarded!
+    Column('rewarded_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
 )
 
+# Who inherits the rewarded items? When a team wins s.th, it's members might inherit the items...
+# ..Or just the team as a whole gets it, and users who leave don't have it (depends on the application model)
+t_reward_inheritors = Table('reward_inheritors', Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+
+    Column('reward_id', ty.Integer, ForeignKey("rewards.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    Column('inheritor_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    UniqueConstraint("reward_id", "inheritor_subjecttype_id")
+)
+
+# What is rewarded by the achievements?
 t_achievements_rewards = Table('achievements_rewards', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
+
     Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index = True, nullable=False),
+
     Column('reward_id', ty.Integer, ForeignKey("rewards.id", ondelete="CASCADE"), index = True, nullable=False),
+
+    # Can be a computed value or can be a translation
     Column('value', ty.String(255), nullable = True),
     Column('value_translation_id', ty.Integer, ForeignKey("translationvariables.id"), nullable = True),
+
+    # Valid from which level (higher level overrides entries for lower levels)
     Column('from_level', ty.Integer, nullable = False, default=1, index = True),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now,
-                                      index=True),
+
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
+
+    UniqueConstraint("achievement_id", "reward_id", "from_level")
 )
 
-t_achievements_subjects = Table('achievements_subjects', Base.metadata,
-    Column('id', ty.Integer, primary_key = True),
-    Column('subject_id', ty.BigInteger, ForeignKey("subjects.id"), index=True, nullable=False),
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index=True, nullable=False),
-    Column('achievement_date', ty.DateTime, nullable=True, index=True),
-    Column('level', ty.Integer, default=1, nullable=False, index=True),
-    Column('updated_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, onupdate=dt_now, index=True),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
+# Same as above for the second type of rewards (Points (like EXP) that are earned with every achievement / level)
+t_rewardpoints = Table('rewardpoints', Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+    Column('name', ty.String(255), nullable=False, unique=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
-Index("idx_achievements_subjects_date_not_null_unique",
-      t_achievements_subjects.c.subject_id,
-      t_achievements_subjects.c.achievement_id,
-      t_achievements_subjects.c.achievement_date,
-      t_achievements_subjects.c.level,
-      unique=True,
-      postgresql_where=and_(
-          t_achievements_subjects.c.achievement_date != None,
-          t_achievements_subjects.c.deleted_at == None,
-      )
+# Who inherits the rewarded points? When a team wins s.th, it's members might inherit the points...
+# ..Or just the team as a whole gets it, and users who leave don't have it (depends on the application model)
+t_rewardpoint_inheritors = Table('rewardpoint_inheritors', Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+
+    Column('rewardpoint_id', ty.Integer, ForeignKey("rewardpoints.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    Column('inheritor_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    UniqueConstraint("rewardpoint_id", "inheritor_subjecttype_id")
 )
 
-Index("idx_achievements_subjects_date_null_unique",
-      t_achievements_subjects.c.subject_id,
-      t_achievements_subjects.c.achievement_id,
-      t_achievements_subjects.c.level,
-      unique=True,
-      postgresql_where=and_(
-          t_achievements_subjects.c.achievement_date == None,
-          t_achievements_subjects.c.deleted_at == None
-      )
+# What points are rewarded by the achievements?
+t_achievements_rewardpoints = Table('achievements_rewardpoints', Base.metadata,
+    Column('id', ty.Integer, primary_key = True),
+
+    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index=True, nullable=False),
+    Column('rewardpoint_id', ty.Integer, ForeignKey("rewardpoints.id", ondelete="CASCADE"), index=True, nullable=False),
+
+    # This is a formula that must evaluate to an integer because the result is backpopulated to the values table!
+    Column('value', ty.String(255), nullable = True),
+
+    # Valid from which level (higher level overrides entries for lower levels)
+    Column('from_level', ty.Integer, nullable=False, default=1, index=True),
+
+    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
+
+    UniqueConstraint("achievement_id", "rewardpoint_id", "from_level")
 )
 
-
-t_requirements = Table('requirements', Base.metadata,
-    Column('from_id', ty.Integer, ForeignKey("achievements.id", ondelete="RESTRICT"), primary_key = True, nullable=False),
-    Column('to_id', ty.Integer, ForeignKey("achievements.id", ondelete="RESTRICT"), primary_key = True, nullable=False),
-)
-
-t_denials = Table('denials', Base.metadata,
-    Column('from_id', ty.Integer, ForeignKey("achievements.id", ondelete="RESTRICT"), primary_key = True, nullable=False),
-    Column('to_id', ty.Integer, ForeignKey("achievements.id", ondelete="RESTRICT"), primary_key = True, nullable=False),
-)
-
+# The languages for which we want to provide translations.
 t_languages = Table('languages', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('name', ty.String(255), nullable = False, index=True),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
+# Translation variables
 t_translationvariables = Table('translationvariables', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('name', ty.String(255), nullable = False, index=True),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
+# The translation values
 t_translations = Table('translations', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
     Column('translationvariable_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="CASCADE"), nullable = False),
     Column('language_id', ty.Integer, ForeignKey("languages.id", ondelete="CASCADE"), nullable = False),
+    # The translation
     Column('text', ty.Text(), nullable=False),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
+    UniqueConstraint("translationvariable_id", "language_id")
 )
 
 # This probably only makes sense for user-subjects, but lets keep it general
@@ -448,40 +624,7 @@ t_subject_messages = Table('subject_messages', Base.metadata,
     Column('params', JSON(), nullable=True, default={}),
     Column('is_read', ty.Boolean, index=True, default=False, nullable=False),
     Column('has_been_pushed', ty.Boolean, index=True, default=True, server_default='0', nullable=False),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
-)
-
-t_goal_triggers = Table('goal_triggers', Base.metadata,
-    Column('id', ty.Integer, primary_key = True),
-    Column("name", ty.String(100), nullable=False),
-    Column('goal_id', ty.Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True),
-    Column('execute_when_complete', ty.Boolean, nullable=False, server_default='0', default=False),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
-)
-
-t_goal_trigger_steps = Table('goal_trigger_steps', Base.metadata,
-    Column('id', ty.Integer, primary_key=True),
-    Column('goal_trigger_id', ty.Integer, ForeignKey("goal_triggers.id", ondelete="CASCADE"), nullable=False, index=True),
-    Column('step', ty.Integer, nullable=False, default=0),
-    Column('condition_type', ty.Enum("percentage", name="goal_trigger_condition_types"), default="percentage"),
-    Column('condition_percentage', ty.Float, nullable=True),
-    Column('action_type', ty.Enum("subject_message", name="goal_trigger_action_types"), default="subject_message"),
-    Column('action_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable=True),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
-    UniqueConstraint("goal_trigger_id", "step")
-)
-
-t_goal_trigger_step_executions = Table('goal_trigger_executions', Base.metadata,
-    Column('id', ty.BigInteger, primary_key = True),
-    Column('trigger_step_id', ty.Integer, ForeignKey("goal_trigger_steps.id", ondelete="RESTRICT"), nullable=False),
-    Column('subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False),
-    Column('execution_level', ty.Integer, nullable = False, default=0),
-    Column('execution_date', TIMESTAMP(timezone=True), nullable=False, default=datetime.datetime.utcnow, index=True),
-    Column('achievement_date', TIMESTAMP(timezone=True), nullable=True, index=True),
-    Index("ix_goal_trigger_executions_combined", "trigger_step_id", "subject_id", "execution_level")
 )
 
 t_tasks = Table('tasks', Base.metadata,
@@ -493,7 +636,6 @@ t_tasks = Table('tasks', Base.metadata,
     Column('is_removed', ty.Boolean, index=True, nullable=False, default=False),
     Column('is_auto_created', ty.Boolean, index=True, nullable=False, default=False),
     Column('is_manually_modified', ty.Boolean, index=True, nullable=False, default=False),
-    Column('deleted_at', TIMESTAMP(timezone=True), nullable=True, default=None, index=True),
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 )
 
@@ -601,6 +743,7 @@ class SubjectDevice(ABase):
             t_subject_device.c.device_id == device_id,
             t_subject_device.c.subject_id == subject_id
         ))).fetchone()
+
         if device and (device["push_id"] != push_id
             or device["device_os"] != device_os
             or device["app_version"] != app_version
@@ -739,7 +882,7 @@ class Subject(ABase):
         """delete a subject including all dependencies."""
         #TODO: Better set to is_deleted ?
         update_connection().execute(t_achievements_subjects.delete().where(t_achievements_subjects.c.subject_id == subject_id))
-        update_connection().execute(t_goal_evaluation.delete().where(t_goal_evaluation.c.subject_id == subject_id))
+        update_connection().execute(t_evaluations.delete().where(t_evaluations.c.subject_id == subject_id))
         update_connection().execute(t_subjectrelations.delete().where(t_subjectrelations.c.to_id==subject_id))
         update_connection().execute(t_subjectrelations.delete().where(t_subjectrelations.c.from_id==subject_id))
         update_connection().execute(t_subjects_subjects.delete().where(t_subjects_subjects.c.subject_id==subject_id))
@@ -989,11 +1132,10 @@ class Value(ABase):
             else:
                 update_connection().execute(t_values.insert({"datetime": dt,
                                                "variable_id": variable["id"],
-                                               "subject_id": subject_id,
+                                               "subject_id": sid,
                                                "agent_id": subject_id,
                                                "key": key,
                                                "value": value}))
-            #new_values[group_id] = DBSession.execute(select([t_values.c.value, ]).where(condition)).scalar()
 
 
         goalsandachievements = cls.map_variables_to_rules().get(variable["id"], [])
@@ -1128,7 +1270,10 @@ class Achievement(ABase):
     @classmethod
     @cache_general.cache_on_arguments()
     def get_achievement(cls,achievement_id):
-        return DBSession.execute(t_achievements.select().where(t_achievements.c.id==achievement_id)).fetchone()
+        achievement = DBSession.execute(t_achievements.select().where(t_achievements.c.id == achievement_id)).fetchone()
+        compared_subjecttypes = DBSession.execute(t_achievement_compared_subjecttypes.select().where(t_achievement_compared_subjecttypes.c.achievement_id == achievement_id)).fetchall()
+        domain_subjects = DBSession.execute(t_achievement_compared_subjecttypes.select().where(t_achievement_compared_subjecttypes.c.achievement_id == achievement_id)).fetchall()
+        return
 
     @classmethod
     def get_achievements_by_subject_for_today(cls,subject):
@@ -1739,30 +1884,30 @@ class Goal(ABase):
         if previous_goal == current_goal:
             previous_goal = 0.0
 
-        j = t_goal_trigger_step_executions.join(t_goal_trigger_steps)
+        j = t_achievement_trigger_step_executions.join(t_achievement_trigger_steps)
         executions = {r["goal_trigger_id"]: r["step"] for r in
                       DBSession.execute(
-                          select([t_goal_trigger_steps.c.id.label("step_id"),
-                                  t_goal_trigger_steps.c.goal_trigger_id,
-                                  t_goal_trigger_steps.c.step], from_obj=j).\
-                          where(and_(t_goal_triggers.c.goal_id == goal["id"],
-                                     t_goal_trigger_step_executions.c.achievement_date == achievement_date,
-                                     t_goal_trigger_step_executions.c.subject_id == subject_id,
-                                     t_goal_trigger_step_executions.c.execution_level == level))).fetchall()
+                          select([t_achievement_trigger_steps.c.id.label("step_id"),
+                                  t_achievement_trigger_steps.c.goal_trigger_id,
+                                  t_achievement_trigger_steps.c.step], from_obj=j).\
+                          where(and_(t_achievement_triggers.c.goal_id == goal["id"],
+                                     t_achievement_trigger_step_executions.c.achievement_date == achievement_date,
+                                     t_achievement_trigger_step_executions.c.subject_id == subject_id,
+                                     t_achievement_trigger_step_executions.c.execution_level == level))).fetchall()
                       }
 
-        j = t_goal_trigger_steps.join(t_goal_triggers)
+        j = t_achievement_trigger_steps.join(t_achievement_triggers)
 
         trigger_steps = DBSession.execute(select([
-            t_goal_trigger_steps.c.id,
-            t_goal_trigger_steps.c.goal_trigger_id,
-            t_goal_trigger_steps.c.step,
-            t_goal_trigger_steps.c.condition_type,
-            t_goal_trigger_steps.c.condition_percentage,
-            t_goal_trigger_steps.c.action_type,
-            t_goal_trigger_steps.c.action_translation_id,
-            t_goal_triggers.c.execute_when_complete,
-        ], from_obj=j).where(t_goal_triggers.c.goal_id == goal["id"],)).fetchall()
+            t_achievement_trigger_steps.c.id,
+            t_achievement_trigger_steps.c.goal_trigger_id,
+            t_achievement_trigger_steps.c.step,
+            t_achievement_trigger_steps.c.condition_type,
+            t_achievement_trigger_steps.c.condition_percentage,
+            t_achievement_trigger_steps.c.action_type,
+            t_achievement_trigger_steps.c.action_translation_id,
+            t_achievement_triggers.c.execute_when_complete,
+        ], from_obj=j).where(t_achievement_triggers.c.goal_id == goal["id"], )).fetchall()
 
         trigger_steps = [s for s in trigger_steps if s["step"] > executions.get(s["goal_trigger_id"], -sys.maxsize)]
 
@@ -1812,13 +1957,13 @@ class Goal(ABase):
     @classmethod
     def set_goal_eval_cache(cls, goal, achievement_date, subject_id, value, achieved):
         """set cache entry after evaluation"""
-        cache_query = t_goal_evaluation.select().where(and_(t_goal_evaluation.c.goal_id == goal["id"],
-                                                            t_goal_evaluation.c.subject_id == subject_id,
-                                                            t_goal_evaluation.c.achievement_date == AchievementDate.db_format(achievement_date)))
+        cache_query = t_evaluations.select().where(and_(t_evaluations.c.goal_id == goal["id"],
+                                                        t_evaluations.c.subject_id == subject_id,
+                                                        t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date)))
         cache = DBSession.execute(cache_query).fetchone()
 
         if not cache:
-            q = t_goal_evaluation.insert()\
+            q = t_evaluations.insert()\
                                        .values({"subject_id": subject_id,
                                                 "goal_id": goal["id"],
                                                 "value": value,
@@ -1827,10 +1972,10 @@ class Goal(ABase):
             update_connection().execute(q)
         elif cache["value"] != value or cache["achieved"] != achieved:
             #update
-            q = t_goal_evaluation.update()\
-                                       .where(and_(t_goal_evaluation.c.goal_id == goal["id"],
-                                                   t_goal_evaluation.c.subject_id == subject_id,
-                                                   t_goal_evaluation.c.achievement_date == AchievementDate.db_format(achievement_date)))\
+            q = t_evaluations.update()\
+                                       .where(and_(t_evaluations.c.goal_id == goal["id"],
+                                                   t_evaluations.c.subject_id == subject_id,
+                                                   t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date)))\
                                        .values({"value": value,
                                                 "achieved": achieved,
                                                 "achievement_date": AchievementDate.db_format(achievement_date)})
@@ -1868,24 +2013,24 @@ class Goal(ABase):
         for goal_id, achievement_date in goal_ids_with_achievement_date:
             cache_goal_evaluation.delete("%s_%s_%s" % (goal_id, str(achievement_date), subject_id))
             s = update_connection()
-            s.execute(t_goal_evaluation.delete().where(
-                and_(t_goal_evaluation.c.subject_id == subject_id,
-                     t_goal_evaluation.c.goal_id == goal_id,
-                     t_goal_evaluation.c.achievement_date == AchievementDate.db_format(achievement_date)))
+            s.execute(t_evaluations.delete().where(
+                and_(t_evaluations.c.subject_id == subject_id,
+                     t_evaluations.c.goal_id == goal_id,
+                     t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date)))
             )
 
     @classmethod
     def get_leaderboard(cls, goal, achievement_date, subject_ids):
         """get the leaderboard for the goal and userids"""
 
-        q = select([t_goal_evaluation.c.subject_id,
-                    t_goal_evaluation.c.value])\
-                .where(and_(t_goal_evaluation.c.subject_id.in_(subject_ids),
-                            t_goal_evaluation.c.goal_id == goal["id"],
-                            t_goal_evaluation.c.achievement_date == AchievementDate.db_format(achievement_date),
+        q = select([t_evaluations.c.subject_id,
+                    t_evaluations.c.value])\
+                .where(and_(t_evaluations.c.subject_id.in_(subject_ids),
+                            t_evaluations.c.goal_id == goal["id"],
+                            t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date),
                             ))\
-                .order_by(t_goal_evaluation.c.value.desc(),
-                          t_goal_evaluation.c.subject_id.desc())
+                .order_by(t_evaluations.c.value.desc(),
+                          t_evaluations.c.subject_id.desc())
         items = DBSession.execute(q).fetchall()
 
         subjects = Subject.get_subjects(subject_ids)
@@ -2061,7 +2206,7 @@ class GoalTriggerStep(ABase):
     @classmethod
     def execute(cls, trigger_step, subject_id, current_percentage, value, goal_goal, goal_level, goal_properties, achievement_date, suppress_actions=False):
         uS = update_connection()
-        uS.execute(t_goal_trigger_step_executions.insert().values({
+        uS.execute(t_achievement_trigger_step_executions.insert().values({
             'subject_id': subject_id,
             'trigger_step_id': trigger_step["id"],
             'execution_level': goal_level,
@@ -2239,15 +2384,15 @@ mapper(GoalGoalProperty, t_goals_goalproperties, properties={
    'value_translation' : relationship(TranslationVariable),
    'goal' : relationship(Goal, backref='properties',),
 })
-mapper(GoalEvaluationCache, t_goal_evaluation, properties={
+mapper(GoalEvaluationCache, t_evaluations, properties={
    'subject': relationship(Subject),
    'goal': relationship(Goal)
 })
 
-mapper(GoalTrigger,t_goal_triggers, properties={
+mapper(GoalTrigger, t_achievement_triggers, properties={
     'goal': relationship(Goal, backref="triggers"),
 })
-mapper(GoalTriggerStep,t_goal_trigger_steps, properties={
+mapper(GoalTriggerStep, t_achievement_trigger_steps, properties={
     'trigger': relationship(GoalTrigger,backref="steps"),
     'action_translation': relationship(TranslationVariable)
 })

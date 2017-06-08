@@ -48,27 +48,10 @@ def get_static_view(folder,flaskadminapp):
 def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,override_flaskadminapp=None):
     global adminapp, admin
 
-    class DeletedAtModelView(ModelView):
-        form_excluded_columns = ('deleted_at', )
-        column_exclude_list = ('deleted_at', )
-
-        #def get_query(self):
-        #    return super().get_query().filter(self.model.deleted_at == None)
-
-        #def get_count_query(self):
-        #    return super().get_count_query().filter(self.model.deleted_at == None)
-
-        #def delete_model(self, model):
-        #    model.deleted_at = dt_now()
-        #    self.session.add(model)
-        #    self.session.flush()
-        #    self.session.commit()
-        #    return True
-
     class TranslationInlineModelForm(InlineFormAdmin):
         form_columns = ('id', 'language', 'text')
 
-    class ModelViewTranslationVariable(DeletedAtModelView):
+    class ModelViewTranslationVariable(ModelView):
         column_list = ('name',)
         column_searchable_list = ('name',)
         inline_models = (TranslationInlineModelForm(Translation),)
@@ -76,19 +59,19 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def __init__(self, session, **kwargs):
             super(ModelViewTranslationVariable, self).__init__(TranslationVariable, session, **kwargs)
 
-    class ModelViewAchievementCategory(DeletedAtModelView):
+    class ModelViewAchievementCategory(ModelView):
         column_list = ('name',)
         column_searchable_list = ('name',)
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('achievements',)
+        form_excluded_columns = ('achievements',)
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
             super(ModelViewAchievementCategory, self).__init__(AchievementCategory, session, **kwargs)
 
-    class ModelViewAchievement(DeletedAtModelView):
+    class ModelViewAchievement(ModelView):
         column_list = ('name','evaluation','valid_start','valid_end','relevance')
         column_searchable_list = ('name',)
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('rewards','subjects','goals','properties','updated_at')
+        form_excluded_columns = ('rewards','subjects','goals','properties','updated_at')
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
@@ -110,7 +93,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             'action_translation',
         )
 
-    class ModelViewGoalTrigger(DeletedAtModelView):
+    class ModelViewGoalTrigger(ModelView):
         form_columns = (
             'name',
             'goal',
@@ -122,9 +105,9 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def __init__(self, session, **kwargs):
             super(ModelViewGoalTrigger, self).__init__(GoalTrigger, session, **kwargs)
 
-    class ModelViewGoal(DeletedAtModelView):
+    class ModelViewGoal(ModelView):
         column_list = ('condition','operator','goal','timespan','priority','achievement','updated_at')
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('properties','triggers')
+        form_excluded_columns = ('properties','triggers')
         #column_searchable_list = ('name',)
         column_filters = (Achievement.id,)
         fast_mass_delete = True
@@ -163,38 +146,38 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def __init__(self, session, **kwargs):
             super(ModelViewGoalEvaluationCache, self).__init__(GoalEvaluationCache, session, **kwargs)
 
-    class ModelViewAchievementProperty(DeletedAtModelView):
+    class ModelViewAchievementProperty(ModelView):
         column_list = ('id','name')
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('achievements',)
+        form_excluded_columns = ('achievements',)
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
             super(ModelViewAchievementProperty, self).__init__(AchievementProperty, session, **kwargs)
 
-    class ModelViewGoalProperty(DeletedAtModelView):
+    class ModelViewGoalProperty(ModelView):
         column_list = ('id','name')
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('goals',)
+        form_excluded_columns = ('goals',)
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
             super(ModelViewGoalProperty, self).__init__(GoalProperty, session, **kwargs)
 
-    class ModelViewLanguage(DeletedAtModelView):
+    class ModelViewLanguage(ModelView):
         column_list = ('id','name')
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('subjects',)
+        form_excluded_columns = ('subjects',)
 
         def __init__(self, session, **kwargs):
             super(ModelViewLanguage, self).__init__(Language, session, **kwargs)
 
-    class ModelViewReward(DeletedAtModelView):
+    class ModelViewReward(ModelView):
         column_list = ('id','name')
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('achievements',)
+        form_excluded_columns = ('achievements',)
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
             super(ModelViewReward, self).__init__(Reward, session, **kwargs)
 
-    class ModelViewSubject(DeletedAtModelView):
+    class ModelViewSubject(ModelView):
         column_list = ('id','type','name','lat','lng','timezone','country','region','city','created_at')
         form_columns = ('name', 'type', 'timezone', 'language', 'lat', 'lng', 'additional_public_data')
         fast_mass_delete = True
@@ -218,7 +201,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
                     self._template_args['msgs'].append("All caches cleared!")
             return self.render(template="admin_maintenance.html")
 
-    class ModelViewAuthUser(DeletedAtModelView):
+    class ModelViewAuthUser(ModelView):
         column_list = ('id', 'subject_id', 'email', 'active', 'created_at')
         form_columns = ('subject_id', 'email', 'password', 'active', 'roles')
         column_labels = {'password': 'Password'}
@@ -232,16 +215,16 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             "name" : sorted(list(yield_all_perms()), key=lambda x: x[1])
         }
 
-    class ModelViewAuthRole(DeletedAtModelView):
+    class ModelViewAuthRole(ModelView):
         column_list = ('id', 'name', 'permissions')
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('users',)
+        form_excluded_columns = ('users',)
         inline_models = (PermissionInlineModelForm(AuthRolePermission),)
 
         def __init__(self, session, **kwargs):
             super(ModelViewAuthRole, self).__init__(AuthRole, session, **kwargs)
 
 
-    class ModelViewSubjectMessage(DeletedAtModelView):
+    class ModelViewSubjectMessage(ModelView):
         column_list = ('subject','text','created_at','is_read')
         column_details_list = ('subject', 'text', 'created_at', 'is_read', 'params')
         can_edit = False
@@ -253,12 +236,12 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     from gengine.app.registries import get_task_registry
     enginetasks = get_task_registry().registrations
 
-    class ModelViewTask(DeletedAtModelView):
+    class ModelViewTask(ModelView):
         can_view_details = True
 
         column_list = ('entry_name', 'task_name', 'config', 'cron')
         column_details_list = ('id','entry_name', 'task_name', 'config', 'cron', 'is_removed', 'is_auto_created', 'is_manually_modified')
-        form_excluded_columns = DeletedAtModelView.form_excluded_columns + ('is_removed', 'is_auto_created', 'is_manually_modified', 'executions')
+        form_excluded_columns = ('is_removed', 'is_auto_created', 'is_manually_modified', 'executions')
         form_choices = {'task_name': [
             (x, x) for x in enginetasks.keys()
         ]}
@@ -307,7 +290,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             super(ModelViewTaskExecution, self).__init__(TaskExecution, session, **kwargs)
 
 
-    class ModelViewSubjectType(DeletedAtModelView):
+    class ModelViewSubjectType(ModelView):
         column_list = ('id', 'name')
         form_columns = ('name', 'part_of_types')
         can_view_details = True
@@ -365,7 +348,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     admin.add_view(ModelView(AchievementReward, DBSession, category="Rules", name="Achievement Reward Values"))
     admin.add_view(ModelView(GoalGoalProperty, DBSession, category="Rules", name="Goal Property Values"))
     admin.add_view(ModelViewTranslationVariable(DBSession, category="Rules"))
-    admin.add_view(DeletedAtModelView(Translation,DBSession, category="Rules"))
+    admin.add_view(ModelView(Translation,DBSession, category="Rules"))
     
     admin.add_view(ModelViewAchievementCategory(DBSession, category="Settings"))
     admin.add_view(ModelViewVariable(DBSession, category="Settings"))

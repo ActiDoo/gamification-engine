@@ -1,4 +1,3 @@
-from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session, sessionmaker
 import transaction
 from sqlalchemy.orm.scoping import scoped_session
@@ -6,32 +5,7 @@ from sqlalchemy.sql.schema import MetaData
 from zope.sqlalchemy.datamanager import ZopeTransactionExtension
 from sqlalchemy.ext.declarative.api import declarative_base
 
-from gengine.base.util import Proxy, dt_now
-
-
-class LimitingQuery(Query):
-
-    def get(self, ident):
-        # override get() so that the flag is always checked in the
-        # DB as opposed to pulling from the identity map. - this is optional.
-        return Query.get(self.populate_existing(), ident)
-
-    def __iter__(self):
-        return Query.__iter__(self.private())
-
-    def from_self(self, *ent):
-        # override from_self() to automatically apply
-        # the criterion too.   this works with count() and
-        # others.
-        return Query.from_self(self.private(), *ent)
-
-    def private(self):
-        mzero = self._mapper_zero()
-        if mzero is not None:
-            crit = mzero.class_.deleted_at == None
-            return self.enable_assertions(False).filter(crit)
-        else:
-            return self
+from gengine.base.util import Proxy
 
 
 class MySession(Session):
@@ -42,22 +16,13 @@ class MySession(Session):
     def rollback(self, *args, **kw):
         transaction.abort(*args,**kw)
 
-    def delete(self, model):
-        if hasattr(model, "deleted_at"):
-            model.deleted_at = dt_now()
-            self.add(model)
-            self.flush()
-        else:
-            super().delete(model)
-
 DBSession=Proxy()
 
 def get_sessionmaker(bind=None):
     return sessionmaker(
         extension=ZopeTransactionExtension(),
         class_=MySession,
-        bind=bind,
-        query_cls=LimitingQuery
+        bind=bind
     )
 
 def init_session(override_session=None, replace=False):
