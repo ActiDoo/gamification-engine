@@ -19,7 +19,7 @@ from wtforms.form import Form
 
 from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
                            GoalGoalProperty, Reward, Subject, GoalEvaluationCache, Value, AchievementSubject, TranslationVariable, Language, Translation, \
-    AuthUser, AuthRole, AuthRolePermission, GoalTrigger, GoalTriggerStep, SubjectMessage, Task, TaskExecution, SubjectType
+    AuthUser, AuthRole, AuthRolePermission, AchievementTrigger, AchievementTriggerStep, SubjectMessage, Task, TaskExecution, SubjectType
 from gengine.app.permissions import yield_all_perms
 from gengine.base.settings import get_settings
 
@@ -100,10 +100,10 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             'steps',
             'execute_when_complete'
         )
-        inline_models = (GoalTriggerStepInlineModelForm(GoalTriggerStep),)
+        inline_models = (GoalTriggerStepInlineModelForm(AchievementTriggerStep),)
 
         def __init__(self, session, **kwargs):
-            super(ModelViewGoalTrigger, self).__init__(GoalTrigger, session, **kwargs)
+            super(ModelViewGoalTrigger, self).__init__(AchievementTrigger, session, **kwargs)
 
     class ModelViewGoal(ModelView):
         column_list = ('condition','operator','goal','timespan','priority','achievement','updated_at')

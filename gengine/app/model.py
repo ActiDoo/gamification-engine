@@ -323,7 +323,7 @@ t_achievement_domain_subjects = Table('achievement_domain_subjects', Base.metada
     UniqueConstraint("achievement_id", "subject_id")
 )
 
-# We store the evaluated values in a table to generate the leaderboard and return the achievement's progress efficiently
+# This contains the current achievement state (level, achieved) for a subject in the context of a date / context_subject
 t_evaluations = Table("evaluations", Base.metadata,
     Column('id', ty.Integer, primary_key=True),
 
@@ -336,8 +336,8 @@ t_evaluations = Table("evaluations", Base.metadata,
     # For which period?
     Column('achievement_date', TIMESTAMP(timezone=True), nullable=True, index=True), # To identify the goals for monthly, weekly, ... achievements;
 
-    # The current value
-    Column("value", ty.Float, index=True, nullable=False),
+    # For which context? (The achievement defines the context type, this is the actual context!)
+    Column('context_subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True),
 
     # Is this achieved?
     Column("achieved", ty.Boolean, nullable=False, server_default='0', default=False, index=True),
@@ -359,6 +359,39 @@ Index("idx_evaluations_date_null_unique",
     t_evaluations.c.achievement_id,
     unique=True,
     postgresql_where=t_evaluations.c.achievement_date == None
+)
+
+
+# We store the evaluated values in a table to generate the leaderboard and return the achievement's state efficiently
+t_progress = Table("progress", Base.metadata,
+    Column('id', ty.Integer, primary_key=True),
+
+    # For whom?
+    Column("subject_id", ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    # Which achievement?
+    Column("achievement_id", ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), nullable=False, index=True),
+
+    # For which period?
+    Column('achievement_date', TIMESTAMP(timezone=True), nullable=True, index=True), # To identify the goals for monthly, weekly, ... achievements;
+
+    # The current value
+    Column("value", ty.Float, index=True, nullable=False),
+)
+
+Index("idx_progress_date_not_null_unique",
+    t_progress.c.subject_id,
+    t_progress.c.achievement_id,
+    t_progress.c.achievement_date,
+    unique=True,
+    postgresql_where=t_progress.c.achievement_date != None
+)
+
+Index("idx_progress_date_null_unique",
+    t_progress.c.subject_id,
+    t_progress.c.achievement_id,
+    unique=True,
+    postgresql_where=t_progress.c.achievement_date == None
 )
 
 # The event types that can happen. The types of values we use to construct achievements.
@@ -421,16 +454,16 @@ t_achievement_trigger_steps = Table('achievement_trigger_steps', Base.metadata,
     Column('step', ty.Integer, nullable=False, default=0),
 
     # The condition type. currently we only support a percentage of the goal value
-    Column('condition_type', ty.Enum("percentage", name="goal_trigger_condition_types"), default="percentage"),
+    Column('condition_type', ty.Enum("percentage", name="achievemennt_trigger_condition_types"), default="percentage"),
     Column('condition_percentage', ty.Float, nullable=True),
 
     # type of action to execute (currently only creation of a message)
-    Column('action_type', ty.Enum("subject_message", name="goal_trigger_action_types"), default="subject_message"),
+    Column('action_type', ty.Enum("subject_message", name="achievement_trigger_action_types"), default="subject_message"),
     Column('action_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable=True),
 
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 
-    UniqueConstraint("goal_trigger_id", "step")
+    UniqueConstraint("achievement_trigger_id", "step")
 )
 
 # Which steps have already been executed. This is used to prevent duplicate executions.
@@ -448,6 +481,9 @@ t_achievement_trigger_step_executions = Table('achievement_trigger_executions', 
 
     # For which level?
     Column('execution_level', ty.Integer, nullable = False, default=0),
+
+    # In which context? (this is the actual context, the type is defined in the achievement)
+    Column('context_subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False),
 
     # When did the execution happen (autofilled)
     Column('execution_date', TIMESTAMP(timezone=True), nullable=False, default=datetime.datetime.utcnow, index=True),
@@ -839,7 +875,9 @@ class Subject(ABase):
     @classmethod
     def delete_subject(cls,subject_id):
         """delete a subject including all dependencies."""
+        update_connection().execute(t_progress.delete().where(t_evaluations.c.subject_id == subject_id))
         update_connection().execute(t_evaluations.delete().where(t_evaluations.c.subject_id == subject_id))
+        update_connection().execute(t_evaluations.delete().where(t_evaluations.c.context_subject_id == subject_id))
         update_connection().execute(t_subjectrelations.delete().where(t_subjectrelations.c.to_id==subject_id))
         update_connection().execute(t_subjectrelations.delete().where(t_subjectrelations.c.from_id==subject_id))
         update_connection().execute(t_subjects_subjects.delete().where(t_subjects_subjects.c.subject_id==subject_id))
@@ -1087,11 +1125,10 @@ class Value(ABase):
                 achievement_date = achievement_id_to_achievement_date[achievement["id"]]
                 compared_subjects = [s for s in subjects[sid] if s["subjecttype_id"] in achievement["compared_subjecttypes"]]
                 for compared_subject in compared_subjects:
-                    q = t_evaluations.delete().where(and_(
-                        t_evaluations.c.subject_id == compared_subject["subject_id"],
-                        t_evaluations.c.achievement_id == achievement["id"],
-                        t_evaluations.c.achievement_date == achievement_date,
-                        t_evaluations.c.achieved == False,
+                    q = t_progress.delete().where(and_(
+                        t_progress.c.subject_id == compared_subject["subject_id"],
+                        t_progress.c.achievement_id == achievement["id"],
+                        t_progress.c.achievement_date == achievement_date,
                     ))
                     update_connection().execute(q)
 
@@ -1213,37 +1250,38 @@ class Achievement(ABase):
 
         def generate_achievements_by_subject_for_today():
             today = datetime.date.today()
-            by_loc = {x["id"] : x["distance"] for x in cls.get_achievements_by_location(coords(subject))}
+            by_loc = {x["id"]: x["distance"] for x in cls.get_achievements_by_location(coords(subject))}
             by_date = cls.get_achievements_by_date(today)
-            def update(arr,distance):
-                arr["distance"]=distance
+
+            def update(arr, distance):
+                arr["distance"] = distance
                 return arr
 
-            return [update(arr,by_loc[arr["id"]]) for arr in by_date if arr["id"] in by_loc]
+            return [update(arr, by_loc[arr["id"]]) for arr in by_date if arr["id"] in by_loc]
 
         key = str(subject["id"])
         expiration_time = Subject.get_cache_expiration_time_for_today(subject)
 
-        return cache_achievements_by_subject_for_today.get_or_create(key,generate_achievements_by_subject_for_today, expiration_time=expiration_time)
+        return cache_achievements_by_subject_for_today.get_or_create(key, generate_achievements_by_subject_for_today, expiration_time=expiration_time)
 
     #We need to fetch all achievement data in one of these methods -> by_date is just queried once a date
 
     @classmethod
     @cache_general.cache_on_arguments()
-    def get_achievements_by_location(cls,latlng):
+    def get_achievements_by_location(cls, latlng):
         """return achievements which are valid in that location."""
         #TODO: invalidate automatically when achievement in subject's range is modified
         distance = calc_distance(latlng, (t_achievements.c.lat, t_achievements.c.lng)).label("distance")
         q = select([t_achievements.c.id,
                     distance])\
-            .where(or_(and_(t_achievements.c.lat==None,t_achievements.c.lng==None),
-                        distance < t_achievements.c.max_distance))
+            .where(or_(and_(t_achievements.c.lat==None, t_achievements.c.lng==None),
+                            distance < t_achievements.c.max_distance))
 
         return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id'])) > 0]
 
     @classmethod
     @cache_general.cache_on_arguments()
-    def get_achievements_by_date(cls,date):
+    def get_achievements_by_date(cls, date):
         """return achievements which are valid at that date"""
         q = t_achievements.select().where(and_(or_(t_achievements.c.valid_start == None,
                                                    t_achievements.c.valid_start <= date),
@@ -1251,7 +1289,7 @@ class Achievement(ABase):
                                                    t_achievements.c.valid_end >= date)
                                                ))
 
-        return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id']))>0]
+        return [dict(x.items()) for x in DBSession.execute(q).fetchall() if len(Goal.get_goals(x['id'])) > 0]
 
     @classmethod
     def get_relevant_subjects_by_achievement_and_subject(cls, achievement, subject, context_subject_id, from_date, to_date):
@@ -1292,29 +1330,31 @@ class Achievement(ABase):
         return set(subjects)
 
     @classmethod
-    def get_level(cls, subject_id, achievement_id, achievement_date):
+    def get_level(cls, subject_id, achievement_id, achievement_date, context_subject_id):
         """get the current level of the subject for this achievement."""
         def generate():
-            q = select([t_achievements_subjects.c.level,
-                        t_achievements_subjects.c.achievement_date,
-                        t_achievements_subjects.c.updated_at],
-                       and_(t_achievements_subjects.c.subject_id == subject_id,
-                            t_achievements_subjects.c.achievement_date == AchievementDate.db_format(achievement_date),
-                            t_achievements_subjects.c.achievement_id == achievement_id)).order_by(t_achievements_subjects.c.level.desc())
+            q = select([t_evaluations.c.level,
+                        t_evaluations.c.achievement_date,
+                        t_evaluations.c.updated_at],
+                       and_(t_evaluations.c.subject_id == subject_id,
+                            t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date),
+                            t_evaluations.c.context_subject_id == context_subject_id,
+                            t_evaluations.c.achievement_id == achievement_id,
+                            t_evaluations.c.achieved == True)).order_by(t_evaluations.c.level.desc())
             return [x for x in DBSession.execute(q).fetchall()]
         return cache_achievements_subjects_levels.get_or_create("%s_%s_%s" % (subject_id, achievement_id, str(achievement_date)), generate)
 
     @classmethod
-    def get_level_int(cls, subject_id, achievement_id, achievement_date):
+    def get_level_int(cls, subject_id, achievement_id, achievement_date, context_subject_id):
         """get the current level of the subject for this achievement as int (0 if the user does not have this achievement)"""
-        lvls = Achievement.get_level(subject_id, achievement_id, achievement_date)
+        lvls = Achievement.get_level(subject_id, achievement_id, achievement_date, context_subject_id)
         if not lvls:
             return 0
         else:
             return lvls[0]["level"]
 
     @classmethod
-    def basic_output(cls, achievement, goals, include_levels=True, max_level_included=None):
+    def basic_output(cls, achievement, include_levels=True, max_level_included=None):
         """construct the basic basic_output structure for the achievement."""
 
         achievementcategory = None
@@ -1329,7 +1369,6 @@ class Achievement(ABase):
             "priority" : achievement["priority"],
             "hidden" : achievement["hidden"],
             "achievementcategory" : achievementcategory["name"] if achievementcategory!=None else ""
-            #"updated_at" : combine_updated_at([achievement["updated_at"],]),
         }
 
         if include_levels:
@@ -1340,7 +1379,7 @@ class Achievement(ABase):
             out["levels"] = {
                 str(i): {
                     "level": i,
-                    "goals": {str(g["id"]): Goal.basic_goal_output(g, i) for g in goals},
+                    "goal": evaluate_value_expression(achievement["goal"], {"level": i}),
                     "rewards": {str(r["id"]): {
                         "id": r["id"],
                         "reward_id": r["reward_id"],
@@ -1358,66 +1397,77 @@ class Achievement(ABase):
         return out
 
     @classmethod
-    def evaluate(cls, subject, achievement_id, achievement_date, execute_triggers=True, context_subject_id=None):
+    def evaluate(cls, compared_subject, achievement_id, achievement_date, context_subject_id, execute_triggers=True):
         """evaluate the achievement including all its subgoals for the subject.
            return the basic_output for the achievement plus information about the new achieved levels
         """
         def generate():
             achievement = Achievement.get_achievement(achievement_id)
 
-            subject_id = subject["id"]
-            subject_ids = Achievement.get_relevant_subjects_by_achievement_and_subject(
-                achievement=achievement,
-                subject=subject,
-                context_subject_id=context_subject_id,
-                from_date=achievement_date.from_date if achievement_date else None,
-                to_date=achievement_date.to_date if achievement_date else None
-            )
+            subject_id = compared_subject["id"]
 
+            # get current level
             subject_has_level = Achievement.get_level_int(
                 subject_id=subject_id,
                 achievement_id=achievement["id"],
-                achievement_date=achievement_date
+                achievement_date=achievement_date,
+                context_subject_id=context_subject_id
             )
 
+            # if there is at least one more level, use that. otherwise the current level is also the next level
             subject_wants_level = min((subject_has_level or 0)+1, achievement["maxlevel"])
 
             goal_evals = {}
             all_goals_achieved = True
-            goals = Goal.get_goals(achievement["id"])
-            for goal in goals:
-                goal_eval = Goal.get_goal_eval_cache(
-                    goal_id=goal["id"],
-                    achievement_date=achievement_date,
-                    subject_id=subject_id
-                )
-                if not goal_eval:
-                    Goal.evaluate(
-                        goal=goal,
-                        achievement=achievement,
-                        achievement_date=achievement_date,
-                        subject=subject,
-                        level=subject_wants_level,
-                        goal_eval_cache_before=None,
-                        execute_triggers=execute_triggers
-                    )
-                    goal_eval = Goal.get_goal_eval_cache(
-                        goal_id=goal["id"],
-                        achievement_date=achievement_date,
-                        subject_id=subject_id
-                    )
 
-                if achievement["relevance"] in ("friends", "global", "context_subject"):
-                    goal_eval["leaderboard"] = Goal.get_leaderboard(
-                        goal=goal,
-                        achievement_date=achievement_date,
-                        subject_ids=subject_ids
-                    )
-                    own_filter = list(filter(lambda x: x["subject"]["id"] == subject_id, goal_eval["leaderboard"]))
-                    if len(own_filter)>0:
-                        goal_eval["leaderboard_position"] = own_filter[0]["position"]
-                    else:
-                        goal_eval["leaderboard_position"] = None
+            # Check if the current achievement is already evaluated (these rows are deleted when the value is increased)
+            # This value is independent of the context, as it does not contain the comparison!
+            goal_eval = Achievement.get_goal_eval_cache(
+                subject_id=subject_id,
+                achievement_id=achievement["id"],
+                achievement_date=achievement_date
+            )
+            if not goal_eval:
+                # No valid value found. Compute it!
+                Achievement.evaluate_goal(
+                    achievement=achievement,
+                    achievement_date=achievement_date,
+                    subject=compared_subject,
+                    level=subject_wants_level,
+                    goal_eval_cache_before=None,
+                    execute_triggers=execute_triggers
+                )
+                goal_eval = Achievement.get_goal_eval_cache(
+                    subject_id=subject_id,
+                    achievement_id=achievement["id"],
+                    achievement_date=achievement_date
+                )
+
+            # No we have the value for the current level
+
+            if achievement["relevance"] in ("friends", "global", "context_subject"):
+                # This is leaderboard! Compare to others
+
+                # Find all other subjects that we want to compare to
+
+                subject_ids = Achievement.get_relevant_subjects_by_achievement_and_subject(
+                    achievement=achievement,
+                    subject=compared_subject,
+                    context_subject_id=context_subject_id,
+                    from_date=achievement_date.from_date if achievement_date else None,
+                    to_date=achievement_date.to_date if achievement_date else None
+                )
+
+                goal_eval["leaderboard"] = Achievement.get_leaderboard(
+                    achievement=achievement,
+                    achievement_date=achievement_date,
+                    subject_ids=subject_ids
+                )
+                own_filter = list(filter(lambda x: x["subject"]["id"] == subject_id, goal_eval["leaderboard"]))
+                if len(own_filter)>0:
+                    goal_eval["leaderboard_position"] = own_filter[0]["position"]
+                else:
+                    goal_eval["leaderboard_position"] = None
 
                 goal_evals[goal["id"]]=goal_eval
                 if not goal_eval["achieved"]:
@@ -1454,7 +1504,7 @@ class Achievement(ABase):
 
                 for prop in new_level_output["properties"].values():
                     if prop["is_variable"]:
-                        Value.increase_value(prop["name"], subject, prop["value"], achievement_id)
+                        Value.increase_value(prop["name"], compared_subject, prop["value"], achievement_id)
 
                 update_connection().execute(t_achievements_subjects.insert().values({
                     "subject_id": subject_id,
@@ -1563,80 +1613,6 @@ class Achievement(ABase):
                                              t_achievements_achievementproperties.c.achievement_id == achievement_id))\
                                  .order_by(t_achievements_achievementproperties.c.from_level))\
                         .fetchall()
-
-
-class AchievementProperty(ABase):
-    """A AchievementProperty describes the :class:`Achievement`s of our system.
-
-    Examples: name, image, description, xp
-
-    Additionally Properties can be used as variables.
-    This is useful to model goals like "reach 1000xp"
-
-    """
-    def __unicode__(self, *args, **kwargs):
-        return self.name + " (ID: %s)" % (self.id,)
-
-
-class AchievementAchievementProperty(ABase):
-    """A poperty value for an :class:`Achievement`"""
-    pass
-
-
-class GoalProperty(ABase):
-    """A goalproperty describes the :class:`Goal`s of our system.
-
-    Examples: name, image, description, xp
-
-    Additionally Properties can be used as variables.
-    This is useful to model goals like "reach 1000xp"
-
-    """
-    def __unicode__(self, *args, **kwargs):
-        return self.name + " (ID: %s)" % (self.id,)
-
-
-class GoalGoalProperty(ABase):
-    """A goalpoperty value for a :class:`Goal`"""
-    pass
-
-
-class Reward(ABase):
-    """Rewards are given when reaching :class:`Achievement`s.
-
-    Examples: badge, item
-    """
-    def __unicode__(self, *args, **kwargs):
-        return self.name + " (ID: %s)" % (self.id,)
-
-
-class AchievementReward(ABase):
-    """A Reward value for an :class:`Achievement` """
-
-    @classmethod
-    def get_achievement_reward(cls, achievement_reward_id):
-        return DBSession.execute(t_achievements_rewards.select(t_achievements_rewards.c.id == achievement_reward_id)).fetchone()
-
-
-class AchievementSubject(ABase):
-    """Relation between subjects and achievements, contains level and updated_at date"""
-    pass
-
-
-class GoalEvaluationCache(ABase):
-    """Cache for the evaluation of goals for users"""
-    pass
-
-
-class Goal(ABase):
-    """A Goal defines a rule on variables that needs to be reached to get achievements"""
-
-    def __unicode__(self, *args, **kwargs):
-        if self.name != None:
-            name = evaluate_string(self.name, {"level": 1, "goal": '0'})[get_settings().get("fallback_language", "en")]
-            return str(name) + " (ID: %s)" % (self.id,)
-        else:
-            return self.name + " (ID: %s)" % (self.id,)
 
     @classmethod
     @cache_general.cache_on_arguments()
@@ -1754,7 +1730,7 @@ class Goal(ABase):
         return DBSession.execute(q, {'subject_id': subject_id})
 
     @classmethod
-    def evaluate(cls, goal, achievement, achievement_date, subject, level, goal_eval_cache_before=False, execute_triggers=True):
+    def evaluate_goal(cls, achievement, achievement_date, subject, level, goal_eval_cache_before=False, execute_triggers=True):
         """evaluate the goal for the user_ids and the level"""
 
         operator = goal["operator"]
@@ -1862,7 +1838,7 @@ class Goal(ABase):
 
             for step in exec_queue.values():
                 current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
-                GoalTriggerStep.execute(
+                AchievementTriggerStep.execute(
                     trigger_step=step,
                     subject_id=subject_id,
                     current_percentage=current_percentage,
@@ -1875,26 +1851,26 @@ class Goal(ABase):
 
 
     @classmethod
-    def get_goal_eval_cache(cls, goal_id, achievement_date, subject_id):
+    def get_goal_eval_cache(cls, subject_id, achievement_id, achievement_date):
         """lookup and return cache entry, else return None"""
-        v = cache_goal_evaluation.get("%s_%s_%s" % (goal_id, str(achievement_date), subject_id))
+        v = cache_goal_evaluation.get("%s_%s_%s" % (subject_id, achievement_id, str(achievement_date)))
         if v:
             return v
         else:
             return None
 
     @classmethod
-    def set_goal_eval_cache(cls, goal, achievement_date, subject_id, value, achieved):
+    def set_goal_eval_cache(cls, achievement, achievement_date, subject_id, value, achieved):
         """set cache entry after evaluation"""
-        cache_query = t_evaluations.select().where(and_(t_evaluations.c.goal_id == goal["id"],
-                                                        t_evaluations.c.subject_id == subject_id,
-                                                        t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date)))
+        cache_query = t_progress.select().where(and_(t_progress.c.achievement_id == achievement["id"],
+                                                     t_progress.c.subject_id == subject_id,
+                                                     t_progress.c.achievement_date == AchievementDate.db_format(achievement_date)))
         cache = DBSession.execute(cache_query).fetchone()
 
         if not cache:
             q = t_evaluations.insert()\
                                        .values({"subject_id": subject_id,
-                                                "goal_id": goal["id"],
+                                                "achievement_id": achievement["id"],
                                                 "value": value,
                                                 "achieved": achieved,
                                                 "achievement_date": AchievementDate.db_format(achievement_date)})
@@ -1902,7 +1878,7 @@ class Goal(ABase):
         elif cache["value"] != value or cache["achieved"] != achieved:
             #update
             q = t_evaluations.update()\
-                                       .where(and_(t_evaluations.c.goal_id == goal["id"],
+                                       .where(and_(t_evaluations.c.achievement_id == achievement["id"],
                                                    t_evaluations.c.subject_id == subject_id,
                                                    t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date)))\
                                        .values({"value": value,
@@ -1949,13 +1925,13 @@ class Goal(ABase):
             )
 
     @classmethod
-    def get_leaderboard(cls, goal, achievement_date, subject_ids):
+    def get_leaderboard(cls, achievement, achievement_date, subject_ids):
         """get the leaderboard for the goal and userids"""
 
         q = select([t_evaluations.c.subject_id,
                     t_evaluations.c.value])\
                 .where(and_(t_evaluations.c.subject_id.in_(subject_ids),
-                            t_evaluations.c.goal_id == goal["id"],
+                            t_evaluations.c.goal_id == achievement["id"],
                             t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date),
                             ))\
                 .order_by(t_evaluations.c.value.desc(),
@@ -2006,26 +1982,7 @@ class Goal(ABase):
                                  .order_by(t_goals_goalproperties.c.from_level))\
                         .fetchall()
 
-    @classmethod
-    @cache_general.cache_on_arguments()
-    def basic_goal_output(cls, goal, level):
-        goal_goal = evaluate_value_expression(goal["goal"], {"level": level})
-        properties = {
-            str(r["property_id"]): {
-                "property_id": r["property_id"],
-                "name": r["name"],
-                "value": evaluate_string(r["value"], {"level": level}),
-                "value_translated": Translation.trs(r["value_translation_id"], {"level": level}),
-            } for r in Goal.get_goal_properties(goal["id"], level)
-        }
-        return {
-            "goal_id": goal["id"],
-            "goal_name": evaluate_string(goal["name"], {"level": level, "goal": goal_goal}),
-            "goal_goal": goal_goal,
-            "priority": goal["priority"],
-            "properties": properties,
-            #"updated_at" : goal["updated_at"]
-        }
+
 
     @classmethod
     @cache_general.cache_on_arguments()
@@ -2034,6 +1991,77 @@ class Goal(ABase):
             p["name"]: (p["value_translated"] if p["value_translated"] else p["value"])
             for p in Goal.basic_goal_output(goal, level).get("properties").values()
         }
+
+
+
+class AchievementProperty(ABase):
+    """A AchievementProperty describes the :class:`Achievement`s of our system.
+
+    Examples: name, image, description, xp
+
+    Additionally Properties can be used as variables.
+    This is useful to model goals like "reach 1000xp"
+
+    """
+    def __unicode__(self, *args, **kwargs):
+        return self.name + " (ID: %s)" % (self.id,)
+
+
+class AchievementAchievementProperty(ABase):
+    """A poperty value for an :class:`Achievement`"""
+    pass
+
+
+class GoalProperty(ABase):
+    """A goalproperty describes the :class:`Goal`s of our system.
+
+    Examples: name, image, description, xp
+
+    Additionally Properties can be used as variables.
+    This is useful to model goals like "reach 1000xp"
+
+    """
+    def __unicode__(self, *args, **kwargs):
+        return self.name + " (ID: %s)" % (self.id,)
+
+
+class GoalGoalProperty(ABase):
+    """A goalpoperty value for a :class:`Goal`"""
+    pass
+
+
+class Reward(ABase):
+    """Rewards are given when reaching :class:`Achievement`s.
+
+    Examples: badge, item
+    """
+    def __unicode__(self, *args, **kwargs):
+        return self.name + " (ID: %s)" % (self.id,)
+
+
+class AchievementReward(ABase):
+    """A Reward value for an :class:`Achievement` """
+
+    @classmethod
+    def get_achievement_reward(cls, achievement_reward_id):
+        return DBSession.execute(t_achievements_rewards.select(t_achievements_rewards.c.id == achievement_reward_id)).fetchone()
+
+
+class Evaluation(ABase):
+    """Cache for the evaluation of goals for users"""
+    pass
+
+
+class Goal(ABase):
+    """A Goal defines a rule on variables that needs to be reached to get achievements"""
+
+    def __unicode__(self, *args, **kwargs):
+        if self.name != None:
+            name = evaluate_string(self.name, {"level": 1, "goal": '0'})[get_settings().get("fallback_language", "en")]
+            return str(name) + " (ID: %s)" % (self.id,)
+        else:
+            return self.name + " (ID: %s)" % (self.id,)
+
 
 
 class Language(ABase):
@@ -2124,11 +2152,11 @@ class SubjectMessage(ABase):
             else:
                 DBSession.execute(t_subject_messages.update().values({"has_been_pushed": True}).where(t_subject_messages.c.id == message["id"]))
 
-class GoalTrigger(ABase):
+class AchievementTrigger(ABase):
     def __unicode__(self, *args, **kwargs):
         return "GoalTrigger: %s" % (self.id,)
 
-class GoalTriggerStep(ABase):
+class AchievementTriggerStep(ABase):
     def __unicode__(self, *args, **kwargs):
         return "GoalTriggerStep: %s" % (self.id,)
 
@@ -2167,8 +2195,8 @@ class TaskExecution(ABase):
         return "TaskExecution: %s" % (self.id,)
 
 
-@event.listens_for(GoalTriggerStep, "after_insert")
-@event.listens_for(GoalTriggerStep, 'after_update')
+@event.listens_for(AchievementTriggerStep, "after_insert")
+@event.listens_for(AchievementTriggerStep, 'after_update')
 def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
     """When we create a new Trigger-Step, we must ensure, that is will not be executed for the users who already met the conditions before."""
 
@@ -2198,7 +2226,7 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
 
         if (operator == "geq" and current_percentage >= required_percentage) \
                 or (operator == "leq" and current_percentage <= required_percentage):
-            GoalTriggerStep.execute(
+            AchievementTriggerStep.execute(
                 trigger_step=target,
                 subject_id=subject["id"],
                 current_percentage=current_percentage,
@@ -2276,18 +2304,17 @@ mapper(Value, t_values, properties={
 mapper(AchievementCategory, t_achievementcategories)
 
 mapper(Achievement, t_achievements, properties={
-   'requirements': relationship(Achievement, secondary=t_requirements, 
-                                primaryjoin=t_achievements.c.id==t_requirements.c.from_id,
-                                secondaryjoin=t_achievements.c.id==t_requirements.c.to_id,
-                                ),
-   'denials': relationship(Achievement, secondary=t_denials,
-                           primaryjoin=t_achievements.c.id==t_denials.c.from_id,
-                           secondaryjoin=t_achievements.c.id==t_denials.c.to_id,
-                           ),
-   'subjects': relationship(AchievementSubject, backref='achievement'),
+   #'requirements': relationship(Achievement, secondary=t_requirements,
+   #                             primaryjoin=t_achievements.c.id==t_requirements.c.from_id,
+   #                             secondaryjoin=t_achievements.c.id==t_requirements.c.to_id,
+   #                             ),
+   #'denials': relationship(Achievement, secondary=t_denials,
+   #                        primaryjoin=t_achievements.c.id==t_denials.c.from_id,
+   #                        secondaryjoin=t_achievements.c.id==t_denials.c.to_id,
+   #                        ),
+   #'subjects': relationship(AchievementSubject, backref='achievement'),
    'properties': relationship(AchievementAchievementProperty, backref='achievement'),
    'rewards': relationship(AchievementReward, backref='achievement'),
-   'goals': relationship(Goal, backref='achievement'),
    'achievementcategory': relationship(AchievementCategory, backref='achievements'),
    'player_subjecttype': relationship(SubjectType, primaryjoin=t_achievements.c.player_subjecttype_id == t_subjecttypes.c.id),
    'context_subjecttype': relationship(SubjectType, primaryjoin=t_achievements.c.context_subjecttype_id == t_subjecttypes.c.id),
@@ -2302,27 +2329,16 @@ mapper(AchievementReward, t_achievements_rewards, properties={
    'reward' : relationship(Reward, backref='achievements'),
    'value_translation' : relationship(TranslationVariable)
 })
-mapper(AchievementSubject, t_achievements_subjects)
-
-mapper(Goal, t_goals, properties={
-
-})
-mapper(GoalProperty, t_goalproperties)
-mapper(GoalGoalProperty, t_goals_goalproperties, properties={
-   'property' : relationship(GoalProperty, backref='goals'),
-   'value_translation' : relationship(TranslationVariable),
-   'goal' : relationship(Goal, backref='properties',),
-})
-mapper(GoalEvaluationCache, t_evaluations, properties={
+mapper(Evaluation, t_evaluations, properties={
    'subject': relationship(Subject),
-   'goal': relationship(Goal)
+   'achievement': relationship(Achievement)
 })
 
-mapper(GoalTrigger, t_achievement_triggers, properties={
-    'goal': relationship(Goal, backref="triggers"),
+mapper(AchievementTrigger, t_achievement_triggers, properties={
+    'achievement': relationship(Achievement, backref="triggers"),
 })
-mapper(GoalTriggerStep, t_achievement_trigger_steps, properties={
-    'trigger': relationship(GoalTrigger,backref="steps"),
+mapper(AchievementTriggerStep, t_achievement_trigger_steps, properties={
+    'trigger': relationship(AchievementTrigger, backref="steps"),
     'action_translation': relationship(TranslationVariable)
 })
 
