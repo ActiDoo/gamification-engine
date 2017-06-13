@@ -17,8 +17,8 @@ from pyramid.settings import asbool
 from wtforms import BooleanField
 from wtforms.form import Form
 
-from gengine.app.model import DBSession, Variable, Goal, AchievementCategory, Achievement, AchievementProperty, GoalProperty, AchievementAchievementProperty, AchievementReward,\
-                           GoalGoalProperty, Reward, Subject, GoalEvaluationCache, Value, AchievementSubject, TranslationVariable, Language, Translation, \
+from gengine.app.model import DBSession, Variable, AchievementCategory, Achievement, AchievementProperty, AchievementAchievementProperty, AchievementReward,\
+    Reward, Subject, Evaluation, Progress, Value, TranslationVariable, Language, Translation, \
     AuthUser, AuthRole, AuthRolePermission, AchievementTrigger, AchievementTriggerStep, SubjectMessage, Task, TaskExecution, SubjectType
 from gengine.app.permissions import yield_all_perms
 from gengine.base.settings import get_settings
@@ -69,9 +69,9 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             super(ModelViewAchievementCategory, self).__init__(AchievementCategory, session, **kwargs)
 
     class ModelViewAchievement(ModelView):
-        column_list = ('name','evaluation','valid_start','valid_end','relevance')
+        column_list = ('name','evaluation','valid_start','valid_end','relevance', 'condition','operator','goal','timespan','priority','achievement')
         column_searchable_list = ('name',)
-        form_excluded_columns = ('rewards','subjects','goals','properties','updated_at')
+        form_excluded_columns = ('rewards','subjects','goals','properties','updated_at', 'properties','triggers')
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
@@ -83,7 +83,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def __init__(self, session, **kwargs):
             super(ModelViewVariable, self).__init__(Variable, session, **kwargs)
 
-    class GoalTriggerStepInlineModelForm(InlineFormAdmin):
+    class AchievementTriggerStepInlineModelForm(InlineFormAdmin):
         form_columns = (
             'id',
             'step',
@@ -93,27 +93,17 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             'action_translation',
         )
 
-    class ModelViewGoalTrigger(ModelView):
+    class ModelViewAchievementTrigger(ModelView):
         form_columns = (
             'name',
-            'goal',
+            'achievement',
             'steps',
             'execute_when_complete'
         )
-        inline_models = (GoalTriggerStepInlineModelForm(AchievementTriggerStep),)
+        inline_models = (AchievementTriggerStepInlineModelForm(AchievementTriggerStep),)
 
         def __init__(self, session, **kwargs):
-            super(ModelViewGoalTrigger, self).__init__(AchievementTrigger, session, **kwargs)
-
-    class ModelViewGoal(ModelView):
-        column_list = ('condition','operator','goal','timespan','priority','achievement','updated_at')
-        form_excluded_columns = ('properties','triggers')
-        #column_searchable_list = ('name',)
-        column_filters = (Achievement.id,)
-        fast_mass_delete = True
-
-        def __init__(self, session, **kwargs):
-            super(ModelViewGoal, self).__init__(Goal, session, **kwargs)
+            super(ModelViewAchievementTrigger, self).__init__(AchievementTrigger, session, **kwargs)
 
     class ModelViewValue(ModelView):
         # Disable model creation
@@ -129,22 +119,22 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def __init__(self, session, **kwargs):
             super(ModelViewValue, self).__init__(Value, session, **kwargs)
 
-    class ModelViewGoalEvaluationCache(ModelView):
+    class ModelViewProgress(ModelView):
         # Disable model creation
         can_create = False
         can_edit = False
         can_delete = False
 
         # Override displayed fields
-        column_list = ('goal','subject','achieved','value','updated_at')
+        column_list = ('goal','subject','value','updated_at')
 
         column_filters = (IntEqualFilter(Subject.id, 'SubjectID'),
-                          Goal.id)
+                          Achievement.id)
 
         fast_mass_delete = True
 
         def __init__(self, session, **kwargs):
-            super(ModelViewGoalEvaluationCache, self).__init__(GoalEvaluationCache, session, **kwargs)
+            super(ModelViewProgress, self).__init__(Progress, session, **kwargs)
 
     class ModelViewAchievementProperty(ModelView):
         column_list = ('id','name')
@@ -153,14 +143,6 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
 
         def __init__(self, session, **kwargs):
             super(ModelViewAchievementProperty, self).__init__(AchievementProperty, session, **kwargs)
-
-    class ModelViewGoalProperty(ModelView):
-        column_list = ('id','name')
-        form_excluded_columns = ('goals',)
-        fast_mass_delete = True
-
-        def __init__(self, session, **kwargs):
-            super(ModelViewGoalProperty, self).__init__(GoalProperty, session, **kwargs)
 
     class ModelViewLanguage(ModelView):
         column_list = ('id','name')
@@ -341,12 +323,10 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
 
             
     admin.add_view(ModelViewAchievement(DBSession, category="Rules"))
-    admin.add_view(ModelViewGoal(DBSession, category="Rules"))
-    admin.add_view(ModelViewGoalTrigger(DBSession, category="Rules"))
+    admin.add_view(ModelViewAchievementTrigger(DBSession, category="Rules"))
 
     admin.add_view(ModelView(AchievementAchievementProperty, DBSession, category="Rules", name="Achievement Property Values"))
     admin.add_view(ModelView(AchievementReward, DBSession, category="Rules", name="Achievement Reward Values"))
-    admin.add_view(ModelView(GoalGoalProperty, DBSession, category="Rules", name="Goal Property Values"))
     admin.add_view(ModelViewTranslationVariable(DBSession, category="Rules"))
     admin.add_view(ModelView(Translation,DBSession, category="Rules"))
     
@@ -354,7 +334,6 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     admin.add_view(ModelViewVariable(DBSession, category="Settings"))
     admin.add_view(ModelViewAchievementProperty(DBSession, category="Settings", name="Achievement Property Types"))
     admin.add_view(ModelViewReward(DBSession, category="Settings", name="Achievement Reward Types"))
-    admin.add_view(ModelViewGoalProperty(DBSession, category="Settings", name="Goal Property Types"))
     admin.add_view(ModelViewLanguage(DBSession, category="Settings"))
     admin.add_view(ModelViewTask(DBSession, category="Settings"))
     admin.add_view(ModelViewTaskExecution(DBSession, category="Settings"))
@@ -366,9 +345,9 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     admin.add_view(ModelViewSubjectType(DBSession, category="Subjects"))
 
     admin.add_view(ModelViewValue(DBSession, category="Debug"))
-    admin.add_view(ModelViewGoalEvaluationCache(DBSession, category="Debug"))
+    admin.add_view(ModelViewProgress(DBSession, category="Debug"))
     admin.add_view(ModelViewSubject(DBSession, category="Subjects"))
-    admin.add_view(ModelView(AchievementSubject, DBSession, category="Debug"))
+    admin.add_view(ModelView(Evaluation, DBSession, category="Debug"))
     admin.add_view(ModelViewSubjectMessage(DBSession, category="Debug"))
 
     from gengine.app.registries import get_admin_extension_registry

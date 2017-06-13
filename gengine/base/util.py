@@ -50,3 +50,6 @@ def seconds_until_end_of_day(timezone):
 
 def normalize_key(key):
     return '' if key is None else str(key)
+
+def rowproxy2dict(rp):
+    return {k: v for k, v in dict(rp).items() if not str(k).startswith("_")}

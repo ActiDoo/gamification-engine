@@ -41,7 +41,7 @@ class GlobalLeaderBoardSubjectSet:
     #    return cls.forward()
 
 
-class FriendsLeaderBoardSubjectSet:
+class RelationsLeaderBoardSubjectSet:
 
     @classmethod
     def forward(cls, subject_id, from_date, to_date, whole_time_required):

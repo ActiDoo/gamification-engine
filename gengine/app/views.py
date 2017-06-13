@@ -37,6 +37,7 @@ from gengine.app.model import (
     SubjectDevice,
     t_subject_device, t_subject_messages, SubjectMessage, AchievementDate)
 from gengine.base.settings import get_settings
+from gengine.base.util import dt_now
 from gengine.metadata import DBSession
 from gengine.wsgiutil import HTTPSProxied
 
@@ -122,13 +123,13 @@ def _get_progress(achievements_for_subject, requesting_subject, achievement_id=N
         achievements = [x for x in achievements if int(x["id"]) == int(achievement_id)]
 
     def ea(achievement, achievement_date, execute_triggers):
-        try:
-            return Achievement.evaluate(achievements_for_subject, achievement["id"], achievement_date, execute_triggers=execute_triggers)
-        except FormularEvaluationException as e:
-            return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
-        except Exception as e:
-            tb = traceback.format_exc()
-            return { "error": tb, "id" : achievement["id"] }
+        #try:
+            return Achievement.evaluate(achievements_for_subject, achievement["id"], achievement_date, execute_triggers=execute_triggers, context_subject_id=None)
+        #except FormularEvaluationException as e:
+        #    return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
+        #except Exception as e:
+        #    tb = traceback.format_exc()
+        #    return { "error": tb, "id" : achievement["id"] }
 
     check = lambda x : x!=None and not "error" in x and (x["hidden"]==False or x["level"]>0)
 
@@ -176,7 +177,7 @@ def _get_progress(achievements_for_subject, requesting_subject, achievement_id=N
                         evaluation_shift=achievement["evaluation_shift"],
                     )
 
-                    if dr <= now:
+                    if dr.from_date <= now:
                         achievement_dates.add(dr)
 
             i=0
@@ -262,7 +263,7 @@ def increase_value(request):
         if not Variable.may_increase(variable, request, subject_id):
             raise APIError(403, "forbidden", "You may not increase the variable for this subject.")
     
-    Value.increase_value(variable_name, subject, value, key)
+    Value.increase_value(variable_name, subject, value, key, at_datetime=dt_now())
 
     try:
         achievement_history = int(request.GET["achievement_history"])

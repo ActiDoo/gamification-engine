@@ -1,9 +1,11 @@
 import random
 import datetime
 
-from gengine.app.model import Subject, Language, Achievement, Variable, Value, TranslationVariable, \
-    t_subjects, Reward, AchievementReward, SubjectType
+from gengine.app.model import User, Language, Achievement,Goal, Variable, Value, t_goals, GoalProperty, GoalGoalProperty, TranslationVariable, \
+    t_goals_goalproperties, t_users, GoalEvaluationCache, Reward, AchievementReward, AchievementSubject
 from gengine.metadata import DBSession
+
+from gengine.app.model import UserDevice, t_user_device
 from sqlalchemy import and_, select
 
 import logging
@@ -55,49 +57,22 @@ class Undefined():
 
 undefined = Undefined()
 
+
 def randrange_float(f1,f2):
     return random.random() * abs(f1 - f2) + min(f1,f2)
 
 
-def create_subjecttypes():
-    subjecttype_country = SubjectType(name="Country")
-    DBSession.add(subjecttype_country)
-
-    subjecttype_region = SubjectType(name="Region")
-    subjecttype_region.part_of_types.append(subjecttype_country)
-    DBSession.add(subjecttype_region)
-
-    subjecttype_city = SubjectType(name="City")
-    subjecttype_city.part_of_types.append(subjecttype_region)
-    DBSession.add(subjecttype_city)
-
-    subjecttype_position = SubjectType(name="Position")
-    DBSession.add(subjecttype_position)
-
-    subjecttype_team = SubjectType(name="Team")
-    subjecttype_team.part_of_types.append(subjecttype_city)
-    DBSession.add(subjecttype_team)
-
-    subjecttype_user = DBSession.query(SubjectType).filter_by(name="User").first()
-    subjecttype_user.part_of_types.append(subjecttype_city)
-    subjecttype_user.part_of_types.append(subjecttype_team)
-    subjecttype_user.part_of_types.append(subjecttype_position)
-    DBSession.add(subjecttype_team)
-    DBSession.flush()
-
-def get_user_subjecttype():
-    return DBSession.query(SubjectType).filter_by(name="User").first()
-
-def create_subjects():
-    create_subjecttypes()
-
-
-def create_subject(
+def create_user(
         user_id = undefined,
         lat = undefined,
         lng = undefined,
+        country = undefined,
+        region = undefined,
+        city = undefined,
         timezone = undefined,
         language = undefined,
+        friends = [],
+        groups = [],
         additional_public_data = undefined,
         gen_data = default_gen_data
     ):
@@ -118,10 +93,17 @@ def create_subject(
     if timezone is undefined:
         timezone = gen_data["timezone"]
 
+    #if country is undefined:
+    #    country = gen_data["country"]
+
+    #if region is undefined:
+    #    region = gen_data["region"]
+
+    #if city is undefined:
+    #    city = gen_data["city"]
+
     if language is undefined:
         language = gen_data["language"]
-
-    subject = Subject()
 
     User.set_infos(
         user_id = user_id,
