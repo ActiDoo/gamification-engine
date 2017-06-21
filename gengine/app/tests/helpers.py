@@ -2,7 +2,8 @@ import random
 import datetime
 
 from gengine.app.model import Subject, Language, Achievement, Variable, Value, TranslationVariable, \
-    t_subjects, Reward, AchievementReward, SubjectType
+    t_subjects, Reward, AchievementReward, SubjectType, t_subjecttypes, SubjectDevice, t_subject_device, \
+    AchievementProperty
 from gengine.metadata import DBSession
 from sqlalchemy import and_, select
 
@@ -63,12 +64,8 @@ def create_subjecttypes():
     subjecttype_country = SubjectType(name="Country")
     DBSession.add(subjecttype_country)
 
-    subjecttype_region = SubjectType(name="Region")
-    subjecttype_region.part_of_types.append(subjecttype_country)
-    DBSession.add(subjecttype_region)
-
     subjecttype_city = SubjectType(name="City")
-    subjecttype_city.part_of_types.append(subjecttype_region)
+    subjecttype_city.part_of_types.append(subjecttype_country)
     DBSession.add(subjecttype_city)
 
     subjecttype_position = SubjectType(name="Position")
@@ -78,7 +75,7 @@ def create_subjecttypes():
     subjecttype_team.part_of_types.append(subjecttype_city)
     DBSession.add(subjecttype_team)
 
-    subjecttype_user = DBSession.query(SubjectType).filter_by(name="User").first()
+    subjecttype_user = SubjectType(name="User")
     subjecttype_user.part_of_types.append(subjecttype_city)
     subjecttype_user.part_of_types.append(subjecttype_team)
     subjecttype_user.part_of_types.append(subjecttype_position)
@@ -89,93 +86,220 @@ def get_user_subjecttype():
     return DBSession.query(SubjectType).filter_by(name="User").first()
 
 def create_subjects():
-    create_subjecttypes()
+    germany = create_subject(name="Germany", type="Country")
+    DBSession.add(germany)
+
+    france = create_subject(name="France", type="Country")
+    DBSession.add(france)
+
+    bielefeld = create_subject(name="Bielefeld", type="City")
+    bielefeld.part_of_subjects.append(germany)
+    DBSession.add(bielefeld)
+
+    paderborn = create_subject(name="Paderborn", type="City")
+    paderborn.part_of_subjects.append(germany)
+    DBSession.add(paderborn)
+
+    lyon = create_subject(name="Lyon", type="City")
+    lyon.part_of_subjects.append(france)
+    DBSession.add(lyon)
+
+    junior_developer = create_subject(name="Junior Developer", type="Position")
+    DBSession.add(junior_developer)
+
+    senior_developer = create_subject(name="Senior Developer", type="Position")
+    DBSession.add(senior_developer)
+
+    project_manager = create_subject(name="Project Manager", type="Position")
+    DBSession.add(project_manager)
+
+    dev_team_bielefeld = create_subject(name="Developer Team Bielefeld", type="Team")
+    dev_team_bielefeld.part_of_subjects.append(bielefeld)
+    DBSession.add(dev_team_bielefeld)
+
+    dev_team_paderborn = create_subject(name="Developer Team Paderborn", type="Team")
+    dev_team_bielefeld.part_of_subjects.append(paderborn)
+    DBSession.add(dev_team_paderborn)
+
+    dev_team_lyon = create_subject(name="Developer Team Lyon", type="Team")
+    dev_team_bielefeld.part_of_subjects.append(lyon)
+    DBSession.add(dev_team_lyon)
+
+    klaus = create_subject(name="Klaus", type="User")
+    klaus.part_of_subjects.append(bielefeld)
+    klaus.part_of_subjects.append(junior_developer)
+    klaus.part_of_subjects.append(dev_team_bielefeld)
+    klaus.part_of_subjects.append(germany)
+    DBSession.add(klaus)
+
+    clara = create_subject(name="Clara", type="User")
+    clara.part_of_subjects.append(bielefeld)
+    clara.part_of_subjects.append(junior_developer)
+    clara.part_of_subjects.append(dev_team_bielefeld)
+    clara.part_of_subjects.append(germany)
+    DBSession.add(clara)
+
+    manfred = create_subject(name="Manfred", type="User")
+    manfred.part_of_subjects.append(bielefeld)
+    manfred.part_of_subjects.append(junior_developer)
+    manfred.part_of_subjects.append(dev_team_bielefeld)
+    manfred.part_of_subjects.append(germany)
+    DBSession.add(manfred)
+
+    otto = create_subject(name="Otto", type="User")
+    otto.part_of_subjects.append(bielefeld)
+    otto.part_of_subjects.append(junior_developer)
+    otto.part_of_subjects.append(dev_team_bielefeld)
+    otto.part_of_subjects.append(germany)
+    DBSession.add(otto)
+
+    max = create_subject(name="Max", type="User")
+    max.part_of_subjects.append(bielefeld)
+    max.part_of_subjects.append(senior_developer)
+    max.part_of_subjects.append(dev_team_bielefeld)
+    max.part_of_subjects.append(germany)
+    DBSession.add(max)
+
+    ronny = create_subject(name="Ronny", type="User")
+    ronny.part_of_subjects.append(bielefeld)
+    ronny.part_of_subjects.append(senior_developer)
+    ronny.part_of_subjects.append(dev_team_bielefeld)
+    ronny.part_of_subjects.append(germany)
+    DBSession.add(ronny)
+
+    sonja = create_subject(name="Sonja", type="User")
+    sonja.part_of_subjects.append(bielefeld)
+    sonja.part_of_subjects.append(project_manager)
+    sonja.part_of_subjects.append(dev_team_bielefeld)
+    sonja.part_of_subjects.append(germany)
+    DBSession.add(sonja)
+
+    #Paderborn
+
+    liam = create_subject(name="Liam", type="User")
+    liam.part_of_subjects.append(paderborn)
+    liam.part_of_subjects.append(junior_developer)
+    liam.part_of_subjects.append(dev_team_paderborn)
+    liam.part_of_subjects.append(germany)
+    DBSession.add(liam)
+
+    tim = create_subject(name="Tim", type="User")
+    tim.part_of_subjects.append(paderborn)
+    tim.part_of_subjects.append(junior_developer)
+    tim.part_of_subjects.append(dev_team_paderborn)
+    tim.part_of_subjects.append(germany)
+    DBSession.add(tim)
+
+    robin = create_subject(name="Robin", type="User")
+    robin.part_of_subjects.append(paderborn)
+    robin.part_of_subjects.append(junior_developer)
+    robin.part_of_subjects.append(dev_team_paderborn)
+    robin.part_of_subjects.append(germany)
+    DBSession.add(robin)
+
+    alina = create_subject(name="Alina", type="User")
+    alina.part_of_subjects.append(paderborn)
+    alina.part_of_subjects.append(junior_developer)
+    alina.part_of_subjects.append(dev_team_paderborn)
+    alina.part_of_subjects.append(germany)
+    DBSession.add(alina)
+
+    charlotte = create_subject(name="Charlotte", type="User")
+    charlotte.part_of_subjects.append(paderborn)
+    charlotte.part_of_subjects.append(senior_developer)
+    charlotte.part_of_subjects.append(dev_team_paderborn)
+    charlotte.part_of_subjects.append(germany)
+    DBSession.add(charlotte)
+
+    ida = create_subject(name="Ida", type="User")
+    ida.part_of_subjects.append(paderborn)
+    ida.part_of_subjects.append(senior_developer)
+    ida.part_of_subjects.append(dev_team_paderborn)
+    ida.part_of_subjects.append(germany)
+    DBSession.add(ida)
+
+    carolin = create_subject(name="Carolin", type="User")
+    carolin.part_of_subjects.append(paderborn)
+    carolin.part_of_subjects.append(project_manager)
+    carolin.part_of_subjects.append(dev_team_paderborn)
+    carolin.part_of_subjects.append(germany)
+    DBSession.add(sonja)
+
+    #Lyon
+
+    lola = create_subject(name="Lola", type="User")
+    lola.part_of_subjects.append(lyon)
+    lola.part_of_subjects.append(junior_developer)
+    lola.part_of_subjects.append(dev_team_lyon)
+    lola.part_of_subjects.append(france)
+    DBSession.add(lola)
+
+    lina = create_subject(name="Lina", type="User")
+    lina.part_of_subjects.append(lyon)
+    lina.part_of_subjects.append(senior_developer)
+    lina.part_of_subjects.append(dev_team_lyon)
+    lina.part_of_subjects.append(france)
+    DBSession.add(lina)
+
+    ethan = create_subject(name="Ethan", type="User")
+    ethan.part_of_subjects.append(lyon)
+    ethan.part_of_subjects.append(project_manager)
+    ethan.part_of_subjects.append(dev_team_lyon)
+    ethan.part_of_subjects.append(france)
+    DBSession.add(ethan)
+    DBSession.flush()
+
+def create_variables():
+    invite_users = Variable(
+        name="invite_users",
+        increase_permission="own"
+    )
+    DBSession.add(invite_users)
+    DBSession.flush()
+
+def create_achievements():
+    user_type = DBSession.query(SubjectType).filter_by(name="User").first()
+    invite_users = Achievement(
+        name="invite_users",
+        maxlevel=100,
+        hidden=False,
+        evaluation="immediately",
+        comparison_type="none",
+        player_subjecttype_id=user_type["id"],
+        view_permission="own",
+        condition="""{"term": {"type": "literal", "variable": "invite_users"}}""",
+        goal="3*level",
+        operator="geq"
+    )
+    DBSession.add(invite_users)
+    DBSession.flush()
+    #goal.condition = """"""
+    #goal.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
 
 
 def create_subject(
-        user_id = undefined,
-        lat = undefined,
-        lng = undefined,
-        timezone = undefined,
-        language = undefined,
-        additional_public_data = undefined,
-        gen_data = default_gen_data
+        name,
+        type,
+        lat=None,
+        lng=None,
+        timezone=None,
+        language=None,
+        additional_public_data={},
     ):
-    if additional_public_data is undefined:
-        additional_public_data = {
-            'first_name' : 'Stefan',
-            'last_name' : 'Rogers'
-        }
 
-    if user_id is undefined:
-        user_id = (DBSession.execute("SELECT max(id) as c FROM users").scalar() or 0) + 1
-    if lat is undefined:
-        lat = randrange_float(gen_data["area"]["min_lat"],gen_data["area"]["max_lat"])
-
-    if lng is undefined:
-        lng = randrange_float(gen_data["area"]["min_lng"], gen_data["area"]["max_lng"])
-
-    if timezone is undefined:
-        timezone = gen_data["timezone"]
-
-    if language is undefined:
-        language = gen_data["language"]
+    type_obj = DBSession.query(SubjectType).filter_by(name=type).first()
+    language_obj = get_or_create_language(name=language) if language else None
 
     subject = Subject()
-
-    User.set_infos(
-        user_id = user_id,
-        lat = lat,
-        lng = lng,
-        timezone = timezone,
-        language = language,
-        groups = groups,
-        friends = friends,
-        additional_public_data = additional_public_data
-    )
-
-    return User.get_user(user_id)
-
-
-def update_user( 
-        user_id = undefined,
-        lat = undefined,
-        lng = undefined,
-        #country = undefined,
-        #region = undefined,
-        #city = undefined,
-        timezone = undefined,
-        language = undefined,
-        friends = [],
-        groups = [],
-        additional_public_data = undefined,
-    ):
-
-    User.set_infos(
-        user_id = user_id,
-        lat = lat,
-        lng = lng,
-        timezone = timezone,
-        #country = country,
-        #region = region,
-        #city = city,
-        language = language,
-        groups = groups,
-        friends = friends,
-        additional_public_data = additional_public_data
-    )
-
-    return User.get_user(user_id)
-
-
-def delete_user( 
-        user_id = undefined,
-    ):
-
-    User.delete_user(user_id)
-    users = DBSession.execute(select([t_users.c.id,])).fetchall()
-    return users
-    
+    subject.name = name
+    subject.lat = lat
+    subject.lng = lng
+    subject.timezone = timezone
+    subject.language = language_obj
+    subject.additional_public_data = additional_public_data
+    subject.type = type_obj
+    DBSession.add(subject)
+    return subject
 
 def get_or_create_language(name):
     lang = DBSession.query(Language).filter_by(name=name).first()
@@ -186,9 +310,8 @@ def get_or_create_language(name):
         DBSession.flush()
     return lang
 
-
 def create_device(
-        user_id=undefined,
+        subject_id=undefined,
         device_id=undefined,
         device_os=undefined,
         push_id=undefined,
@@ -208,227 +331,20 @@ def create_device(
     if device_id is undefined:
         device_id = gen_data["device_id"]
 
-    UserDevice.add_or_update_device(
+    SubjectDevice.add_or_update_device(
         device_id = device_id,
-        user_id = user_id,
+        subject_id = subject_id,
         device_os = device_os,
         push_id = push_id,
         app_version = app_version
     )
 
-    device = DBSession.execute(t_user_device.select().where(and_(
-            t_user_device.c.device_id == device_id,
-            t_user_device.c.user_id == user_id
-        ))).fetchone()
-
-    return device
-
-
-def update_device(
-        user_id=undefined,
-        device_id=undefined,
-        device_os=undefined,
-        push_id=undefined,
-        app_version=undefined,
-    ):
-    UserDevice.add_or_update_device(
-        device_id=device_id,
-        user_id=user_id,
-        device_os=device_os,
-        push_id=push_id,
-        app_version=app_version
-    )
-
-    device = DBSession.execute(t_user_device.select().where(and_(
-        t_user_device.c.device_id == device_id,
-        t_user_device.c.user_id == user_id
+    device = DBSession.execute(t_subject_device.select().where(and_(
+        t_subject_device.c.device_id == device_id,
+        t_subject_device.c.subject_id == subject_id
     ))).fetchone()
 
     return device
-
-
-def create_achievement(
-        achievement_name = undefined,
-        achievement_valid_start = undefined,
-        achievement_valid_end = undefined,
-        achievement_lat = undefined,
-        achievement_lng = undefined,
-        achievement_max_distance = undefined,
-        achievement_evaluation = undefined,
-        achievement_relevance = undefined,
-        achievement_maxlevel = undefined,
-        achievement_view_permission = undefined,
-        achievement_evaluation_shift = undefined,
-        achievement_evaluation_timezone = undefined,
-    ):
-    achievement = Achievement()
-
-    if achievement_name is undefined:
-        achievement.name = "invite_users_achievement"
-    else:
-        achievement.name = achievement_name
-
-    if achievement_valid_start is undefined:
-        achievement.valid_start = "2016-12-16"
-    else:
-        achievement.valid_start = achievement_valid_start
-
-    if achievement_valid_end is undefined:
-        achievement.valid_end = datetime.date.today()
-    else:
-        achievement.valid_end = achievement_valid_end
-
-    if achievement_lat is undefined:
-        achievement.lat = 40.983
-    else:
-        achievement.lat = achievement_lat
-
-    if achievement_lng is undefined:
-        achievement.lng = 41.562
-    else:
-        achievement.lng = achievement_lng
-
-    if achievement_max_distance is undefined:
-        achievement.max_distance = 20000
-    else:
-        achievement.max_distance = achievement_max_distance
-
-    if achievement_evaluation is undefined:
-        achievement.evaluation = "immediately"
-    else:
-        achievement.evaluation = achievement_evaluation
-
-    if achievement_relevance is undefined:
-        achievement.relevance = "friends"
-    else:
-        achievement.relevance = achievement_relevance
-
-    if achievement_maxlevel is undefined:
-        achievement.maxlevel = 3
-    else:
-        achievement.maxlevel = achievement_maxlevel
-
-    if achievement_view_permission is undefined:
-        achievement.view_permission = "everyone"
-    else:
-        achievement.view_permission = achievement_view_permission
-
-    if achievement_evaluation_shift is undefined:
-        achievement.evaluation_shift = None
-    else:
-        achievement.evaluation_shift = achievement_evaluation_shift
-
-    if achievement_evaluation_shift is undefined:
-        achievement.evaluation_timezone = "UTC"
-    else:
-        achievement.evaluation_timezone = achievement_evaluation_timezone
-
-    DBSession.add(achievement)
-    DBSession.flush()
-
-    return achievement
-
-
-def create_goals(
-        achievement = undefined,
-        goal_condition = undefined,
-        goal_goal = undefined,
-        goal_operator = undefined,
-        goal_group_by_key = undefined,
-        goal_name = undefined
-    ):
-    goal = Goal()
-    if achievement["name"] is "invite_users_achievement":
-
-        if goal_condition is undefined:
-            goal.condition = """{"term": {"type": "literal", "variable": "invite_users"}}"""
-        else:
-            goal.condition = goal_condition
-
-        if goal_goal is undefined:
-            goal.goal = "5*level"
-        else:
-            goal.goal = goal_goal
-
-        if goal_operator is undefined:
-            goal.operator = "geq"
-        else:
-            goal.operator = goal_operator
-
-        if goal_group_by_key is undefined:
-            goal.group_by_key = False
-        else:
-            goal.group_by_key = goal_group_by_key
-
-        if goal_name is undefined:
-            goal.name = "goal_invite_users"
-        else:
-            goal.name = goal_name
-
-        goal.achievement_id = achievement.id
-        DBSession.add(goal)
-        DBSession.flush()
-
-    if achievement["name"] is "participate_achievement":
-
-        if goal_condition is undefined:
-            goal.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
-        else:
-            goal.condition = goal_condition
-
-        if goal_goal is undefined:
-            goal.goal = "3*level"
-        else:
-            goal.goal = goal_goal
-
-        if goal_operator is undefined:
-            goal.operator = "geq"
-        else:
-            goal.operator = goal_operator
-
-        if goal_group_by_key is undefined:
-            goal.group_by_key = True
-        else:
-            goal.group_by_key = goal_group_by_key
-
-        if goal_name is undefined:
-            goal.name = "goal_participate"
-        else:
-            goal.name = goal_name
-
-        goal.achievement_id = achievement.id
-        DBSession.add(goal)
-        DBSession.flush()
-
-    return goal
-
-
-def create_goal_properties(goal_id):
-
-    goal_property = GoalProperty()
-    goal_property.name = "participate"
-    goal_property.is_variable = True
-    DBSession.add(goal_property)
-    DBSession.flush()
-
-    translation_variable = TranslationVariable()
-    translation_variable.name = "invite_users_goal_name"
-    DBSession.add(translation_variable)
-    DBSession.flush()
-
-    goals_goal_property = GoalGoalProperty()
-    goals_goal_property.goal_id = goal_id
-    goals_goal_property.property_id = goal_property.id
-    goals_goal_property.value = "7"
-    goals_goal_property.value_translation_id = translation_variable.id
-    goals_goal_property.from_level = 2
-    DBSession.add(goals_goal_property)
-    DBSession.flush()
-
-    goals_goal_property_result = DBSession.execute(t_goals_goalproperties.select().where(t_goals_goalproperties.c.goal_id == goal_id)).fetchone()
-
-    return goals_goal_property_result
-
 
 def create_achievement_rewards(achievement):
     reward = Reward()
@@ -446,75 +362,26 @@ def create_achievement_rewards(achievement):
 
     return achievement_reward
 
-
-def create_achievement_user(user, achievement, achievement_date, level):
-    achievement_user = AchievementSubject()
-    achievement_user.user_id = user.id
-    achievement_user.achievement_id = achievement.id
-    achievement_user.achievement_date = achievement_date
-    achievement_user.level = level
-    DBSession.add(achievement_user)
-    DBSession.flush()
-
-    return achievement_user
-
-
-def create_goal_evaluation_cache(
-        goal_id ,
-        gec_achievement_date,
-        gec_user_id,
-        gec_achieved = undefined,
-        gec_value = undefined,
-    ):
-    goal_evaluation_cache = GoalEvaluationCache()
-
-    if gec_achieved is undefined:
-        goal_evaluation_cache.gec_achieved = True
-    else:
-        goal_evaluation_cache.gec_achieved = gec_achieved
-
-    if gec_value is undefined:
-        goal_evaluation_cache.gec_value = 20.0
-    else:
-        goal_evaluation_cache.gec_value = gec_value
-
-    goal_evaluation_cache.goal_id = goal_id
-    goal_evaluation_cache.achievement_date = gec_achievement_date
-    goal_evaluation_cache.user_id = gec_user_id
-    goal_evaluation_cache.achieved = gec_achieved
-    goal_evaluation_cache.value = gec_value
-    DBSession.add(goal_evaluation_cache)
-    DBSession.flush()
-
-    return goal_evaluation_cache
-
-
-def create_variable(
-        variable_name = undefined,
-        variable_group = undefined,
-    ):
+def create_variable(name, increase_permission="admin"):
     variable = Variable()
-    variable.name = variable_name
-    variable.group = variable_group
+    variable.name = name
+    variable.increase_permission = increase_permission
     DBSession.add(variable)
     DBSession.flush()
-
     return variable
 
+def default_dt():
+    import datetime
+    import pytz
 
-def create_value(
-        user_id=undefined,
-        variable_id=undefined,
-        var_value=undefined,
-        key="",
-    ):
+    dt = datetime.datetime(
+        year=2017,
+        month=5,
+        day=1,
+        hour=10,
+        minute=0,
+        second=0,
+        tzinfo=pytz.UTC
+    )
 
-    value = Value()
-    value.user_id = user_id
-    value.variable_id = variable_id
-    value.value = var_value
-    value.key = key
-    DBSession.add(value)
-    DBSession.flush()
-
-    return value
+    return dt

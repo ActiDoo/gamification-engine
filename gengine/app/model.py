@@ -337,10 +337,11 @@ t_evaluations = Table("evaluations", Base.metadata,
     Column('achievement_date', TIMESTAMP(timezone=True), nullable=True, index=True), # To identify the goals for monthly, weekly, ... achievements;
 
     # For which context? (The achievement defines the context type, this is the actual context!)
-    Column('context_subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column('context_subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True, index=True),
 
     # Is this achieved?
     Column("achieved", ty.Boolean, nullable=False, server_default='0', default=False, index=True),
+    Column('achieved_at', TIMESTAMP(timezone=True), nullable=True, index=True),
 
     # Which level is this
     Column('level', ty.Integer, default=0, nullable=False, index=True),
@@ -1126,13 +1127,13 @@ class Value(ABase):
             for achievement in achievements:
                 achievement_date = achievement_id_to_achievement_date[achievement["id"]]
                 compared_subjects = [s for s in subjects[sid] if s["subjecttype_id"] in achievement["compared_subjecttypes"]]
-                for compared_subject in compared_subjects:
-                    q = t_progress.delete().where(and_(
-                        t_progress.c.subject_id == compared_subject["subject_id"],
-                        t_progress.c.achievement_id == achievement["id"],
-                        t_progress.c.achievement_date == achievement_date,
-                    ))
-                    update_connection().execute(q)
+                csids = set([x["subject_id"] for x in compared_subjects] + [subject["id"],])
+                q = t_progress.delete().where(and_(
+                    t_progress.c.subject_id.in_(csids),
+                    t_progress.c.achievement_id == achievement["id"],
+                    t_progress.c.achievement_date == achievement_date,
+                ))
+                update_connection().execute(q)
 
 
 class AchievementCategory(ABase):
@@ -1330,7 +1331,7 @@ class Achievement(ABase):
         """get the current level of the subject for this achievement."""
         def generate():
             q = select([t_evaluations.c.level,
-                        t_evaluations.c.achievement_date,],
+                        t_evaluations.c.achieved_at,],
                        and_(t_evaluations.c.subject_id == subject_id,
                             t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date),
                             t_evaluations.c.context_subject_id == context_subject_id,
@@ -1437,11 +1438,11 @@ class Achievement(ABase):
 
                 if goal is not None and achievement["operator"] == "geq" and current_progress >= goal:
                     achieved = True
-                    current_progress = min(current_progress, goal)
+                    #current_progress = min(current_progress, goal)
 
                 elif goal is not None and achievement["operator"] == "leq" and current_progress <= goal:
                     achieved = True
-                    current_progress = max(current_progress, goal)
+                    #current_progress = max(current_progress, goal)
 
             if current_progress != current_progress_before:
                 if current_progress_before:
@@ -1538,24 +1539,32 @@ class Achievement(ABase):
                 #    if prop["is_variable"]:
                 #        Value.increase_value(prop["name"], compared_subject, prop["value"], achievement_id)
 
-                update_connection().execute(t_evaluations.insert().values({
-                    "subject_id": subject_id,
-                    "achievement_id": achievement["id"],
-                    "achievement_date": AchievementDate.db_format(achievement_date),
-                    "context_subject_id": context_subject_id,
-                    "level": subject_wants_level,
-                    "achieved": True
-                }))
-
-                update_connection().execute(t_evaluations.update().values({
-                    "achieved": True
-                }).where(and_(
+                evaluation = update_connection().execute(select([t_evaluations.c.id]).where(and_(
                     t_evaluations.c.subject_id == subject_id,
                     t_evaluations.c.achievement_id == achievement["id"],
                     t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date),
                     t_evaluations.c.context_subject_id == context_subject_id,
                     t_evaluations.c.level == subject_has_level,
-                )))
+                ))).fetchone()
+
+                if evaluation:
+                    update_connection().execute(t_evaluations.update().values({
+                        "achieved": True
+                    }).where(
+                        t_evaluations.c.id == evaluation["id"]
+                    ))
+                else:
+                    update_connection().execute(t_evaluations.insert().values({
+                        "subject_id": subject_id,
+                        "achievement_id": achievement["id"],
+                        "achievement_date": AchievementDate.db_format(achievement_date),
+                        "context_subject_id": context_subject_id,
+                        "level": subject_wants_level,
+                        "achieved": True,
+                        "achieved_at": dt_now()
+                    }))
+
+
 
                 #invalidate current level cache
                 cache_achievements_subjects_levels.delete("%s_%s_%s_%s" % (str(subject_id), str(achievement_id), str(achievement_date), str(context_subject_id)))
@@ -1576,7 +1585,7 @@ class Achievement(ABase):
                 output.update({
                    "level": subject_has_level,
                    "levels_achieved": {
-                        str(x["level"]): x["updated_at"] for x in Achievement.get_level(subject_id, achievement["id"], achievement_date, context_subject_id)
+                        str(x["level"]): x["achieved_at"] for x in Achievement.get_level(subject_id, achievement["id"], achievement_date, context_subject_id)
                     },
                    "maxlevel": achievement["maxlevel"],
                    "new_levels": {},
