@@ -351,6 +351,7 @@ Index("idx_evaluations_date_not_null_unique",
     t_evaluations.c.subject_id,
     t_evaluations.c.achievement_id,
     t_evaluations.c.achievement_date,
+    t_evaluations.c.level,
     unique=True,
     postgresql_where=t_evaluations.c.achievement_date != None
 )
@@ -358,6 +359,7 @@ Index("idx_evaluations_date_not_null_unique",
 Index("idx_evaluations_date_null_unique",
     t_evaluations.c.subject_id,
     t_evaluations.c.achievement_id,
+    t_evaluations.c.level,
     unique=True,
     postgresql_where=t_evaluations.c.achievement_date == None
 )
@@ -1544,7 +1546,7 @@ class Achievement(ABase):
                     t_evaluations.c.achievement_id == achievement["id"],
                     t_evaluations.c.achievement_date == AchievementDate.db_format(achievement_date),
                     t_evaluations.c.context_subject_id == context_subject_id,
-                    t_evaluations.c.level == subject_has_level,
+                    t_evaluations.c.level == subject_wants_level,
                 ))).fetchone()
 
                 if evaluation:
@@ -1563,8 +1565,6 @@ class Achievement(ABase):
                         "achieved": True,
                         "achieved_at": dt_now()
                     }))
-
-
 
                 #invalidate current level cache
                 cache_achievements_subjects_levels.delete("%s_%s_%s_%s" % (str(subject_id), str(achievement_id), str(achievement_date), str(context_subject_id)))
