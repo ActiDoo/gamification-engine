@@ -1,6 +1,8 @@
 import random
 import datetime
 
+from dateutil.relativedelta import relativedelta
+
 from gengine.app.model import Subject, Language, Achievement, Variable, Value, TranslationVariable, \
     t_subjects, Reward, AchievementReward, SubjectType, t_subjecttypes, SubjectDevice, t_subject_device, \
     AchievementProperty
@@ -93,16 +95,19 @@ def create_subjects():
     DBSession.add(france)
 
     bielefeld = create_subject(name="Bielefeld", type="City")
-    bielefeld.part_of_subjects.append(germany)
     DBSession.add(bielefeld)
+    DBSession.flush()
+    Subject.join_subject(subject_id=bielefeld.id, part_of_id=germany.id, join_date=default_dt())
 
     paderborn = create_subject(name="Paderborn", type="City")
-    paderborn.part_of_subjects.append(germany)
     DBSession.add(paderborn)
+    DBSession.flush()
+    Subject.join_subject(subject_id=paderborn.id, part_of_id=germany.id, join_date=default_dt())
 
     lyon = create_subject(name="Lyon", type="City")
-    lyon.part_of_subjects.append(france)
     DBSession.add(lyon)
+    DBSession.flush()
+    Subject.join_subject(subject_id=lyon.id, part_of_id=france.id, join_date=default_dt())
 
     junior_developer = create_subject(name="Junior Developer", type="Position")
     DBSession.add(junior_developer)
@@ -114,140 +119,160 @@ def create_subjects():
     DBSession.add(project_manager)
 
     dev_team_bielefeld = create_subject(name="Developer Team Bielefeld", type="Team")
-    dev_team_bielefeld.part_of_subjects.append(bielefeld)
     DBSession.add(dev_team_bielefeld)
+    DBSession.flush()
+    Subject.join_subject(subject_id=dev_team_bielefeld.id, part_of_id=bielefeld.id, join_date=default_dt())
 
     dev_team_paderborn = create_subject(name="Developer Team Paderborn", type="Team")
-    dev_team_bielefeld.part_of_subjects.append(paderborn)
     DBSession.add(dev_team_paderborn)
+    DBSession.flush()
+    Subject.join_subject(subject_id=dev_team_paderborn.id, part_of_id=paderborn.id, join_date=default_dt())
 
     dev_team_lyon = create_subject(name="Developer Team Lyon", type="Team")
-    dev_team_bielefeld.part_of_subjects.append(lyon)
     DBSession.add(dev_team_lyon)
+    DBSession.flush()
+    Subject.join_subject(subject_id=dev_team_lyon.id, part_of_id=lyon.id, join_date=default_dt())
 
     klaus = create_subject(name="Klaus", type="User")
-    klaus.part_of_subjects.append(bielefeld)
-    klaus.part_of_subjects.append(junior_developer)
-    klaus.part_of_subjects.append(dev_team_bielefeld)
-    klaus.part_of_subjects.append(germany)
     DBSession.add(klaus)
+    DBSession.flush()
+    Subject.join_subject(subject_id=klaus.id, part_of_id=bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=klaus.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=klaus.id, part_of_id=dev_team_bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=klaus.id, part_of_id=germany.id, join_date=default_dt())
 
     clara = create_subject(name="Clara", type="User")
-    clara.part_of_subjects.append(bielefeld)
-    clara.part_of_subjects.append(junior_developer)
-    clara.part_of_subjects.append(dev_team_bielefeld)
-    clara.part_of_subjects.append(germany)
     DBSession.add(clara)
+    DBSession.flush()
+    Subject.join_subject(subject_id=clara.id, part_of_id=bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=clara.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=clara.id, part_of_id=dev_team_bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=clara.id, part_of_id=germany.id, join_date=default_dt())
 
     manfred = create_subject(name="Manfred", type="User")
-    manfred.part_of_subjects.append(bielefeld)
-    manfred.part_of_subjects.append(junior_developer)
-    manfred.part_of_subjects.append(dev_team_bielefeld)
-    manfred.part_of_subjects.append(germany)
     DBSession.add(manfred)
+    DBSession.flush()
+    Subject.join_subject(subject_id=manfred.id, part_of_id=bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=manfred.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=manfred.id, part_of_id=dev_team_bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=manfred.id, part_of_id=germany.id, join_date=default_dt())
 
     otto = create_subject(name="Otto", type="User")
-    otto.part_of_subjects.append(bielefeld)
-    otto.part_of_subjects.append(junior_developer)
-    otto.part_of_subjects.append(dev_team_bielefeld)
-    otto.part_of_subjects.append(germany)
     DBSession.add(otto)
+    DBSession.flush()
+    Subject.join_subject(subject_id=otto.id, part_of_id=bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=otto.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=otto.id, part_of_id=dev_team_bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=otto.id, part_of_id=germany.id, join_date=default_dt())
 
     max = create_subject(name="Max", type="User")
-    max.part_of_subjects.append(bielefeld)
-    max.part_of_subjects.append(senior_developer)
-    max.part_of_subjects.append(dev_team_bielefeld)
-    max.part_of_subjects.append(germany)
     DBSession.add(max)
+    DBSession.flush()
+    Subject.join_subject(subject_id=max.id, part_of_id=bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=max.id, part_of_id=senior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=max.id, part_of_id=dev_team_bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=max.id, part_of_id=germany.id, join_date=default_dt())
 
     ronny = create_subject(name="Ronny", type="User")
-    ronny.part_of_subjects.append(bielefeld)
-    ronny.part_of_subjects.append(senior_developer)
-    ronny.part_of_subjects.append(dev_team_bielefeld)
-    ronny.part_of_subjects.append(germany)
     DBSession.add(ronny)
+    DBSession.flush()
+    Subject.join_subject(subject_id=ronny.id, part_of_id=bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ronny.id, part_of_id=senior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ronny.id, part_of_id=dev_team_bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ronny.id, part_of_id=germany.id, join_date=default_dt())
 
     sonja = create_subject(name="Sonja", type="User")
-    sonja.part_of_subjects.append(bielefeld)
-    sonja.part_of_subjects.append(project_manager)
-    sonja.part_of_subjects.append(dev_team_bielefeld)
-    sonja.part_of_subjects.append(germany)
     DBSession.add(sonja)
+    DBSession.flush()
+    Subject.join_subject(subject_id=sonja.id, part_of_id=bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=sonja.id, part_of_id=project_manager.id, join_date=default_dt())
+    Subject.join_subject(subject_id=sonja.id, part_of_id=dev_team_bielefeld.id, join_date=default_dt())
+    Subject.join_subject(subject_id=sonja.id, part_of_id=germany.id, join_date=default_dt())
 
     #Paderborn
 
     liam = create_subject(name="Liam", type="User")
-    liam.part_of_subjects.append(paderborn)
-    liam.part_of_subjects.append(junior_developer)
-    liam.part_of_subjects.append(dev_team_paderborn)
-    liam.part_of_subjects.append(germany)
     DBSession.add(liam)
+    DBSession.flush()
+    Subject.join_subject(subject_id=liam.id, part_of_id=paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=liam.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=liam.id, part_of_id=dev_team_paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=liam.id, part_of_id=germany.id, join_date=default_dt())
 
     tim = create_subject(name="Tim", type="User")
-    tim.part_of_subjects.append(paderborn)
-    tim.part_of_subjects.append(junior_developer)
-    tim.part_of_subjects.append(dev_team_paderborn)
-    tim.part_of_subjects.append(germany)
     DBSession.add(tim)
+    DBSession.flush()
+    Subject.join_subject(subject_id=tim.id, part_of_id=paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=tim.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=tim.id, part_of_id=dev_team_paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=tim.id, part_of_id=germany.id, join_date=default_dt())
 
     robin = create_subject(name="Robin", type="User")
-    robin.part_of_subjects.append(paderborn)
-    robin.part_of_subjects.append(junior_developer)
-    robin.part_of_subjects.append(dev_team_paderborn)
-    robin.part_of_subjects.append(germany)
     DBSession.add(robin)
+    DBSession.flush()
+    Subject.join_subject(subject_id=robin.id, part_of_id=paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=robin.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=robin.id, part_of_id=dev_team_paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=robin.id, part_of_id=germany.id, join_date=default_dt())
 
     alina = create_subject(name="Alina", type="User")
-    alina.part_of_subjects.append(paderborn)
-    alina.part_of_subjects.append(junior_developer)
-    alina.part_of_subjects.append(dev_team_paderborn)
-    alina.part_of_subjects.append(germany)
     DBSession.add(alina)
+    DBSession.flush()
+    Subject.join_subject(subject_id=alina.id, part_of_id=paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=alina.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=alina.id, part_of_id=dev_team_paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=alina.id, part_of_id=germany.id, join_date=default_dt())
 
     charlotte = create_subject(name="Charlotte", type="User")
-    charlotte.part_of_subjects.append(paderborn)
-    charlotte.part_of_subjects.append(senior_developer)
-    charlotte.part_of_subjects.append(dev_team_paderborn)
-    charlotte.part_of_subjects.append(germany)
     DBSession.add(charlotte)
+    DBSession.flush()
+    Subject.join_subject(subject_id=charlotte.id, part_of_id=paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=charlotte.id, part_of_id=senior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=charlotte.id, part_of_id=dev_team_paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=charlotte.id, part_of_id=germany.id, join_date=default_dt())
 
     ida = create_subject(name="Ida", type="User")
-    ida.part_of_subjects.append(paderborn)
-    ida.part_of_subjects.append(senior_developer)
-    ida.part_of_subjects.append(dev_team_paderborn)
-    ida.part_of_subjects.append(germany)
     DBSession.add(ida)
+    DBSession.flush()
+    Subject.join_subject(subject_id=ida.id, part_of_id=paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ida.id, part_of_id=senior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ida.id, part_of_id=dev_team_paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ida.id, part_of_id=germany.id, join_date=default_dt())
 
     carolin = create_subject(name="Carolin", type="User")
-    carolin.part_of_subjects.append(paderborn)
-    carolin.part_of_subjects.append(project_manager)
-    carolin.part_of_subjects.append(dev_team_paderborn)
-    carolin.part_of_subjects.append(germany)
-    DBSession.add(sonja)
+    DBSession.add(carolin)
+    DBSession.flush()
+    Subject.join_subject(subject_id=carolin.id, part_of_id=paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=carolin.id, part_of_id=project_manager.id, join_date=default_dt())
+    Subject.join_subject(subject_id=carolin.id, part_of_id=dev_team_paderborn.id, join_date=default_dt())
+    Subject.join_subject(subject_id=carolin.id, part_of_id=germany.id, join_date=default_dt())
 
     #Lyon
 
     lola = create_subject(name="Lola", type="User")
-    lola.part_of_subjects.append(lyon)
-    lola.part_of_subjects.append(junior_developer)
-    lola.part_of_subjects.append(dev_team_lyon)
-    lola.part_of_subjects.append(france)
     DBSession.add(lola)
+    DBSession.flush()
+    Subject.join_subject(subject_id=lola.id, part_of_id=lyon.id, join_date=default_dt())
+    Subject.join_subject(subject_id=lola.id, part_of_id=junior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=lola.id, part_of_id=dev_team_lyon.id, join_date=default_dt())
+    Subject.join_subject(subject_id=lola.id, part_of_id=france.id, join_date=default_dt())
 
     lina = create_subject(name="Lina", type="User")
-    lina.part_of_subjects.append(lyon)
-    lina.part_of_subjects.append(senior_developer)
-    lina.part_of_subjects.append(dev_team_lyon)
-    lina.part_of_subjects.append(france)
     DBSession.add(lina)
+    DBSession.flush()
+    Subject.join_subject(subject_id=lina.id, part_of_id=lyon.id, join_date=default_dt())
+    Subject.join_subject(subject_id=lina.id, part_of_id=senior_developer.id, join_date=default_dt())
+    Subject.join_subject(subject_id=lina.id, part_of_id=dev_team_lyon.id, join_date=default_dt())
+    Subject.join_subject(subject_id=lina.id, part_of_id=france.id, join_date=default_dt())
 
     ethan = create_subject(name="Ethan", type="User")
-    ethan.part_of_subjects.append(lyon)
-    ethan.part_of_subjects.append(project_manager)
-    ethan.part_of_subjects.append(dev_team_lyon)
-    ethan.part_of_subjects.append(france)
     DBSession.add(ethan)
     DBSession.flush()
+    Subject.join_subject(subject_id=ethan.id, part_of_id=lyon.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ethan.id, part_of_id=project_manager.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ethan.id, part_of_id=dev_team_lyon.id, join_date=default_dt())
+    Subject.join_subject(subject_id=ethan.id, part_of_id=france.id, join_date=default_dt())
+
 
 def create_variables():
     invite_users = Variable(
@@ -255,10 +280,20 @@ def create_variables():
         increase_permission="own"
     )
     DBSession.add(invite_users)
+
+    cycling = Variable(
+        name="cycling",
+        increase_permission="own"
+    )
+    DBSession.add(cycling)
+
     DBSession.flush()
 
 def create_achievements():
     user_type = DBSession.query(SubjectType).filter_by(name="User").first()
+    team_type = DBSession.query(SubjectType).filter_by(name="Team").first()
+    country_type = DBSession.query(SubjectType).filter_by(name="Country").first()
+
     invite_users = Achievement(
         name="invite_users",
         maxlevel=100,
@@ -273,6 +308,25 @@ def create_achievements():
     )
     DBSession.add(invite_users)
     DBSession.flush()
+
+    cyclist_of_the_month = Achievement(
+        name="cyclist_of_the_month",
+        hidden=False,
+        evaluation="monthly",
+        comparison_type="context_subject",
+        player_subjecttype_id=user_type["id"],
+        view_permission="everyone",
+        condition="""{"term": {"type": "literal", "variable": "cycling"}}""",
+        context_subjecttype_id=country_type.id,
+        operator="geq"
+    )
+    cyclist_of_the_month.compared_subjecttypes.append(
+        user_type,
+        team_type
+    )
+    DBSession.add(cyclist_of_the_month)
+    DBSession.flush()
+
     #goal.condition = """"""
     #goal.condition = """{"term": {"key": ["5","7"], "type": "literal", "key_operator": "IN", "variable": "participate"}}"""
 
@@ -371,6 +425,8 @@ def create_variable(name, increase_permission="admin"):
     return variable
 
 def default_dt():
+    # Montag
+
     import datetime
     import pytz
 
@@ -385,3 +441,12 @@ def default_dt():
     )
 
     return dt
+
+def next_day(dt):
+    return dt + relativedelta(days=1)
+
+def next_month(dt):
+    return dt + relativedelta(months=1)
+
+def next_week(dt):
+    return dt + relativedelta(weeks=1)

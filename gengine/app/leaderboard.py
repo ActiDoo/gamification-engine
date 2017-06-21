@@ -103,7 +103,7 @@ class ContextSubjectLeaderBoardSubjectSet:
             whole_time_required=whole_time_required
         )
 
-        subjects = [x["id"] for x in ancestor_subjects]
+        subjects = [x for x in ancestor_subjects.keys()]
 
         return subjects
 

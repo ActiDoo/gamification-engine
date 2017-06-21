@@ -1015,6 +1015,35 @@ class Subject(ABase):
         subjects = {r["subject_id"]: r for r in rows if r["subject_id"]}
         return subjects
 
+    @classmethod
+    def join_subject(cls,
+                     subject_id,
+                     part_of_id,
+                     join_date):
+
+        q = t_subjects_subjects.insert().values({
+            'subject_id': subject_id,
+            'part_of_id': part_of_id,
+            'joined_at': join_date
+        })
+
+        update_connection().execute(q)
+
+    @classmethod
+    def leave_subject(cls,
+                      subject_id,
+                      part_of_id,
+                      leave_date):
+
+        q = t_subjects_subjects.update().values({
+            'left_at': leave_date
+        }).where(and_(
+            t_subjects_subjects.c.subject_id == subject_id,
+            t_subjects_subjects.c.part_of_id == part_of_id,
+        ))
+
+        update_connection().execute(q)
+
 
 class SubjectType(ABase):
     def __unicode__(self, *args, **kwargs):
@@ -1059,6 +1088,8 @@ class Variable(ABase):
 
             m[row["variable_id"]].append(achievements[row["achievement_id"]])
         return m
+
+
 
 
 class Value(ABase):
@@ -1133,7 +1164,7 @@ class Value(ABase):
                 q = t_progress.delete().where(and_(
                     t_progress.c.subject_id.in_(csids),
                     t_progress.c.achievement_id == achievement["id"],
-                    t_progress.c.achievement_date == achievement_date,
+                    t_progress.c.achievement_date == AchievementDate.db_format(achievement_date),
                 ))
                 update_connection().execute(q)
 
@@ -1592,7 +1623,7 @@ class Achievement(ABase):
                    "progress": current_progress,
                    "goal": goal,
                    "leaderboard": leaderboard,
-                   "leaderboard_position": leaderboard,
+                   "leaderboard_position": leaderboard_position,
                    "achievement_date": achievement_date,
                 })
 
@@ -1894,7 +1925,13 @@ class Achievement(ABase):
                     context_subject_id
                 )
                 subject_wants_level = min((subject_has_level or 0)+1, achievement["maxlevel"])
-                Achievement.evaluate_goal(achievement, achievement_date, subject, subject_wants_level)
+                Achievement.evaluate(
+                    compared_subject=subject,
+                    achievement_id=achievement["id"],
+                    achievement_date=achievement_date,
+                    context_subject_id=context_subject_id,
+                    execute_triggers=True
+                )
 
             #rerun the query
             items = DBSession.execute(q).fetchall()
@@ -2203,6 +2240,16 @@ mapper(Achievement, t_achievements, properties={
    'achievementcategory': relationship(AchievementCategory, backref='achievements'),
    'player_subjecttype': relationship(SubjectType, primaryjoin=t_achievements.c.player_subjecttype_id == t_subjecttypes.c.id),
    'context_subjecttype': relationship(SubjectType, primaryjoin=t_achievements.c.context_subjecttype_id == t_subjecttypes.c.id),
+   'compared_subjecttypes': relationship(SubjectType,
+        secondary=t_achievement_compared_subjecttypes,
+        primaryjoin=t_achievements.c.id == t_achievement_compared_subjecttypes.c.achievement_id,
+        secondaryjoin=t_subjecttypes.c.id == t_achievement_compared_subjecttypes.c.subjecttype_id
+   ),
+   'domain_subjects': relationship(Subject,
+        secondary=t_achievement_domain_subjects,
+        primaryjoin=t_achievements.c.id == t_achievement_domain_subjects.c.achievement_id,
+        secondaryjoin=t_subjects.c.id == t_achievement_domain_subjects.c.subject_id
+   ),
 })
 mapper(AchievementProperty, t_achievementproperties)
 mapper(AchievementAchievementProperty, t_achievements_achievementproperties, properties={
