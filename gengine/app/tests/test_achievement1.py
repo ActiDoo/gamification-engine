@@ -1,12 +1,58 @@
 # -*- coding: utf-8 -*-
-from gengine.app.model import Value, Subject, t_subjects, Achievement, AchievementDate
+from gengine.app.model import Value, Subject, t_subjects, Achievement, AchievementDate, SubjectType
 from gengine.app.tests.base import BaseDBTest
 from gengine.app.tests.helpers import create_subjecttypes, create_subjects, create_achievements, create_variables, \
-    default_dt
+    default_dt, last_month
 from gengine.metadata import DBSession
 
 
 class TestAchievement(BaseDBTest):
+
+    def test_ancestors_descendants(self):
+        create_subjecttypes()
+        create_subjects()
+
+        klaus = DBSession.query(Subject).filter_by(name="Klaus").first()
+        clara = DBSession.query(Subject).filter_by(name="Clara").first()
+        liam = DBSession.query(Subject).filter_by(name="Liam").first()
+
+        bielefeld = DBSession.query(Subject).filter_by(name="Bielefeld").first()
+        paderborn = DBSession.query(Subject).filter_by(name="Paderborn").first()
+        germany = DBSession.query(Subject).filter_by(name="Germany").first()
+        france = DBSession.query(Subject).filter_by(name="France").first()
+
+        dev_team_bielefeld = DBSession.query(Subject).filter_by(name="Developer Team Bielefeld").first()
+        junior_developer = DBSession.query(Subject).filter_by(name="Junior Developer").first()
+
+        user_type = DBSession.query(SubjectType).filter_by(name="User").first()
+        team_type = DBSession.query(SubjectType).filter_by(name="Team").first()
+        country_type = DBSession.query(SubjectType).filter_by(name="Country").first()
+
+        klaus_ancestors = Subject.get_ancestor_subjects(
+            subject_id=klaus.id,
+            of_type_id=None,
+            from_date=default_dt(),
+            to_date=default_dt(),
+            whole_time_required=False
+        )
+
+        self.assertIn(bielefeld.id, klaus_ancestors.keys())
+        self.assertIn(germany.id, klaus_ancestors.keys())
+        self.assertIn(dev_team_bielefeld.id, klaus_ancestors.keys())
+        self.assertIn(junior_developer.id, klaus_ancestors.keys())
+        self.assertNotIn(france.id, klaus_ancestors.keys())
+
+        germany_descendants = Subject.get_descendent_subjects(
+            subject_id=germany.id,
+            of_type_id=team_type.id,
+            from_date=default_dt(),
+            to_date=default_dt(),
+            whole_time_required=False
+        )
+
+        self.assertIn(dev_team_bielefeld.id, germany_descendants.keys())
+        self.assertNotIn(klaus.id, germany_descendants.keys())
+
 
     def test_simple_invite_users(self):
         create_subjecttypes()
@@ -153,5 +199,16 @@ class TestAchievement(BaseDBTest):
         self.assertEqual(lb_bielefeld["leaderboard_position"], 1)
         self.assertEqual(lb_germany["leaderboard_position"], 2)
         self.assertEqual(lb_france["leaderboard_position"], None)
-        #
-        #self.assertEqual(evaluation["progress"], 1.0)
+
+        # clara also cycled last month
+        Subject.join_subject(subject_id=clara.id, part_of_id=germany.id, join_date=last_month(default_dt()))
+        cycle(clara, 10, last_month(default_dt()))
+
+        # should not effect this month
+        lb_germany = ev(clara, default_dt(), germany)
+        self.assertEqual(lb_germany["leaderboard_position"], 2)
+
+        # but should effect last month
+        lb_germany = ev(clara, last_month(default_dt()), germany)
+        self.assertEqual(lb_germany["leaderboard_position"], 0)
+

@@ -450,3 +450,6 @@ def next_month(dt):
 
 def next_week(dt):
     return dt + relativedelta(weeks=1)
+
+def last_month(dt):
+    return dt - relativedelta(months=1)

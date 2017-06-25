@@ -945,16 +945,17 @@ class Subject(ABase):
 
         sq = text("""
             WITH RECURSIVE nodes_cte(subject_id, name, part_of_id, depth, path) AS (
-                SELECT g1.id, g1.name, NULL::bigint as part_of_id, 1::INT as depth, g1.id::TEXT as path
-                FROM subjects as g1
-                LEFT JOIN subjects_subjects ss ON ss.subject_id=g1.id
+                SELECT g1.id, g1.name, g1.id::bigint as part_of_id, 1::INT as depth, g1.id::TEXT as path
+                FROM subjects_subjects ss
+                LEFT JOIN subjects as g1 ON ss.part_of_id=g1.id
                 WHERE ss.subject_id = :subject_id AND """+(datestr % {'ss': 'ss'})+"""
             UNION ALL
-                SELECT c.subject_id, g2.name, c.part_of_id, p.depth + 1 AS depth,
+                SELECT g2.id, g2.name, ss2.part_of_id, p.depth + 1 AS depth,
                     (p.path || '->' || g2.id ::TEXT)
-                FROM nodes_cte AS p, subjects_subjects AS c
-                JOIN subjects AS g2 ON g2.id=c.subject_id
-                WHERE p.part_of_id = c.subject_id AND """+(datestr % {'ss': 'c'})+"""
+                FROM nodes_cte AS p
+                LEFT JOIN subjects_subjects AS ss2 ON ss2.subject_id=p.subject_id
+                LEFT JOIN subjects AS g2 ON ss2.part_of_id = g2.id
+                WHERE """+(datestr % {'ss': 'ss2'})+"""
             ) SELECT * FROM nodes_cte
         """).bindparams(subject_id=subject_id, from_date=from_date, to_date=to_date).columns(subject_id=Integer, name=String, part_of_id=Integer, depth=Integer, path=String).alias()
 
@@ -1159,7 +1160,7 @@ class Value(ABase):
         for sid in sid_set:
             for achievement in achievements:
                 achievement_date = achievement_id_to_achievement_date[achievement["id"]]
-                compared_subjects = [s for s in subjects[sid] if s["subjecttype_id"] in achievement["compared_subjecttypes"]]
+                compared_subjects = [s for s in subjects[sid].values() if s["subjecttype_id"] in achievement["compared_subjecttypes"]]
                 csids = set([x["subject_id"] for x in compared_subjects] + [subject["id"],])
                 q = t_progress.delete().where(and_(
                     t_progress.c.subject_id.in_(csids),
@@ -1269,8 +1270,8 @@ class Achievement(ABase):
     @cache_general.cache_on_arguments()
     def get_achievement(cls,achievement_id):
         achievement = rowproxy2dict(DBSession.execute(t_achievements.select().where(t_achievements.c.id == achievement_id)).fetchone())
-        compared_subjecttypes = DBSession.execute(t_achievement_compared_subjecttypes.select().where(t_achievement_compared_subjecttypes.c.achievement_id == achievement_id)).fetchall()
-        domain_subjects = DBSession.execute(t_achievement_compared_subjecttypes.select().where(t_achievement_compared_subjecttypes.c.achievement_id == achievement_id)).fetchall()
+        compared_subjecttypes = [x["id"] for x in DBSession.execute(t_achievement_compared_subjecttypes.select().where(t_achievement_compared_subjecttypes.c.achievement_id == achievement_id)).fetchall()]
+        domain_subjects = [x["id"] for x in DBSession.execute(t_achievement_compared_subjecttypes.select().where(t_achievement_compared_subjecttypes.c.achievement_id == achievement_id)).fetchall()]
 
         achievement['compared_subjecttypes'] = compared_subjecttypes
         achievement['domain_subjects'] = domain_subjects
@@ -1342,6 +1343,7 @@ class Achievement(ABase):
                 to_date=to_date,
                 whole_time_required=achievement["lb_subject_part_whole_time"]
             )
+            subjects = set(subjects) | {subject.id}
         elif achievement["comparison_type"] == "global":
             subjects = GlobalLeaderBoardSubjectSet.forward(
                 from_date=from_date,
@@ -1357,7 +1359,7 @@ class Achievement(ABase):
                 whole_time_required=achievement["lb_subject_part_whole_time"]
             )
 
-        return set(subjects)
+        return subjects
 
     @classmethod
     def get_level(cls, subject_id, achievement_id, achievement_date, context_subject_id):
@@ -1426,7 +1428,7 @@ class Achievement(ABase):
         return out
 
     @classmethod
-    def evaluate(cls, compared_subject, achievement_id, achievement_date, context_subject_id, execute_triggers=True):
+    def evaluate(cls, compared_subject, achievement_id, achievement_date, context_subject_id, execute_triggers=True, generate_output=True):
         """evaluate the achievement including all its subgoals for the subject.
            return the basic_output for the achievement plus information about the new achieved levels
         """
@@ -1512,7 +1514,7 @@ class Achievement(ABase):
             # No we have the value for the current level
             leaderboard = None
             leaderboard_position = None
-            if achievement["comparison_type"] in ("relations", "global", "context_subject"):
+            if generate_output is True and achievement["comparison_type"] in ("relations", "global", "context_subject"):
                 # This is leaderboard! Compare to others
 
                 # Find all other subjects that we want to compare to
@@ -1546,26 +1548,27 @@ class Achievement(ABase):
             if achieved and subject_has_level < achievement["maxlevel"]:
                 #NEW LEVEL YEAH!
 
-                new_level_output = {
-                    "rewards": {
-                        str(r["id"]): {
-                            "id": r["id"],
-                            "reward_id": r["reward_id"],
-                            "name": r["name"],
-                            "value": evaluate_string(r["value"], {"level": subject_wants_level}),
-                            "value_translated": Translation.trs(r["value_translation_id"], {"level": subject_wants_level}),
-                        } for r in Achievement.get_rewards(achievement["id"], subject_wants_level)
-                     },
-                    "properties": {
-                        str(r["property_id"]): {
-                            "property_id": r["property_id"],
-                            "name": r["name"],
-                            "value": evaluate_string(r["value"], {"level": subject_wants_level}),
-                            "value_translated": Translation.trs(r["value_translation_id"], {"level": subject_wants_level})
-                        } for r in Achievement.get_achievement_properties(achievement["id"], subject_wants_level)
-                    },
-                    "level": subject_wants_level
-                }
+                if generate_output:
+                    new_level_output = {
+                        "rewards": {
+                            str(r["id"]): {
+                                "id": r["id"],
+                                "reward_id": r["reward_id"],
+                                "name": r["name"],
+                                "value": evaluate_string(r["value"], {"level": subject_wants_level}),
+                                "value_translated": Translation.trs(r["value_translation_id"], {"level": subject_wants_level}),
+                            } for r in Achievement.get_rewards(achievement["id"], subject_wants_level)
+                         },
+                        "properties": {
+                            str(r["property_id"]): {
+                                "property_id": r["property_id"],
+                                "name": r["name"],
+                                "value": evaluate_string(r["value"], {"level": subject_wants_level}),
+                                "value_translated": Translation.trs(r["value_translation_id"], {"level": subject_wants_level})
+                            } for r in Achievement.get_achievement_properties(achievement["id"], subject_wants_level)
+                        },
+                        "level": subject_wants_level
+                    }
 
                 # TODO: Rewardpoints
                 #for prop in new_level_output["properties"].values():
@@ -1611,7 +1614,7 @@ class Achievement(ABase):
                     output = generate()
                     last_recursion_step = False
 
-            if last_recursion_step: #is executed, if this is the last recursion step
+            if generate_output and last_recursion_step: #is executed, if this is the last recursion step
                 output = Achievement.basic_output(achievement, True, max_level_included=subject_has_level+1)
                 output.update({
                    "level": subject_has_level,
@@ -1627,11 +1630,12 @@ class Achievement(ABase):
                    "achievement_date": achievement_date,
                 })
 
-            if new_level_output is not None: #if we reached a new level in this recursion step, add the previous levels rewards and properties
+            if generate_output and new_level_output is not None: #if we reached a new level in this recursion step, add the previous levels rewards and properties
                 output["new_levels"][str(subject_has_level)] = new_level_output
 
             return output
 
+        #TODO: Caching may only be implemented for generate_output=True
         return generate()
         #return cache_achievement_eval.get_or_create("%s_%s_%s_%s" % (subject["id"], achievement_id, achievement_date, context_subject_id), generate)
 
@@ -1930,7 +1934,8 @@ class Achievement(ABase):
                     achievement_id=achievement["id"],
                     achievement_date=achievement_date,
                     context_subject_id=context_subject_id,
-                    execute_triggers=True
+                    execute_triggers=True,
+                    generate_output=False
                 )
 
             #rerun the query
