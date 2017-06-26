@@ -20,3 +20,24 @@ def includeme(config):
 
     from gengine.app.registries import get_task_registration_points_registry
     get_task_registration_points_registry().run_extensions()
+
+
+@EngineTask(
+ name="import_test_data",
+ description="import the test demo data",
+ config_scheme=None,
+ default_config=None,
+ default_cron="0 0 5 31 2", # 31st feb will never exec
+ default_activated=False
+)
+def demo_task(config):
+
+    from gengine.app.tests.helpers import create_subjecttypes, create_subjects
+
+    create_subjecttypes()
+    create_subjects()
+
+    return {
+        'log': None,
+        'success': True
+    }

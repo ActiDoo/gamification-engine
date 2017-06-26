@@ -72,8 +72,8 @@ class SubjectCollectionResource(BaseResource):
 class SubjectResource(BaseResource):
     def __init__(self, subject_id, subject_row, *args, **kw):
         super(SubjectResource, self).__init__(*args, **kw)
-        self.user_id = subject_id
-        self.user_row = subject_row
+        self.subject_id = subject_id
+        self.subject_row = subject_row
         self.__acl__ = [
             (Allow, 'subject:%(subject_id)s' % {'subject_id': subject_row["id"]}, tuple()),
             DENY_ALL

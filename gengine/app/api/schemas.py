@@ -33,10 +33,9 @@ b_subjectlist = JSchema(schema={
     "offset": sw.property(sw.Types.number, nullable=True),
     "order": sw.property(sw.Types.string, nullable=True),
     "include_search": sw.property(sw.Types.string, nullable=True),
-    "include_group_id": sw.property(sw.Types.number, nullable=True),
-    "exclude_group_id": sw.property(sw.Types.number, nullable=True),
-    "include_auth_role_id": sw.property(sw.Types.number, nullable=True),
-    "exclude_auth_role_id": sw.property(sw.Types.number, nullable=True),
+    "exclude_leaves": sw.property(sw.Types.boolean, nullable=True),
+    "parent_subjecttype_id": sw.property(sw.Types.number, nullable=True),
+    "parent_subject_id": sw.property(sw.Types.number, nullable=True),
 })
 
 
@@ -71,6 +70,6 @@ b_subjectlist = JSchema(schema={
 #    "id": sw.property(sw.Types.number, nullable=False),
 #})
 
-b_user_id = JSchema(schema={
-    "user_id": sw.property(sw.Types.number, nullable=True)
+b_subject_id = JSchema(schema={
+    "subject_id": sw.property(sw.Types.number, nullable=True)
 })

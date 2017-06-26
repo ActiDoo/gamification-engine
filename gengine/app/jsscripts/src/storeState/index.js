@@ -14,6 +14,7 @@ import ui from './ui';
 
 export default function initStore() {
     return buildSwaggerApi(apiConfig).then(function(api) {
+        console.log(api)
         const sagaMiddleware = createSagaMiddleware();
 
         const combinedReducer = combineReducers({
