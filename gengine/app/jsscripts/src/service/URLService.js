@@ -65,11 +65,11 @@ export default class URLService {
         }
     }
 
-    static getQueryParameterAsString(name) {
+    static getQueryParameterAsString(name, fallback=null) {
         let qry = URI(this.getCurrentPathWithSearch()).query(true);
 
         if(typeof qry[name] == 'undefined') {
-            return null;
+            return fallback;
         } else {
             return ""+qry[name];
         }

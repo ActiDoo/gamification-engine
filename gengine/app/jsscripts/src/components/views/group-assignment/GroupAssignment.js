@@ -17,7 +17,7 @@ class GroupAssignment extends Component {
 
     componentWillMount = () => {
       this.searchParents();
-      if(URLService.getQueryParameterAsInt("parent_id")) {
+      if(URLService.getQueryParameterAsString("parent_id")) {
         this.searchSubjects();
       }
     }
@@ -36,8 +36,8 @@ class GroupAssignment extends Component {
       })
     }
 
-    handleParentClick = (parent_id) => {
-        URLService.setQueryParameter("parent_id", parent_id);
+    handleParentClick = (parent_id, subjecttype_id) => {
+        URLService.setQueryParameter("parent_id", ""+parent_id+"-"+subjecttype_id);
         this.searchSubjects();
     }
 
@@ -48,9 +48,10 @@ class GroupAssignment extends Component {
 
     searchSubjects = () => {
         setTimeout(() => {
-            this.props.actions.subjectsSearchListRequest({
+	        this.props.actions.subjectsSearchListRequest({
                 requestID: this.usersInGroupSearchID,
-                parent_subject_id: URLService.getQueryParameterAsInt("parent_id"),
+                parent_subjecttype_id: parseInt(URLService.getQueryParameterAsString("parent_id", "-").split("-")[1]),
+                parent_subject_id: parseInt(URLService.getQueryParameterAsString("parent_id", "-").split("-")[0]),
                 include_search: URLService.getQueryParameterAsString("subject_search") || "",
             })
         })
@@ -89,7 +90,7 @@ class GroupAssignment extends Component {
             <div key={subject.id} className="users-list-item" onClick={() => this.handleSubjectClick(subject.id)}>
                 {subject.name}
                 {subject.inherited_by ? (
-                    <span> (inherited by <span className="inherited-group-link" onClick={() => this.handleParentClick(subject.inherited_by)}>{subject.inherited_by_name})</span></span>
+                    <span> (inherited by <span className="inherited-group-link" onClick={() => this.handleParentClick(subject.inherited_by, subject.inherited_by_subjecttype_id)}>{subject.inherited_by_name})</span></span>
                 ) : (
                     subject.in_parent ? (
                             <div onClick={() => this.handleRemoveSubject(subject, active_parent)} className="users-list-item-toggle">Remove</div>
@@ -107,7 +108,7 @@ class GroupAssignment extends Component {
         const searchData = this.props.searchData || {};
 
         const parents = searchData[this.parentsSearchID] ? searchData[this.parentsSearchID].subjects : null;
-        const active_parent_id = URLService.getQueryParameterAsInt("parent_id");
+        const active_parent_id = URLService.getQueryParameterAsString("parent_id", "").split("-")[0];
         const active_parent = _.find(parents, (p) => p.id == active_parent_id);
         const not_active_parents = _.filter(parents, (p) => p.id != active_parent_id);
 
@@ -148,13 +149,13 @@ class GroupAssignment extends Component {
                   </div>
                   <div className="groups-list">
                       {(active_parent!=null) ? (
-                        <div key={active_parent.id} className="groups-list-item groups-list-item-selected" onClick={() => this.handleParentClick(active_parent.id)}>
+                        <div key={active_parent.id} className="groups-list-item groups-list-item-selected" onClick={() => this.handleParentClick(active_parent.id, active_parent.subjecttype_id)}>
                           ➡{active_parent.name}
                         </div>
                       ):null}
                       {not_active_parents && not_active_parents.length>0 ? _.map(not_active_parents, (group)=> {
                           return (
-                              <div key={group.id} className="groups-list-item" onClick={() => this.handleParentClick(group.id)}>
+                              <div key={group.id} className="groups-list-item" onClick={() => this.handleParentClick(group.id, group.subjecttype_id)}>
                                   {group.name}
                               </div>
                           );

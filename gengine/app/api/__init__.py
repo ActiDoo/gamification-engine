@@ -51,6 +51,7 @@ def subjects_search_list(request, *args, **kw):
     subjecttype_ids = [x["id"] for x in DBSession.execute(q).fetchall()]
     cols = [
         t_subjects.c.id,
+        t_subjects.c.subjecttype_id,
         t_subjects.c.name,
         t_subjects.c.lat,
         t_subjects.c.lng,
@@ -62,26 +63,27 @@ def subjects_search_list(request, *args, **kw):
 
     if parent_subject_id is not None:
         sq = text("""
-            WITH RECURSIVE nodes_cte(subject_id, name, part_of_id, depth, path) AS (
-                SELECT g1.id, g1.name, NULL::bigint as part_of_id, 1::INT as depth, g1.id::TEXT as path
+            WITH RECURSIVE nodes_cte(subject_id, subjecttype_id, name, part_of_id, depth, path) AS (
+                SELECT g1.id, g1.subjecttype_id, g1.name, NULL::bigint as part_of_id, 1::INT as depth, g1.id::TEXT as path
                 FROM subjects as g1
                 LEFT JOIN subjects_subjects ss ON ss.subject_id=g1.id
                 WHERE ss.part_of_id = :subject_id
             UNION ALL
-                SELECT c.subject_id, p.name, c.part_of_id, p.depth + 1 AS depth,
+                SELECT c.subject_id, p.subjecttype_id, p.name, c.part_of_id, p.depth + 1 AS depth,
                     (p.path || '->' || g2.id ::TEXT)
                 FROM nodes_cte AS p, subjects_subjects AS c
                 JOIN subjects AS g2 ON g2.id=c.subject_id
                 WHERE c.part_of_id = p.subject_id
             ) SELECT * FROM nodes_cte
         """).bindparams(subject_id=parent_subject_id)\
-            .columns(subject_id=Integer,name=String,part_of_id=Integer,depth=Integer,path=String)\
+            .columns(subject_id=Integer, subjecttype_id=Integer,name=String,part_of_id=Integer,depth=Integer,path=String)\
             .alias()
 
         j = j.outerjoin(sq, sq.c.subject_id == t_subjects.c.id)
         cols += [
             sq.c.path,
-            sq.c.name.label("inherited_by_name")
+            sq.c.name.label("inherited_by_name"),
+            sq.c.subjecttype_id.label("inherited_by_subjecttype_id")
         ]
 
     subjects_query = select(cols, from_obj=j).where(t_subjects.c.subjecttype_id.in_(subjecttype_ids))
@@ -99,11 +101,14 @@ def subjects_search_list(request, *args, **kw):
         if not r["id"] in subjects:
             path = r["path"] if "path" in r and r["path"] is not None else ""
             inherited_by_name = r["inherited_by_name"] if "inherited_by_name" in r and r["inherited_by_name"] is not None else ""
+            inherited_by_subjecttype_id = r["inherited_by_subjecttype_id"] if "inherited_by_subjecttype_id" in r and r["inherited_by_subjecttype_id"] is not None else ""
             subjects[r["id"]] = {
                 'id': r["id"],
+                'subjecttype_id': r["subjecttype_id"],
                 'name': r["name"],
                 'created_at': r["created_at"],
                 'path': path,
+                'inherited_by_subjecttype_id': inherited_by_subjecttype_id,
                 'inherited_by_name': inherited_by_name,
                 'in_parent': True if path else False,
                 'directly_in_parent': len(path)>0 and not "->" in path,
