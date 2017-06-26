@@ -248,7 +248,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
                 logged = result.get("log", None)
                 success = result.get("success", True)
 
-                DBSession.execute(
+                DBSession.bind.execute(
                     t_taskexecutions.insert().values({
                         'task_id': task["id"],
                         'planned_at': dt_now(),

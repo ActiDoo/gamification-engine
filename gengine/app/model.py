@@ -1434,6 +1434,7 @@ class Achievement(ABase):
         """
         def generate():
             achievement = Achievement.get_achievement(achievement_id)
+            goal = None
 
             subject_id = compared_subject["id"]
             is_player = (compared_subject["subjecttype_id"] == achievement["player_subjecttype_id"])
