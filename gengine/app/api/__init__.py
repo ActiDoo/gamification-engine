@@ -2,14 +2,16 @@ import pyramid_swagger_spec.swagger as sw
 from gengine.base.model import update_connection
 from sqlalchemy.sql.sqltypes import Integer, String
 
-from gengine.app.api.resources import SubjectCollectionResource, SubjectResource
-from gengine.app.api.schemas import r_status, r_subjectlist, b_subjectlist, b_subject_id
+from gengine.app.api.resources import SubjectCollectionResource, SubjectResource, SubjectTypeCollectionResource, \
+    VariableCollectionResource, ApiResource
+from gengine.app.api.schemas import r_status, r_subjectlist, b_subjectlist, b_subject_id, r_subjecttypelist, \
+    r_variablelist, r_timezonelist
 from gengine.app.model import t_subjects, t_auth_users, t_auth_users_roles, t_auth_roles, t_subjecttypes_subjecttypes, \
-    t_subjecttypes, t_subjects_subjects
+    t_subjecttypes, t_subjects_subjects, t_variables
 from gengine.metadata import DBSession
-from pyramid_swagger_spec.errors import APIError
 from sqlalchemy.sql.elements import or_, not_
 from sqlalchemy.sql.expression import select, and_, exists, text
+import pytz
 
 from ..route import api_route
 
@@ -93,6 +95,14 @@ def subjects_search_list(request, *args, **kw):
         subjects_query = subjects_query.where(or_(
             t_subjects.c.name.ilike("%" + include_search + "%"),
         ))
+
+    limit = request.validated_params.body.get("limit", None)
+    if limit:
+        subjects_query = subjects_query.limit(limit)
+
+    offset = request.validated_params.body.get("offset", None)
+    if offset:
+        subjects_query = subjects_query.offset(offset)
 
     result = DBSession.execute(subjects_query).fetchall()
     subjects = {}
@@ -190,3 +200,87 @@ def subject_remove_from_parent(request, *args, **kw):
     return r_status.output({
         "status": "ok"
     })
+
+
+@api_route(path="/subjecttypes", request_method="GET", name="list", context=SubjectTypeCollectionResource, renderer='json', api=sw.api(
+    tag="subjecttypes",
+    operation_id="subjecttypes_search_list",
+    summary="Lists all subjecttypes",
+    parameters=[
+        #sw.body_parameter(schema=b_subjectlist.get_json_schema()),
+    ],
+    responses={
+        200: sw.response(schema=r_subjectlist.get_json_schema()),
+        400: sw.response(schema=r_status.get_json_schema(), description="""
+        """)
+    }
+))
+def subjecttype_search_list(request, *args, **kw):
+    context = request.context
+    q = t_subjecttypes.select().order_by(t_subjecttypes.c.name.asc())
+    types = DBSession.execute(q).fetchall()
+
+    ret = {
+        "subjecttypes": [{
+            "id": st["id"],
+            "name": st["name"],
+        } for st in types]
+    }
+
+    return r_subjecttypelist.output(ret)
+
+
+@api_route(path="/variables", request_method="GET", name="list", context=VariableCollectionResource, renderer='json', api=sw.api(
+    tag="variables",
+    operation_id="variables_search_list",
+    summary="Lists all variables",
+    parameters=[
+
+    ],
+    responses={
+        200: sw.response(schema=r_variablelist.get_json_schema()),
+        400: sw.response(schema=r_status.get_json_schema(), description="""
+        """)
+    }
+))
+def variables_search_list(request, *args, **kw):
+    context = request.context
+    q = t_variables.select().order_by(t_variables.c.name.asc())
+    types = DBSession.execute(q).fetchall()
+
+    ret = {
+        "variables": [{
+            "id": st["id"],
+            "name": st["name"],
+            "increase_permission": st["increase_permission"],
+        } for st in types]
+    }
+
+    return r_variablelist.output(ret)
+
+
+@api_route(path="/", request_method="GET", name="timezones_list", context=ApiResource, renderer='json', api=sw.api(
+    tag="timezones",
+    operation_id="timezones_list",
+    summary="Lists all timezones",
+    parameters=[
+
+    ],
+    responses={
+        200: sw.response(schema=r_timezonelist.get_json_schema()),
+        400: sw.response(schema=r_status.get_json_schema(), description="""
+        """)
+    }
+))
+def timezones_list(request, *args, **kw):
+    context = request.context
+    timezones = pytz.common_timezones
+
+    ret = {
+        "timezones": [{
+            "name": st,
+        } for st in timezones]
+    }
+
+    return r_timezonelist.output(ret)
+

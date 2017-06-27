@@ -45,6 +45,19 @@ export default class URLService {
         return qry[name]
     }
 
+    static getQueryParameterValueAsIntList(name) {
+        let qry = URI(this.getCurrentPathWithSearch()).query(true);
+
+        if(!qry[name]) return [];
+        if(!_.isArray(qry[name])) {
+          return [parseInt(qry[name])]
+        }
+        let list = qry[name];
+        return _.map(list, (it) => {
+            return parseInt(it);
+        })
+    }
+
     static getQueryParameterAsBool(name) {
         let qry = URI(this.getCurrentPathWithSearch()).query(true);
 

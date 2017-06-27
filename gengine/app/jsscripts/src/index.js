@@ -2,10 +2,14 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './App';
 import GroupAssignment from './components/views/group-assignment/GroupAssignment';
+import LeaderboardCreation from './components/views/leaderboard-creation/LeaderboardCreation';
 
 import { initStoreState } from './storeState';
 import { enableLocalStoragePersistenceMiddleware, loadReduxStoreFromLocalStorage } from './lib/persistence';
 import initStore from './storeState';
+
+import 'react-select/dist/react-select.css';
+import 'input-moment/dist/input-moment.css';
 
 const init = (component, domElement) => {
 
@@ -48,8 +52,11 @@ const init = (component, domElement) => {
 
 window.gengine = {
   'renderComponent': (domElement, component) => {
-      if(component=="GroupAssignment") {
-        init(<GroupAssignment />,domElement);
-      }
+    if(component=="GroupAssignment") {
+      init(<GroupAssignment />,domElement);
+    }
+    if(component=="LeaderboardCreation") {
+      init(<LeaderboardCreation />,domElement);
+    }
   }
 };

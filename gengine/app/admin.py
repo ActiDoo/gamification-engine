@@ -359,4 +359,11 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
         def index(self):
             return self.render(template='jscomponent.html', component="GroupAssignment")
 
-    admin.add_view(GroupAssignmentView(name='Assign Groups', endpoint='group_assignment', category="Groups"))
+    admin.add_view(GroupAssignmentView(name='Assign Subjects', endpoint='group_assignment', category="Subjects"))
+
+    class LeaderboardCreationView(BaseView):
+        @expose('/', methods=('GET', 'POST'))
+        def index(self):
+            return self.render(template='jscomponent.html', component="LeaderboardCreation")
+
+    admin.add_view(LeaderboardCreationView(name='Create Leaderboards', endpoint='leaderboard_creation', category="Rules"))

@@ -1,0 +1,43 @@
+.leaderboard-creation {
+  min-width:300px;
+  position: relative;
+  vertical-align: top;
+
+  > *, > * > * {
+    vertical-align: top;
+  }
+
+  .form-row {
+    margin: 30px 0px;
+  }
+
+  .form-row-label {
+    display: inline-block;
+    width: 200px;
+    font-weight: bold;
+  }
+
+  .form-row-field {
+    display:inline-block;
+    width: calc(100% - 200px);
+
+  }
+  .form-row-description {
+    margin-left: 200px;
+    font-size: 0.9em;
+    color: #666666;
+  }
+  .im-btn {
+    display: none !important;
+  }
+  .timespan-cb {
+    margin-bottom: 30px;
+    width: 100%;
+    > span {
+      display: inline-block;
+      padding: 0px 0px 0px 10px;
+      top: 3px;
+      position: relative;
+    }
+  }
+}

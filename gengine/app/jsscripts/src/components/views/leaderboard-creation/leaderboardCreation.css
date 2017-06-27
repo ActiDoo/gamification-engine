@@ -1,0 +1,29 @@
+.leaderboard-creation {
+  min-width: 300px;
+  position: relative;
+  vertical-align: top; }
+  .leaderboard-creation > *, .leaderboard-creation > * > * {
+    vertical-align: top; }
+  .leaderboard-creation .form-row {
+    margin: 30px 0px; }
+  .leaderboard-creation .form-row-label {
+    display: inline-block;
+    width: 200px;
+    font-weight: bold; }
+  .leaderboard-creation .form-row-field {
+    display: inline-block;
+    width: calc(100% - 200px); }
+  .leaderboard-creation .form-row-description {
+    margin-left: 200px;
+    font-size: 0.9em;
+    color: #666666; }
+  .leaderboard-creation .im-btn {
+    display: none !important; }
+  .leaderboard-creation .timespan-cb {
+    margin-bottom: 30px;
+    width: 100%; }
+    .leaderboard-creation .timespan-cb > span {
+      display: inline-block;
+      padding: 0px 0px 0px 10px;
+      top: 3px;
+      position: relative; }

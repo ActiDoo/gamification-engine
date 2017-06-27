@@ -1,5 +1,8 @@
 import logging
 
+from gengine.app.model import t_variables
+from gengine.app.model import t_subjecttypes
+
 log = logging.getLogger(__name__)
 
 """
@@ -50,22 +53,24 @@ class ApiResource(BaseResource):
     def __init__(self, *args, **kw):
         super(ApiResource, self).__init__(*args, **kw)
         self['subjects'] = SubjectCollectionResource(request=self.request, t_name='subjects', t_parent=self)
+        self['subjecttypes'] = SubjectTypeCollectionResource(request=self.request, t_name='subjecttypes', t_parent=self)
+        self['variables'] = VariableCollectionResource(request=self.request, t_name='variables', t_parent=self)
 
 
 class SubjectCollectionResource(BaseResource):
     def __init__(self, *args, **kw):
         super(SubjectCollectionResource, self).__init__(*args, **kw)
 
-    def __getitem__(self, user_id):
+    def __getitem__(self, subject_id):
         try:
             from gengine.metadata import DBSession
-            row = DBSession.execute(t_subjects.select().where(t_subjects.c.id == int(user_id))).fetchone()
+            row = DBSession.execute(t_subjects.select().where(t_subjects.c.id == int(subject_id))).fetchone()
             if row:
-                return SubjectResource(request=self.request, t_name=user_id, t_parent=self, subject_id=user_id, subject_row=row)
+                return SubjectResource(request=self.request, t_name=subject_id, t_parent=self, subject_id=subject_id, subject_row=row)
         except ValueError:
             pass
         except:
-            log.exception("Error creating UserResource")
+            log.exception("Error creating SubjectResource")
         raise KeyError()
 
 
@@ -80,29 +85,56 @@ class SubjectResource(BaseResource):
         ]
 
 
-#class GroupCollectionResource(BaseResource):
-#    def __init__(self, *args, **kw):
-#        super(GroupCollectionResource, self).__init__(*args, **kw)
-#
-#    def __getitem__(self, group_id):
-#        try:
-#            from gengine.metadata import DBSession
-#            row = DBSession.execute(t_groups.select().where(t_groups.c.id == int(group_id))).fetchone()
-#            if row:
-#                return GroupResource(request=self.request, t_name=group_id, t_parent=self, group_id=group_id, group_row=row)
-#        except ValueError:
-#            pass
-#        except:
-#            log.exception("Error creating GroupResource")
-#        raise KeyError()
+class SubjectTypeCollectionResource(BaseResource):
+    def __init__(self, *args, **kw):
+        super(SubjectTypeCollectionResource, self).__init__(*args, **kw)
+
+    def __getitem__(self, subjecttype_id):
+        try:
+            from gengine.metadata import DBSession
+            row = DBSession.execute(t_subjecttypes.select().where(t_subjecttypes.c.id == int(subjecttype_id))).fetchone()
+            if row:
+                return SubjectTypeResource(request=self.request, t_name=subjecttype_id, t_parent=self, subjecttype_id=subjecttype_id, subjecttype_row=row)
+        except ValueError:
+            pass
+        except:
+            log.exception("Error creating SubjectTypeResource")
+        raise KeyError()
 
 
-#class GroupResource(BaseResource):
-#    def __init__(self, group_id, group_row, *args, **kw):
-#        super(GroupResource, self).__init__(*args, **kw)
-#        self.group_id = group_id
-#        self.group_row = group_row
-#        self.__acl__ = [
-#            (Allow, 'group:%(group_id)s' % {'group_id': group_row["id"]}, tuple()),
-#            DENY_ALL
-#        ]
+class SubjectTypeResource(BaseResource):
+    def __init__(self, subjecttype_id, subjecttype_row, *args, **kw):
+        super(SubjectTypeResource, self).__init__(*args, **kw)
+        self.subjecttype_id = subjecttype_id
+        self.subjecttype_row = subjecttype_row
+        self.__acl__ = [
+            DENY_ALL
+        ]
+
+
+
+class VariableCollectionResource(BaseResource):
+    def __init__(self, *args, **kw):
+        super(VariableCollectionResource, self).__init__(*args, **kw)
+
+    def __getitem__(self, variable_id):
+        try:
+            from gengine.metadata import DBSession
+            row = DBSession.execute(t_variables.select().where(t_variables.c.id == int(variable_id))).fetchone()
+            if row:
+                return VariableResource(request=self.request, t_name=variable_id, t_parent=self, variable_id=variable_id, variable_row=row)
+        except ValueError:
+            pass
+        except:
+            log.exception("Error creating SubjectTypeResource")
+        raise KeyError()
+
+
+class VariableResource(BaseResource):
+    def __init__(self, variable_id, variable_row, *args, **kw):
+        super(VariableResource, self).__init__(*args, **kw)
+        self.variable_id = variable_id
+        self.variable_row = variable_row
+        self.__acl__ = [
+            DENY_ALL
+        ]
