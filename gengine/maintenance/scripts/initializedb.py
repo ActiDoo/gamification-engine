@@ -15,7 +15,7 @@ from sqlalchemy.sql.schema import Table
 
 from gengine.app.cache import init_caches
 from gengine.app.permissions import perm_global_delete_subject, perm_global_increase_value, perm_global_update_subject_infos, \
-    perm_global_access_admin_ui, perm_global_read_messages, perm_global_register_device
+    perm_global_access_admin_ui, perm_global_read_messages, perm_global_register_device, yield_all_perms
 from gengine.base.model import exists_by_expr
 
 
@@ -112,7 +112,7 @@ def initialize(settings,options):
 def get_or_create_role(DBSession, name):
     from gengine.app.model import AuthRole
 
-    auth_role = DBSession.query(AuthRole).filter_by(name=name)
+    auth_role = DBSession.query(AuthRole).filter_by(name=name).first()
     if not auth_role:
         auth_role = AuthRole(name=name)
         DBSession.add(auth_role)
@@ -136,29 +136,23 @@ def create_user(DBSession, user, password):
         existing = DBSession.query(AuthUser).filter_by(email=user).first()
         DBSession.flush()
         if not existing:
-            try:
-                user1 = Subject(id=1, lat=10, lng=50, timezone="Europe/Berlin", subjecttype_id=subjecttype_user.id)
-                DBSession.add(user1)
-                DBSession.flush()
+            user1 = Subject(lat=10, lng=50, timezone="Europe/Berlin", subjecttype_id=subjecttype_user.id)
+            DBSession.add(user1)
+            DBSession.flush()
 
-                auth_user = AuthUser(subject=user1, email=user, password=password, active=True)
-                DBSession.add(auth_user)
+            auth_user = AuthUser(subject=user1, email=user, password=password, active=True)
+            DBSession.add(auth_user)
 
-                auth_role = get_or_create_role(DBSession=DBSession, name="Global Admin")
+            auth_role = get_or_create_role(DBSession=DBSession, name="Global Admin")
 
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_subject))
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_subject_infos))
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_read_messages))
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_register_device))
+            for perm in yield_all_perms():
+                DBSession.add(AuthRolePermission(role=auth_role, name=perm[0]))
 
-                auth_user.roles.append(auth_role)
-                DBSession.add(auth_user)
+            auth_user.roles.append(auth_role)
 
-                DBSession.flush()
-            except:
-                pass
+            DBSession.add(auth_user)
+
+            DBSession.flush()
 
 def populate_demo(DBSession):
 

@@ -723,14 +723,13 @@ class AuthUser(ABase):
     def get_or_create_token(self):
         tokenObj = DBSession.query(AuthToken).filter(and_(
             AuthToken.valid_until >= dt_now(),
-            AuthToken.subject_id == self.subject_id,
-            AuthToken.deleted_at == None
+            AuthToken.auth_user_id == self.id,
         )).first()
 
         if not tokenObj:
             token = AuthToken.generate_token()
             tokenObj = AuthToken(
-                subject_id=self.subject_id,
+                auth_user_id=self.id,
                 token=token
             )
 

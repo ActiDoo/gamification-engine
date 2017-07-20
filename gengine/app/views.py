@@ -632,7 +632,7 @@ def admin_tenant(environ, start_response):
 
     if user:
         j = t_auth_users_roles.join(t_auth_roles).join(t_auth_roles_permissions)
-        q = select([t_auth_roles_permissions.c.name], from_obj=j).where(t_auth_users_roles.c.user_id==user.id)
+        q = select([t_auth_roles_permissions.c.name], from_obj=j).where(t_auth_users_roles.c.auth_user_id==user.id)
         permissions = [r["name"] for r in DBSession.execute(q).fetchall()]
         if not perm_global_access_admin_ui in permissions:
             return request_auth(environ, start_response)
