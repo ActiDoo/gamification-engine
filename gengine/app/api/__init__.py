@@ -2,20 +2,22 @@ import pyramid_swagger_spec.swagger as sw
 from pyramid_swagger_spec.errors import APIError
 
 from gengine.app.permissions import perm_global_search_subjects, perm_global_manage_subjects, \
-    perm_global_search_subjecttypes, perm_global_list_variables, perm_global_list_timezones
+    perm_global_search_subjecttypes, perm_global_list_variables, perm_global_list_timezones, \
+    perm_global_manage_achievements
 from gengine.base.model import update_connection
 from sqlalchemy.sql.sqltypes import Integer, String
 
 from gengine.app.api.resources import SubjectCollectionResource, SubjectResource, SubjectTypeCollectionResource, \
     VariableCollectionResource, ApiResource
 from gengine.app.api.schemas import r_status, r_subjectlist, b_subjectlist, b_subject_id, r_subjecttypelist, \
-    r_variablelist, r_timezonelist
+    r_variablelist, r_timezonelist, b_createachievement
 from gengine.app.model import t_subjects, t_auth_users, t_auth_users_roles, t_auth_roles, t_subjecttypes_subjecttypes, \
-    t_subjecttypes, t_subjects_subjects, t_variables
+    t_subjecttypes, t_subjects_subjects, t_variables, Achievement
 from gengine.metadata import DBSession
 from sqlalchemy.sql.elements import or_, not_
 from sqlalchemy.sql.expression import select, and_, exists, text
 import pytz
+import json
 
 from ..route import api_route
 
@@ -308,4 +310,57 @@ def timezones_list(request, *args, **kw):
     }
 
     return r_timezonelist.output(ret)
+
+
+@api_route(path="/", request_method="POST", name="create_achievement", context=ApiResource, renderer='json', api=sw.api(
+    tag="achievements",
+    operation_id="create_achievement",
+    summary="Create an Achievement",
+    parameters=[
+        sw.body_parameter(schema=b_createachievement.get_json_schema()),
+    ],
+    responses={
+        200: sw.response(schema=r_status.get_json_schema()),
+        400: sw.response(schema=r_status.get_json_schema(), description=""""""),
+        403: sw.response(schema=r_status.get_json_schema(), description=""""""),
+    }
+))
+def create_achievement(request, *args, **kw):
+    context = request.context
+
+    if not request.has_perm(perm_global_manage_achievements):
+        raise APIError(403, "forbidden")
+
+    name = request.validated_params.body.get("name", None)
+    player_subjecttype_id = request.validated_params.body.get("player_subjecttype_id")
+    context_subjecttype_id = request.validated_params.body.get("context_subjecttype_id")
+    domain_subject_ids = request.validated_params.body.get("domain_subject_ids")
+    condition = request.validated_params.body.get("condition")
+    evaluation = request.validated_params.body.get("evaluation")
+    evaluation_timezone = request.validated_params.body.get("evaluation_timezone")
+    evaluation_shift = request.validated_params.body.get("evaluation_shift")
+    valid_start = request.validated_params.body.get("valid_start")
+    valid_end = request.validated_params.body.get("valid_end")
+    comparison_type = request.validated_params.body.get("comparison_type")
+
+    ach = Achievement(
+        name = name,
+        player_subjecttype_id = player_subjecttype_id,
+        context_subjecttype_id = context_subjecttype_id,
+        domain_subject_ids = domain_subject_ids,
+        condition = json.dumps(condition),
+        comparison_type = comparison_type,
+        evaluation = evaluation,
+        evaluation_timezone = evaluation_timezone,
+        evaluation_shift = evaluation_shift,
+        valid_start = valid_start,
+        valid_end = valid_end,
+    )
+
+    DBSession.add(ach)
+    DBSession.flush()
+
+    return r_status.output({
+        "status": "ok"
+    })
 

@@ -1,6 +1,6 @@
 import logging
 
-from gengine.app.model import t_variables
+from gengine.app.model import t_variables, t_achievements
 from gengine.app.model import t_subjecttypes
 
 log = logging.getLogger(__name__)
@@ -55,6 +55,31 @@ class ApiResource(BaseResource):
         self['subjects'] = SubjectCollectionResource(request=self.request, t_name='subjects', t_parent=self)
         self['subjecttypes'] = SubjectTypeCollectionResource(request=self.request, t_name='subjecttypes', t_parent=self)
         self['variables'] = VariableCollectionResource(request=self.request, t_name='variables', t_parent=self)
+        self['achievements'] = AchievementCollectionResource(request=self.request, t_name='achievements', t_parent=self)
+
+
+class AchievementCollectionResource(BaseResource):
+    def __init__(self, *args, **kw):
+        super(AchievementCollectionResource, self).__init__(*args, **kw)
+
+    def __getitem__(self, achievement_id):
+        try:
+            from gengine.metadata import DBSession
+            row = DBSession.execute(t_achievements.select().where(t_achievements.c.id == int(achievement_id))).fetchone()
+            if row:
+                return AchievementResource(request=self.request, t_name=achievement_id, t_parent=self, achievement_id=achievement_id, achievement_row=row)
+        except ValueError:
+            pass
+        except:
+            log.exception("Error creating AchievementResource")
+        raise KeyError()
+
+
+class AchievementResource(BaseResource):
+    def __init__(self, achievement_id, achievement_row, *args, **kw):
+        super(AchievementResource, self).__init__(*args, **kw)
+        self.achievement_id = achievement_id
+        self.achievement_row = achievement_row
 
 
 class SubjectCollectionResource(BaseResource):

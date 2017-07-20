@@ -18,6 +18,9 @@ desc_global_list_variables = "(API) List variables"
 perm_global_list_timezones = "global_list_timezones"
 desc_global_list_timezones = "(API) List timezones"
 
+# Used in new API
+perm_global_manage_achievements = "global_manage_achievements"
+desc_global_manage_achievements = "(API) Manage achievements"
 
 # Old Permissions
 perm_global_access_admin_ui = "global_access_admin_ui"

@@ -326,7 +326,24 @@ class LeaderboardCreation extends Component {
   }
 
   handleCreateClick = () => {
-
+    this.props.actions.createAchievementRequest({
+        'name': this.getName(),
+        'player_subjecttype_id': this.getSelectedPlayer(),
+        'comparison_type': this.getSelectedContext() ? 'context_subject' : 'global',
+        'context_subjecttype_id': this.getSelectedContext(),
+        'domain_subject_ids': this.getSelectedDomains(),
+        'condition': {
+          "term": {
+            "type": "literal",
+            "variable": _.find(this.getVariables(), (v) => v.id==this.getSelectedVariable()).name
+          }
+        },
+        'evaluation': this.getSelectedRecurrence(),
+        'evaluation_timezone': this.getSelectedTimezone(),
+        'evaluation_shift': this.fdwToShift(),
+        'valid_start': this.getSelectedSpecifyTimespan() ? this.getSelectedValidStart() : null,
+        'valid_end': this.getSelectedSpecifyTimespan() ? this.getSelectedValidEnd() : null,
+    })
   }
 
   render = () => {

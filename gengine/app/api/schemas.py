@@ -85,3 +85,22 @@ r_timezonelist = JSchema(schema={
     )
 })
 
+# This currently only accepts the parameters which are needed for the leaderboard_creation form
+# To be extended if needed
+b_createachievement = JSchema(schema={
+    'name': sw.property(sw.Types.string, nullable=False),
+    'player_subjecttype_id': sw.property(sw.Types.number, nullable=False),
+    'context_subjecttype_id': sw.property(sw.Types.number, nullable=True),
+    'domain_subject_ids': sw.array_property(
+        items=sw.property(sw.Types.number, nullable=False),
+        nullable=True
+    ),
+    'condition': sw.property(sw.Types.object, nullable=False),
+    'evaluation': sw.property(sw.Types.string, nullable=False),
+    'comparison_type': sw.property(sw.Types.string, nullable=False),
+    'evaluation_timezone': sw.property(sw.Types.string, nullable=False),
+    'evaluation_shift': sw.property(sw.Types.number, nullable=False),
+    'valid_start': sw.property(sw.Types.string, nullable=True),
+    'valid_end': sw.property(sw.Types.string, nullable=True),
+})
+
