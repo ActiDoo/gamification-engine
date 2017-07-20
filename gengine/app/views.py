@@ -17,7 +17,7 @@ from pyramid.response import Response
 from pyramid.settings import asbool
 from sqlalchemy.sql.expression import select, and_
 
-from gengine.app.permissions import perm_own_update_subject_infos, perm_global_update_subject_infos, perm_global_delete_subject, perm_own_delete_subject, \
+from gengine.app.permissions import perm_own_update_subject_infos, perm_global_manage_subjects, perm_global_delete_subject, perm_own_delete_subject, \
     perm_global_access_admin_ui, perm_global_register_device, perm_own_register_device, perm_global_read_messages, \
     perm_own_read_messages
 from gengine.base.model import valid_timezone, exists_by_expr, update_connection
@@ -50,7 +50,7 @@ def add_or_update_subject(request):
 
     if asbool(get_settings().get("enable_user_authentication", False)):
         #ensure that the subject exists and we have the permission to update it
-        may_update = request.has_perm(perm_global_update_subject_infos) or request.has_perm(perm_own_update_subject_infos) and request.subject.id == subject_id
+        may_update = request.has_perm(perm_global_manage_subjects) or request.has_perm(perm_own_update_subject_infos) and request.subject.id == subject_id
         if not may_update:
             raise APIError(403, "forbidden", "You may not edit this subject.")
 

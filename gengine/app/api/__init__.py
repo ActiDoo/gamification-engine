@@ -1,4 +1,8 @@
 import pyramid_swagger_spec.swagger as sw
+from pyramid_swagger_spec.errors import APIError
+
+from gengine.app.permissions import perm_global_search_subjects, perm_global_manage_subjects, \
+    perm_global_search_subjecttypes, perm_global_list_variables, perm_global_list_timezones
 from gengine.base.model import update_connection
 from sqlalchemy.sql.sqltypes import Integer, String
 
@@ -24,12 +28,15 @@ from ..route import api_route
     ],
     responses={
         200: sw.response(schema=r_subjectlist.get_json_schema()),
-        400: sw.response(schema=r_status.get_json_schema(), description="""
-        """)
+        400: sw.response(schema=r_status.get_json_schema(), description=""""""),
+        403: sw.response(schema=r_status.get_json_schema(), description="""no permission"""),
     }
 ))
 def subjects_search_list(request, *args, **kw):
     context = request.context
+
+    if not request.has_perm(perm_global_search_subjects):
+        raise APIError(403, "forbidden")
 
     exclude_leaves = request.validated_params.body.get("exclude_leaves", None)
     parent_subjecttype_id = request.validated_params.body.get("parent_subjecttype_id", None)
@@ -139,12 +146,16 @@ def subjects_search_list(request, *args, **kw):
         sw.body_parameter(schema=b_subject_id.get_json_schema()),
     ],
     responses={
-        200: sw.response(schema=r_status.get_json_schema())
+        200: sw.response(schema=r_status.get_json_schema()),
+        403: sw.response(schema=r_status.get_json_schema()),
     }
 ))
 def subject_add_to_parent(request, *args, **kw):
     context = request.context
     parent_row = context.subject_row
+
+    if not request.has_perm(perm_global_manage_subjects):
+        raise APIError(403, "forbidden")
 
     q = t_subjects_subjects.select().where(and_(
         t_subjects_subjects.c.subject_id == request.validated_params.body["subject_id"],
@@ -175,12 +186,16 @@ def subject_add_to_parent(request, *args, **kw):
         sw.body_parameter(schema=b_subject_id.get_json_schema()),
     ],
     responses={
-        200: sw.response(schema=r_status.get_json_schema())
+        200: sw.response(schema=r_status.get_json_schema()),
+        403: sw.response(schema=r_status.get_json_schema()),
     }
 ))
 def subject_remove_from_parent(request, *args, **kw):
     context = request.context
     parent_row = context.subject_row
+
+    if not request.has_perm(perm_global_manage_subjects):
+        raise APIError(403, "forbidden")
 
     q = t_subjects_subjects.select().where(and_(
         t_subjects_subjects.c.subject_id == request.validated_params.body["subject_id"],
@@ -217,6 +232,10 @@ def subject_remove_from_parent(request, *args, **kw):
 ))
 def subjecttype_search_list(request, *args, **kw):
     context = request.context
+
+    if not request.has_perm(perm_global_search_subjecttypes):
+        raise APIError(403, "forbidden")
+
     q = t_subjecttypes.select().order_by(t_subjecttypes.c.name.asc())
     types = DBSession.execute(q).fetchall()
 
@@ -239,14 +258,17 @@ def subjecttype_search_list(request, *args, **kw):
     ],
     responses={
         200: sw.response(schema=r_variablelist.get_json_schema()),
-        400: sw.response(schema=r_status.get_json_schema(), description="""
-        """)
+        400: sw.response(schema=r_status.get_json_schema(), description=""""""),
+        403: sw.response(schema=r_status.get_json_schema(), description=""""""),
     }
 ))
 def variables_search_list(request, *args, **kw):
     context = request.context
     q = t_variables.select().order_by(t_variables.c.name.asc())
     types = DBSession.execute(q).fetchall()
+
+    if not request.has_perm(perm_global_list_variables):
+        raise APIError(403, "forbidden")
 
     ret = {
         "variables": [{
@@ -268,13 +290,16 @@ def variables_search_list(request, *args, **kw):
     ],
     responses={
         200: sw.response(schema=r_timezonelist.get_json_schema()),
-        400: sw.response(schema=r_status.get_json_schema(), description="""
-        """)
+        400: sw.response(schema=r_status.get_json_schema(), description=""""""),
+        403: sw.response(schema=r_status.get_json_schema(), description=""""""),
     }
 ))
 def timezones_list(request, *args, **kw):
     context = request.context
     timezones = pytz.common_timezones
+
+    if not request.has_perm(perm_global_list_timezones):
+        raise APIError(403, "forbidden")
 
     ret = {
         "timezones": [{

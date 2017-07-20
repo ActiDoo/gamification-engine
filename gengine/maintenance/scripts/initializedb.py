@@ -14,7 +14,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy.sql.schema import Table
 
 from gengine.app.cache import init_caches
-from gengine.app.permissions import perm_global_delete_subject, perm_global_increase_value, perm_global_update_subject_infos, \
+from gengine.app.permissions import perm_global_delete_subject, perm_global_increase_value, perm_global_manage_subjects, \
     perm_global_access_admin_ui, perm_global_read_messages, perm_global_register_device, yield_all_perms
 from gengine.base.model import exists_by_expr
 
@@ -37,7 +37,7 @@ def main(argv=sys.argv):
     durl = os.environ.get("DATABASE_URL") #heroku
     if durl:
         settings['sqlalchemy.url']=durl
-        
+
     murl = os.environ.get("MEMCACHED_URL")
     if murl:
         settings['urlcache_url']=murl
@@ -375,7 +375,7 @@ def populate_demo(DBSession):
             DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
             DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_subject))
             DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
-            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_update_subject_infos))
+            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_manage_subjects))
 
             auth_user.roles.append(auth_role)
             DBSession.add(auth_user)
