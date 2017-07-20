@@ -3,6 +3,7 @@ import os
 import json
 
 from gengine.base.settings import get_settings
+from gengine.base.util import lstrip_word
 
 
 def includeme(config):
@@ -18,8 +19,7 @@ def get_jsmain():
         buildpath = os.path.join(modpath, "build")
         with open(os.path.join(buildpath, "asset-manifest.json"), "r") as f:
             manifest = json.load(f)
-
-            return "/admin/jsstatic/"+manifest["main.js"].lstrip("static/")
+            return "/admin/jsstatic/"+lstrip_word(manifest["main.js"], "static/")
 
         return None
 
@@ -33,7 +33,6 @@ def get_cssmain():
         buildpath = os.path.join(modpath, "build")
         with open(os.path.join(buildpath, "asset-manifest.json"), "r") as f:
             manifest = json.load(f)
-
-            return "/admin/jsstatic/"+manifest["main.css"].lstrip("static/")
+            return "/admin/jsstatic/"+lstrip_word(manifest["main.css"],"static/")
 
         return None

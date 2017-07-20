@@ -53,3 +53,6 @@ def normalize_key(key):
 
 def rowproxy2dict(rp):
     return {k: v for k, v in dict(rp).items() if not str(k).startswith("_")}
+
+def lstrip_word(text, word):
+    return text[len(word):] if text[:len(word)] == word else text

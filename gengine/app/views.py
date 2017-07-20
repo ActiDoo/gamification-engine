@@ -161,13 +161,13 @@ def _get_progress(achievements_for_subject, requesting_subject, achievement_id=N
             if dr != None:
                 while d <= now:
                     if achievement["evaluation"] == "yearly":
-                        d += relativedelta(years=1)
+                        d += relativedelta.relativedelta(years=1)
                     elif achievement["evaluation"] == "monthly":
-                        d += relativedelta(months=1)
+                        d += relativedelta.relativedelta(months=1)
                     elif achievement["evaluation"] == "weekly":
-                        d += relativedelta(weeks=1)
+                        d += relativedelta.relativedelta(weeks=1)
                     elif achievement["evaluation"] == "daily":
-                        d += relativedelta(days=1)
+                        d += relativedelta.relativedelta(days=1)
                     else:
                         break # should not happen
 
