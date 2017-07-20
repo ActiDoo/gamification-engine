@@ -11,6 +11,7 @@ import datetime
 import json
 
 import pytz
+from dateutil import relativedelta
 from pyramid.request import Request
 from pyramid.response import Response
 from pyramid.settings import asbool
@@ -160,13 +161,13 @@ def _get_progress(achievements_for_subject, requesting_subject, achievement_id=N
             if dr != None:
                 while d <= now:
                     if achievement["evaluation"] == "yearly":
-                        d += datetime.timedelta(days=364)
+                        d += relativedelta(years=1)
                     elif achievement["evaluation"] == "monthly":
-                        d += datetime.timedelta(days=28)
+                        d += relativedelta(months=1)
                     elif achievement["evaluation"] == "weekly":
-                        d += datetime.timedelta(days=6)
+                        d += relativedelta(weeks=1)
                     elif achievement["evaluation"] == "daily":
-                        d += datetime.timedelta(hours=23)
+                        d += relativedelta(days=1)
                     else:
                         break # should not happen
 
@@ -630,8 +631,8 @@ def admin_tenant(environ, start_response):
             return request_auth(environ, start_response)
 
     if user:
-        j = t_auth_users.join(t_auth_users_roles).join(t_auth_roles).join(t_auth_roles_permissions)
-        q = select([t_auth_roles_permissions.c.name], from_obj=j).where(t_auth_users.c.user_id==user.user_id)
+        j = t_auth_users_roles.join(t_auth_roles).join(t_auth_roles_permissions)
+        q = select([t_auth_roles_permissions.c.name], from_obj=j).where(t_auth_users_roles.c.user_id==user.id)
         permissions = [r["name"] for r in DBSession.execute(q).fetchall()]
         if not perm_global_access_admin_ui in permissions:
             return request_auth(environ, start_response)

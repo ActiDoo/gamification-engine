@@ -486,7 +486,7 @@ t_achievement_trigger_step_executions = Table('achievement_trigger_executions', 
     Column('execution_level', ty.Integer, nullable = False, default=0),
 
     # In which context? (this is the actual context, the type is defined in the achievement)
-    Column('context_subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False),
+    Column('context_subject_id', ty.BigInteger, ForeignKey("subjects.id", ondelete="CASCADE"), nullable=True),
 
     # When did the execution happen (autofilled)
     Column('execution_date', TIMESTAMP(timezone=True), nullable=False, default=datetime.datetime.utcnow, index=True),
@@ -1428,7 +1428,7 @@ class Achievement(ABase):
         return out
 
     @classmethod
-    def evaluate(cls, compared_subject, achievement_id, achievement_date, context_subject_id, execute_triggers=True, generate_output=True):
+    def evaluate(cls, compared_subject, achievement_id, achievement_date, context_subject_id, execute_triggers=True, generate_output=True, skip_trigger_action=False):
         """evaluate the achievement including all its subgoals for the subject.
            return the basic_output for the achievement plus information about the new achieved levels
         """
@@ -1508,7 +1508,9 @@ class Achievement(ABase):
                     previous_goal=evaluate_value_expression(achievement["goal"], {
                         "level": subject_has_level
                     }),
-                    value=current_progress
+                    value=current_progress,
+                    context_subject_id=context_subject_id,
+                    skip_trigger_action=skip_trigger_action
                 )
 
 
@@ -1832,19 +1834,18 @@ class Achievement(ABase):
 
 
     @classmethod
-    def select_and_execute_triggers(cls, achievement, achievement_date, subject_id, level, current_goal, value, previous_goal):
-        return
+    def select_and_execute_triggers(cls, achievement, achievement_date, subject_id, level, current_goal, value, previous_goal, context_subject_id, skip_trigger_action=False):
         if previous_goal == current_goal:
             previous_goal = 0.0
 
         j = t_achievement_trigger_step_executions.join(t_achievement_trigger_steps)
-        executions = {r["goal_trigger_id"]: r["step"] for r in
+        executions = {r["achievement_trigger_id"]: r["step"] for r in
                       DBSession.execute(
                           select([t_achievement_trigger_steps.c.id.label("step_id"),
-                                  t_achievement_trigger_steps.c.goal_trigger_id,
+                                  t_achievement_trigger_steps.c.achievement_trigger_id,
                                   t_achievement_trigger_steps.c.step], from_obj=j).\
-                          where(and_(t_achievement_triggers.c.goal_id == goal["id"],
-                                     t_achievement_trigger_step_executions.c.achievement_date == achievement_date,
+                          where(and_(t_achievement_triggers.c.achievement_id == achievement["id"],
+                                     t_achievement_trigger_step_executions.c.achievement_date == AchievementDate.db_format(achievement_date),
                                      t_achievement_trigger_step_executions.c.subject_id == subject_id,
                                      t_achievement_trigger_step_executions.c.execution_level == level))).fetchall()
                       }
@@ -1853,24 +1854,24 @@ class Achievement(ABase):
 
         trigger_steps = DBSession.execute(select([
             t_achievement_trigger_steps.c.id,
-            t_achievement_trigger_steps.c.goal_trigger_id,
+            t_achievement_trigger_steps.c.achievement_trigger_id,
             t_achievement_trigger_steps.c.step,
             t_achievement_trigger_steps.c.condition_type,
             t_achievement_trigger_steps.c.condition_percentage,
             t_achievement_trigger_steps.c.action_type,
             t_achievement_trigger_steps.c.action_translation_id,
             t_achievement_triggers.c.execute_when_complete,
-        ], from_obj=j).where(t_achievement_triggers.c.goal_id == goal["id"], )).fetchall()
+        ], from_obj=j).where(t_achievement_triggers.c.achievement_id == achievement["id"], )).fetchall()
 
-        trigger_steps = [s for s in trigger_steps if s["step"] > executions.get(s["goal_trigger_id"], -sys.maxsize)]
+        trigger_steps = [s for s in trigger_steps if s["step"] > executions.get(s["achievement_trigger_id"], -sys.maxsize)]
 
         exec_queue = {}
 
         #When editing things here, check the insert_trigger_step_executions_after_step_upsert event listener too!!!!!!!
         if len(trigger_steps) > 0:
-            operator = goal["operator"]
+            operator = achievement["operator"]
 
-            goal_properties = Goal.get_properties(goal, level)
+            properties = Achievement.get_achievement_properties(achievement["id"], level)
 
             for step in trigger_steps:
                 if step["condition_type"] == "percentage" and step["condition_percentage"]:
@@ -1881,8 +1882,8 @@ class Achievement(ABase):
                         continue
                     if (operator == "geq" and current_percentage >= required_percentage) \
                         or (operator == "leq" and current_percentage <= required_percentage):
-                        if exec_queue.get(step["goal_trigger_id"], {"step": -sys.maxsize})["step"] < step["step"]:
-                            exec_queue[step["goal_trigger_id"]] = step
+                        if exec_queue.get(step["achievement_trigger_id"], {"step": -sys.maxsize})["step"] < step["step"]:
+                            exec_queue[step["achievement_trigger_id"]] = step
 
             for step in exec_queue.values():
                 current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
@@ -1891,10 +1892,12 @@ class Achievement(ABase):
                     subject_id=subject_id,
                     current_percentage=current_percentage,
                     value=value,
-                    goal_goal=current_goal,
-                    goal_level=level,
-                    goal_properties=goal_properties,
-                    achievement_date=achievement_date
+                    achievement_goal=current_goal,
+                    level=level,
+                    properties=properties,
+                    achievement_date=AchievementDate.db_format(achievement_date),
+                    context_subject_id=context_subject_id,
+                    suppress_actions=skip_trigger_action
                 )
 
 
@@ -2089,14 +2092,20 @@ class AchievementTriggerStep(ABase):
         return "GoalTriggerStep: %s" % (self.id,)
 
     @classmethod
-    def execute(cls, trigger_step, subject_id, current_percentage, value, goal_goal, goal_level, goal_properties, achievement_date, suppress_actions=False):
+    def execute(cls, trigger_step, subject_id, current_percentage, value, achievement_goal, level, properties, achievement_date, context_subject_id, suppress_actions=False):
         uS = update_connection()
         uS.execute(t_achievement_trigger_step_executions.insert().values({
             'subject_id': subject_id,
             'trigger_step_id': trigger_step["id"],
-            'execution_level': goal_level,
-            'achievement_date': AchievementDate.db_format(achievement_date)
+            'execution_level': level,
+            'achievement_date': AchievementDate.db_format(achievement_date),
+            'context_subject_id': context_subject_id
         }))
+
+        properties = {
+            r["name"] : Translation.trs(r["value_translation_id"], {"level": level})
+        for r in properties}
+
         if not suppress_actions:
             if trigger_step["action_type"] == "subject_message":
                 m = SubjectMessage(
@@ -2104,9 +2113,9 @@ class AchievementTriggerStep(ABase):
                     translation_id=trigger_step["action_translation_id"],
                     params=dict({
                         'value': value,
-                        'goal': goal_goal,
+                        'goal': achievement_goal,
                         'percentage': current_percentage
-                    },**goal_properties),
+                    },**properties),
                     is_read=False,
                     has_been_pushed=False
                 )
@@ -2127,44 +2136,58 @@ class TaskExecution(ABase):
 @event.listens_for(AchievementTriggerStep, 'after_update')
 def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
     """When we create a new Trigger-Step, we must ensure, that is will not be executed for the users who already met the conditions before."""
-
     subject_ids = [x["id"] for x in DBSession.execute(select([t_subjects.c.id, ], from_obj=t_subjects)).fetchall()]
     subjects = Subject.get_subjects(subject_ids).values()
-    goal = target.trigger.goal
-    achievement = goal.achievement
+    achievement = target.trigger.achievement
 
     for subject in subjects:
-        achievement_date = AchievementDate.compute(
-            evaluation_timezone=achievement["evaluation_timezone"],
-            evaluation_type=achievement["evaluation"],
-            evaluation_shift=achievement["evaluation_shift"]
-        )
+        d = max(achievement["created_at"], subject["created_at"]).replace(tzinfo=pytz.utc)
+        now = dt_now()
 
-        subject_has_level = Achievement.get_level_int(subject["id"], achievement["id"], achievement_date)
-        subject_wants_level = min((subject_has_level or 0) + 1, achievement["maxlevel"])
-        goal_eval = Goal.evaluate(goal, achievement, achievement_date, subject, subject_wants_level, None, execute_triggers=False)
-
-        previous_goal = Goal.basic_goal_output(goal, subject_wants_level - 1).get("goal_goal", 0)
-        if previous_goal == goal_eval["goal_goal"]:
-            previous_goal = 0.0
-
-        current_percentage = float(goal_eval["value"]-previous_goal) / float(goal_eval["goal_goal"]-previous_goal)
-        operator = goal["operator"]
-        required_percentage = target["condition_percentage"]
-
-        if (operator == "geq" and current_percentage >= required_percentage) \
-                or (operator == "leq" and current_percentage <= required_percentage):
-            AchievementTriggerStep.execute(
-                trigger_step=target,
-                subject_id=subject["id"],
-                current_percentage=current_percentage,
-                value=goal_eval["value"],
-                goal_goal=goal_eval["goal_goal"],
-                goal_level=subject_wants_level,
-                goal_properties=Goal.get_properties(goal,subject_wants_level),
-                achievement_date=achievement_date,
-                suppress_actions = True
+        while d <= now:
+            achievement_date = AchievementDate.compute(
+                evaluation_timezone=achievement["evaluation_timezone"],
+                evaluation_type=achievement["evaluation"],
+                evaluation_shift=achievement["evaluation_shift"],
+                context_datetime=d
             )
+
+            context_subject_ids = []
+
+            if achievement["comparison_type"] == "context_subject":
+                context_subject_ids = Subject.get_ancestor_subjects(
+                    subject_id=subject["id"],
+                    of_type_id=achievement["context_subjecttype_id"],
+                    from_date=achievement_date.from_date,
+                    to_date=achievement_date.to_date,
+                    whole_time_required=achievement_date["lb_subject_part_whole_time"]
+                )
+            else:
+                context_subject_ids.append(None)
+
+            for context_subject_id in context_subject_ids:
+                print("eval "+str(achievement["id"])+" - "+str(achievement_date.from_date if achievement_date else "None")+" - "+str(context_subject_id))
+                goal_eval = Achievement.evaluate(
+                    compared_subject=subject,
+                    achievement_id=achievement["id"],
+                    achievement_date=achievement_date,
+                    context_subject_id=context_subject_id,
+                    execute_triggers=True,
+                    generate_output=False,
+                    skip_trigger_action=True
+                )
+            if achievement["evaluation"] == "yearly":
+                d += relativedelta(years=1)
+            elif achievement["evaluation"] == "monthly":
+                d += relativedelta(months=1)
+            elif achievement["evaluation"] == "weekly":
+                d += relativedelta(weeks=1)
+            elif achievement["evaluation"] == "daily":
+                d += relativedelta(days=1)
+            else:
+                break
+
+
 
 def backref(*args,**kw):
     if not "passive_deletes" in kw:
