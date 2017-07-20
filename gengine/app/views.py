@@ -124,10 +124,10 @@ def _get_progress(achievements_for_subject, requesting_subject, achievement_id=N
         achievements = [x for x in achievements if int(x["id"]) == int(achievement_id)]
 
     def ea(achievement, achievement_date, execute_triggers):
-        #try:
+        try:
             return Achievement.evaluate(achievements_for_subject, achievement["id"], achievement_date, execute_triggers=execute_triggers, context_subject_id=None)
-        #except FormularEvaluationException as e:
-        #    return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
+        except FormularEvaluationException as e:
+            return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
         #except Exception as e:
         #    tb = traceback.format_exc()
         #    return { "error": tb, "id" : achievement["id"] }

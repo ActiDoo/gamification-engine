@@ -15,19 +15,19 @@ class GlobalLeaderBoardSubjectSet:
         if whole_time_required:
             q = q.where(and_(
                 t_subjects.c.created_at <= from_date,
-                or_(
-                    t_subjects.c.deleted_at == None,
-                    t_subjects.c.deleted_at >= to_date
-                )
+                #or_(
+                #    t_subjects.c.deleted_at == None,
+                #    t_subjects.c.deleted_at >= to_date
+                #)
             ))
         else:
             q = q.where(or_(
                 and_(
                     t_subjects.c.created_at <= from_date,
-                    or_(
-                        t_subjects.c.deleted_at >= from_date,
-                        t_subjects.c.deleted_at == None,
-                    )
+                    #or_(
+                    #    t_subjects.c.deleted_at >= from_date,
+                    #    t_subjects.c.deleted_at == None,
+                    #)
                 ),
                 and_(
                     t_subjects.c.created_at >= from_date,
