@@ -3,6 +3,7 @@
 
 import datetime
 import logging
+from collections import defaultdict
 from datetime import timedelta
 
 import hashlib
@@ -578,11 +579,12 @@ t_achievements_rewards = Table('achievements_rewards', Base.metadata,
 )
 
 # Same as above for the second type of rewards (Points (like EXP) that are earned with every achievement / level)
-t_rewardpoints = Table('rewardpoints', Base.metadata,
-    Column('id', ty.Integer, primary_key=True),
-    Column('name', ty.String(255), nullable=False, unique=True),
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
-)
+#NOTE: rewardpoints all go back into the values table -> we can directly use the variables as possible rewardpoints
+#t_rewardpoints = Table('rewardpoints', Base.metadata,
+#    Column('id', ty.Integer, primary_key=True),
+#    Column('name', ty.String(255), nullable=False, unique=True),
+#    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
+#)
 
 # Who inherits the rewarded points? When a team wins s.th, it's members might inherit the points...
 # ..Or just the team as a whole gets it, and users who leave don't have it (depends on the application model)
@@ -601,7 +603,7 @@ t_achievements_rewardpoints = Table('achievements_rewardpoints', Base.metadata,
     Column('id', ty.Integer, primary_key = True),
 
     Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index=True, nullable=False),
-    Column('rewardpoint_id', ty.Integer, ForeignKey("rewardpoints.id", ondelete="CASCADE"), index=True, nullable=False),
+    Column('variable_id', ty.Integer, ForeignKey("variables.id", ondelete="CASCADE"), index=True, nullable=False),
 
     # This is a formula that must evaluate to an integer because the result is backpopulated to the values table!
     Column('value', ty.String(255), nullable = True),
@@ -1097,7 +1099,7 @@ class Value(ABase):
     (e.g. it counts the occurences of the "events" which the variable represents) """
 
     @classmethod
-    def increase_value(cls, variable_name, subject, value, key, at_datetime):
+    def increase_value(cls, variable_name, subject, value, key, at_datetime, populate_to_ancestors=True, override_agent_id=None):
         """increase the value of the variable for the subject.
 
         In addition to the variable_name there may be an application-specific key which can be used in your :class:`.Achievement` definitions
@@ -1105,10 +1107,14 @@ class Value(ABase):
         """
 
         subject_id = subject["id"]
+        agent_id = override_agent_id if override_agent_id is not None else subject_id
         variable = Variable.get_variable_by_name(variable_name)
         key = normalize_key(key)
 
-        part_of_ids = list(Subject.get_ancestor_subjects(subject_id, None, at_datetime, at_datetime, False).keys())
+        if populate_to_ancestors:
+            part_of_ids = list(Subject.get_ancestor_subjects(subject_id, None, at_datetime, at_datetime, False).keys())
+        else:
+            part_of_ids = []
 
         sid_set = set([subject_id, ] + part_of_ids)
 
@@ -1118,7 +1124,7 @@ class Value(ABase):
             condition = and_(t_values.c.datetime == at_datetime,
                              t_values.c.variable_id == variable["id"],
                              t_values.c.subject_id == sid,
-                             t_values.c.agent_id == subject_id,
+                             t_values.c.agent_id == agent_id,
                              t_values.c.key == key)
 
             current_value = DBSession.execute(select([t_values.c.value,]).where(condition)).scalar()
@@ -1128,7 +1134,7 @@ class Value(ABase):
                 update_connection().execute(t_values.insert({"datetime": at_datetime,
                                                "variable_id": variable["id"],
                                                "subject_id": sid,
-                                               "agent_id": subject_id,
+                                               "agent_id": agent_id,
                                                "key": key,
                                                "value": value}))
 
@@ -1572,6 +1578,11 @@ class Achievement(ABase):
                         "level": subject_wants_level
                     }
 
+                Achievement.give_rewardpoints_for_new_level(
+                    player=compared_subject,
+                    achievement=achievement,
+                    level=subject_wants_level
+                )
                 # TODO: Rewardpoints
                 #for prop in new_level_output["properties"].values():
                 #    if prop["is_variable"]:
@@ -1653,6 +1664,79 @@ class Achievement(ABase):
     #        group_ids = user_meta.get("groups", {None,})
     #        for gid in group_ids:
     #            cache_achievement_eval.delete("%s_%s_%s_%s" % (user_id, achievement["id"], achievement_date, gid))
+
+    @classmethod
+    def give_rewardpoints_for_new_level(cls, player, achievement, level, at_datetime):
+        achievement_id = achievement["id"]
+        player_id = player["id"]
+        player_subjecttype_id = player["subjecttype_id"]
+
+        sj = t_variables\
+            .join(t_achievements_rewardpoints, t_achievements_rewardpoints.c.variable_id == t_variables.c.id)
+
+        sq = select([
+                t_variables.c.id,
+                t_variables.c.name,
+                t_achievements_rewardpoints.c.value,
+            ], from_obj=sj)\
+            .filter(and_(t_achievements_rewardpoints.c.from_level<=level,
+                         t_achievements_rewardpoints.c.achievement_id == achievement_id))\
+            .order(t_achievements_rewardpoints.c.from_level.desc())\
+            .having(func.max(t_achievements_rewardpoints.c.from_level))\
+            .alias()
+
+        j = sq.join(t_reward_inheritors, t_rewardpoint_inheritors.c.rewardpoint_id == sq.c.id)
+
+        q = select([
+            sq.c.id,
+            sq.c.name,
+            sq.c.value,
+            t_rewardpoint_inheritors.c.inheritor_subjecttype_id
+        ], from_obj=j)
+
+        rows = DBSession.execute(q).fetchall()
+
+        inheritor_set = { r["inheritor_subjecttype_id"] for r in rows }
+        inh_map = defaultdict(lambda: {})
+
+        for inheritor_subjecttype_id in inheritor_set:
+            if inheritor_subjecttype_id == player_subjecttype_id:
+                inh_map[inheritor_subjecttype_id].add(player_id)
+            else:
+                ancestors = Subject.get_ancestor_subjects(
+                    subject_id=player_id,
+                    of_type_id=inheritor_subjecttype_id,
+                    from_date=at_datetime,
+                    to_date=at_datetime,
+                    whole_time_required=False
+                ).keys()
+                for s in ancestors:
+                    inh_map[inheritor_subjecttype_id].add(s)
+
+                descendents = Subject.get_descendent_subjects(
+                    subject_id=player_id,
+                    of_type_id=inheritor_subjecttype_id,
+                    from_date=at_datetime,
+                    to_date=at_datetime,
+                    whole_time_required=False
+                ).keys()
+                for s in descendents:
+                    inh_map[inheritor_subjecttype_id].add(s)
+
+        #each variable might have duplicate rows, combine them and iterate over the variables
+        value_map = { r["id"]: r for r in rows }
+        for id, row in value_map.items():
+            evaluated_value = evaluate_string(value_map[id]["value"], {'level': level})
+            inheritors = inh_map[row["inheritor_subjecttype_id"]]
+            value = value_map[row["id"]]
+            for inh in inheritors:
+                Value.increase_value(
+                    variable_name=inh["name"],
+                    subject=inh,
+                    value=evaluated_value,
+                    key=achievement_id,
+                    at_datetime=at_datetime
+                )
 
     @classmethod
     @cache_general.cache_on_arguments()
