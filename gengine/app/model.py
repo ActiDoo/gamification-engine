@@ -462,8 +462,13 @@ t_achievement_trigger_steps = Table('achievement_trigger_steps', Base.metadata,
     Column('condition_percentage', ty.Float, nullable=True),
 
     # type of action to execute (currently only creation of a message)
-    Column('action_type', ty.Enum("subject_message", name="achievement_trigger_action_types"), default="subject_message"),
+    Column('action_type', ty.Enum("subject_message", "increase_value", name="achievement_trigger_action_types"), default="subject_message"),
     Column('action_translation_id', ty.Integer, ForeignKey("translationvariables.id", ondelete="RESTRICT"), nullable=True),
+    # for "increase_value" we might want to increase in the name of a certain subject type
+    # -> we will search for that subject type (ancestor, descendent) and then give the points to those subjects
+    Column('action_subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=True),
+    Column('action_value', ty.String, nullable=True),
+    Column('action_variable_id', ty.Integer, ForeignKey("variables.id", ondelete="CASCADE"), nullable=True),
 
     Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
 
@@ -578,43 +583,6 @@ t_achievements_rewards = Table('achievements_rewards', Base.metadata,
     UniqueConstraint("achievement_id", "reward_id", "from_level")
 )
 
-# Same as above for the second type of rewards (Points (like EXP) that are earned with every achievement / level)
-#NOTE: rewardpoints all go back into the values table -> we can directly use the variables as possible rewardpoints
-#t_rewardpoints = Table('rewardpoints', Base.metadata,
-#    Column('id', ty.Integer, primary_key=True),
-#    Column('name', ty.String(255), nullable=False, unique=True),
-#    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
-#)
-
-# Who inherits the rewarded points? When a team wins s.th, it's members might inherit the points...
-# ..Or just the team as a whole gets it, and users who leave don't have it (depends on the application model)
-t_rewardpoint_inheritors = Table('rewardpoint_inheritors', Base.metadata,
-    Column('id', ty.Integer, primary_key=True),
-
-    Column('rewardpoint_id', ty.Integer, ForeignKey("rewardpoints.id", ondelete="CASCADE"), nullable=False, index=True),
-
-    Column('inheritor_subjecttype_id', ty.Integer(), ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
-
-    UniqueConstraint("rewardpoint_id", "inheritor_subjecttype_id")
-)
-
-# What points are rewarded by the achievements?
-t_achievements_rewardpoints = Table('achievements_rewardpoints', Base.metadata,
-    Column('id', ty.Integer, primary_key = True),
-
-    Column('achievement_id', ty.Integer, ForeignKey("achievements.id", ondelete="CASCADE"), index=True, nullable=False),
-    Column('variable_id', ty.Integer, ForeignKey("variables.id", ondelete="CASCADE"), index=True, nullable=False),
-
-    # This is a formula that must evaluate to an integer because the result is backpopulated to the values table!
-    Column('value', ty.String(255), nullable = True),
-
-    # Valid from which level (higher level overrides entries for lower levels)
-    Column('from_level', ty.Integer, nullable=False, default=1, index=True),
-
-    Column('created_at', TIMESTAMP(timezone=True), nullable=False, default=dt_now, index=True),
-
-    UniqueConstraint("achievement_id", "rewardpoint_id", "from_level")
-)
 
 # The languages for which we want to provide translations.
 t_languages = Table('languages', Base.metadata,
@@ -740,14 +708,14 @@ class AuthUser(ABase):
         return tokenObj
 
     @classmethod
-    def may_increase(cls, variable_row, request, auth_user_id):
+    def may_increase(cls, variable_row, request, subject_id):
         if not asbool(get_settings().get("enable_user_authentication", False)):
             #Authentication deactivated
             return True
         if request.has_perm(perm_global_increase_value):
             # I'm the global admin
             return True
-        if variable_row["increase_permission"] == "own" and request.user and str(request.user.id) == str(auth_user_id):
+        if variable_row["increase_permission"] == "own" and request.subject and str(request.subject.id) == str(subject_id):
             #The variable may be updated for myself
             return True
         return False
@@ -1099,14 +1067,14 @@ class Value(ABase):
     (e.g. it counts the occurences of the "events" which the variable represents) """
 
     @classmethod
-    def increase_value(cls, variable_name, subject, value, key, at_datetime, populate_to_ancestors=True, override_agent_id=None):
+    def increase_value(cls, variable_name, subject_id, value, key, at_datetime, populate_to_ancestors=True, override_agent_id=None):
         """increase the value of the variable for the subject.
 
         In addition to the variable_name there may be an application-specific key which can be used in your :class:`.Achievement` definitions
         The parameter at_datetime specifies a timezone-aware datetime to define when the event happened
         """
 
-        subject_id = subject["id"]
+        #subject_id = subject["id"]
         agent_id = override_agent_id if override_agent_id is not None else subject_id
         variable = Variable.get_variable_by_name(variable_name)
         key = normalize_key(key)
@@ -1166,7 +1134,7 @@ class Value(ABase):
             for achievement in achievements:
                 achievement_date = achievement_id_to_achievement_date[achievement["id"]]
                 compared_subjects = [s for s in subjects[sid].values() if s["subjecttype_id"] in achievement["compared_subjecttypes"]]
-                csids = set([x["subject_id"] for x in compared_subjects] + [subject["id"],])
+                csids = set([x["subject_id"] for x in compared_subjects] + [subject_id,])
                 q = t_progress.delete().where(and_(
                     t_progress.c.subject_id.in_(csids),
                     t_progress.c.achievement_id == achievement["id"],
@@ -1507,7 +1475,7 @@ class Achievement(ABase):
                 Achievement.select_and_execute_triggers(
                     achievement=achievement,
                     achievement_date=achievement_date,
-                    subject_id=subject_id,
+                    subject=compared_subject,
                     level=subject_wants_level,
                     current_goal=goal,
                     previous_goal=evaluate_value_expression(achievement["goal"], {
@@ -1577,16 +1545,6 @@ class Achievement(ABase):
                         },
                         "level": subject_wants_level
                     }
-
-                Achievement.give_rewardpoints_for_new_level(
-                    player=compared_subject,
-                    achievement=achievement,
-                    level=subject_wants_level
-                )
-                # TODO: Rewardpoints
-                #for prop in new_level_output["properties"].values():
-                #    if prop["is_variable"]:
-                #        Value.increase_value(prop["name"], compared_subject, prop["value"], achievement_id)
 
                 evaluation = update_connection().execute(select([t_evaluations.c.id]).where(and_(
                     t_evaluations.c.subject_id == subject_id,
@@ -1665,78 +1623,6 @@ class Achievement(ABase):
     #        for gid in group_ids:
     #            cache_achievement_eval.delete("%s_%s_%s_%s" % (user_id, achievement["id"], achievement_date, gid))
 
-    @classmethod
-    def give_rewardpoints_for_new_level(cls, player, achievement, level, at_datetime):
-        achievement_id = achievement["id"]
-        player_id = player["id"]
-        player_subjecttype_id = player["subjecttype_id"]
-
-        sj = t_variables\
-            .join(t_achievements_rewardpoints, t_achievements_rewardpoints.c.variable_id == t_variables.c.id)
-
-        sq = select([
-                t_variables.c.id,
-                t_variables.c.name,
-                t_achievements_rewardpoints.c.value,
-            ], from_obj=sj)\
-            .filter(and_(t_achievements_rewardpoints.c.from_level<=level,
-                         t_achievements_rewardpoints.c.achievement_id == achievement_id))\
-            .order(t_achievements_rewardpoints.c.from_level.desc())\
-            .having(func.max(t_achievements_rewardpoints.c.from_level))\
-            .alias()
-
-        j = sq.join(t_reward_inheritors, t_rewardpoint_inheritors.c.rewardpoint_id == sq.c.id)
-
-        q = select([
-            sq.c.id,
-            sq.c.name,
-            sq.c.value,
-            t_rewardpoint_inheritors.c.inheritor_subjecttype_id
-        ], from_obj=j)
-
-        rows = DBSession.execute(q).fetchall()
-
-        inheritor_set = { r["inheritor_subjecttype_id"] for r in rows }
-        inh_map = defaultdict(lambda: {})
-
-        for inheritor_subjecttype_id in inheritor_set:
-            if inheritor_subjecttype_id == player_subjecttype_id:
-                inh_map[inheritor_subjecttype_id].add(player_id)
-            else:
-                ancestors = Subject.get_ancestor_subjects(
-                    subject_id=player_id,
-                    of_type_id=inheritor_subjecttype_id,
-                    from_date=at_datetime,
-                    to_date=at_datetime,
-                    whole_time_required=False
-                ).keys()
-                for s in ancestors:
-                    inh_map[inheritor_subjecttype_id].add(s)
-
-                descendents = Subject.get_descendent_subjects(
-                    subject_id=player_id,
-                    of_type_id=inheritor_subjecttype_id,
-                    from_date=at_datetime,
-                    to_date=at_datetime,
-                    whole_time_required=False
-                ).keys()
-                for s in descendents:
-                    inh_map[inheritor_subjecttype_id].add(s)
-
-        #each variable might have duplicate rows, combine them and iterate over the variables
-        value_map = { r["id"]: r for r in rows }
-        for id, row in value_map.items():
-            evaluated_value = evaluate_string(value_map[id]["value"], {'level': level})
-            inheritors = inh_map[row["inheritor_subjecttype_id"]]
-            value = value_map[row["id"]]
-            for inh in inheritors:
-                Value.increase_value(
-                    variable_name=inh["name"],
-                    subject=inh,
-                    value=evaluated_value,
-                    key=achievement_id,
-                    at_datetime=at_datetime
-                )
 
     @classmethod
     @cache_general.cache_on_arguments()
@@ -1917,7 +1803,9 @@ class Achievement(ABase):
 
 
     @classmethod
-    def select_and_execute_triggers(cls, achievement, achievement_date, subject_id, level, current_goal, value, previous_goal, context_subject_id, skip_trigger_action=False):
+    def select_and_execute_triggers(cls, achievement, achievement_date, subject, level, current_goal, value, previous_goal, context_subject_id, skip_trigger_action=False):
+        subject_id = subject["id"]
+
         if previous_goal == current_goal:
             previous_goal = 0.0
 
@@ -1943,6 +1831,9 @@ class Achievement(ABase):
             t_achievement_trigger_steps.c.condition_percentage,
             t_achievement_trigger_steps.c.action_type,
             t_achievement_trigger_steps.c.action_translation_id,
+            t_achievement_trigger_steps.c.action_subjecttype_id,
+            t_achievement_trigger_steps.c.action_value,
+            t_achievement_trigger_steps.c.action_variable_id,
             t_achievement_triggers.c.execute_when_complete,
         ], from_obj=j).where(t_achievement_triggers.c.achievement_id == achievement["id"], )).fetchall()
 
@@ -1972,13 +1863,13 @@ class Achievement(ABase):
                 current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
                 AchievementTriggerStep.execute(
                     trigger_step=step,
-                    subject_id=subject_id,
+                    subject=subject,
                     current_percentage=current_percentage,
                     value=value,
                     achievement_goal=current_goal,
                     level=level,
                     properties=properties,
-                    achievement_date=AchievementDate.db_format(achievement_date),
+                    achievement_date=achievement_date,
                     context_subject_id=context_subject_id,
                     suppress_actions=skip_trigger_action
                 )
@@ -2175,7 +2066,8 @@ class AchievementTriggerStep(ABase):
         return "GoalTriggerStep: %s" % (self.id,)
 
     @classmethod
-    def execute(cls, trigger_step, subject_id, current_percentage, value, achievement_goal, level, properties, achievement_date, context_subject_id, suppress_actions=False):
+    def execute(cls, trigger_step, subject, current_percentage, value, achievement_goal, level, properties, achievement_date, context_subject_id, suppress_actions=False):
+        subject_id = subject["id"]
         uS = update_connection()
         uS.execute(t_achievement_trigger_step_executions.insert().values({
             'subject_id': subject_id,
@@ -2197,13 +2089,54 @@ class AchievementTriggerStep(ABase):
                     params=dict({
                         'value': value,
                         'goal': achievement_goal,
-                        'percentage': current_percentage
+                        'percentage': current_percentage,
                     },**properties),
                     is_read=False,
                     has_been_pushed=False
                 )
                 uS.add(m)
+            elif trigger_step["action_type"] == "increase_value":
+                action_value = evaluate_value_expression(trigger_step["action_value"], {
+                    'level': level
+                })
+                action_subject_type_id = trigger_step["action_subjecttype_id"]
+                action_variable_id = trigger_step["action_variable_id"]
+                action_variable = DBSession.execute(select([t_variables.c.name], from_obj=t_variables).where(t_variables.c.id==action_variable_id)).fetchone()
+                action_variable_name = action_variable["name"]
 
+                at_dt = min(achievement_date.to_date, dt_now())
+
+                subjects = []
+
+                if action_subject_type_id == subject["subjecttype_id"]:
+                    subjects.append(subject_id)
+                else:
+                    ancestors = Subject.get_ancestor_subjects(
+                        subject_id=subject_id,
+                        of_type_id=action_subject_type_id,
+                        from_date=at_dt,
+                        to_date=at_dt,
+                        whole_time_required=False
+                    )
+                    subjects += list(ancestors.keys())
+
+                    descendents = Subject.get_descendent_subjects(
+                        subject_id=subject_id,
+                        of_type_id=action_subject_type_id,
+                        from_date=at_dt,
+                        to_date=at_dt,
+                        whole_time_required=False
+                    )
+                    subjects += list(descendents.keys())
+
+                for subj in subjects:
+                    Value.increase_value(
+                        variable_name=action_variable_name,
+                        subject_id=subj,
+                        value=action_value,
+                        key=None,
+                        at_datetime=at_dt
+                    )
 
 class Task(ABase):
     def __unicode__(self, *args, **kwargs):
@@ -2260,13 +2193,13 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
                     skip_trigger_action=True
                 )
             if achievement["evaluation"] == "yearly":
-                d += relativedelta(years=1)
+                d += relativedelta.relativedelta(years=1)
             elif achievement["evaluation"] == "monthly":
-                d += relativedelta(months=1)
+                d += relativedelta.relativedelta(months=1)
             elif achievement["evaluation"] == "weekly":
-                d += relativedelta(weeks=1)
+                d += relativedelta.relativedelta(weeks=1)
             elif achievement["evaluation"] == "daily":
-                d += relativedelta(days=1)
+                d += relativedelta.relativedelta(days=1)
             else:
                 break
 
@@ -2392,7 +2325,10 @@ mapper(AchievementTrigger, t_achievement_triggers, properties={
 })
 mapper(AchievementTriggerStep, t_achievement_trigger_steps, properties={
     'trigger': relationship(AchievementTrigger, backref="steps"),
-    'action_translation': relationship(TranslationVariable)
+    'action_translation': relationship(TranslationVariable),
+    'action_subjecttype': relationship(SubjectType),
+    'action_variable': relationship(Variable),
+
 })
 
 mapper(Language, t_languages)

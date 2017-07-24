@@ -91,6 +91,9 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             'condition_percentage',
             'action_type',
             'action_translation',
+            'action_subjecttype',
+            'action_value',
+            'action_variable'
         )
 
     class ModelViewAchievementTrigger(ModelView):
@@ -98,7 +101,7 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             'name',
             'achievement',
             'steps',
-            'execute_when_complete'
+            'execute_when_complete',
         )
         inline_models = (AchievementTriggerStepInlineModelForm(AchievementTriggerStep),)
 

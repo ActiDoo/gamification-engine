@@ -261,10 +261,10 @@ def increase_value(request):
         raise APIError(404, "variable_not_found", "variable not found")
 
     if asbool(get_settings().get("enable_user_authentication", False)):
-        if not Variable.may_increase(variable, request, subject_id):
+        if not AuthUser.may_increase(variable, request, subject_id):
             raise APIError(403, "forbidden", "You may not increase the variable for this subject.")
     
-    Value.increase_value(variable_name, subject, value, key, at_datetime=dt_now())
+    Value.increase_value(variable_name, subject["id"], value, key, at_datetime=dt_now())
 
     try:
         achievement_history = int(request.GET["achievement_history"])
