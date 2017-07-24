@@ -1,0 +1,22 @@
+{% extends 'admin/master.html' %}
+{% import 'admin/lib.html' as lib with context %}
+
+{% macro extra() %}
+
+{% endmacro %}
+
+{% block head %}
+    {{ super() }}
+{% endblock %}
+
+{% block body %}
+<div id="jscomponentviewwrapper"></div>
+<script type="text/javascript">
+    var domEl = document.getElementById("jscomponentviewwrapper");
+    gengine.renderComponent(domEl, "{{component}}");
+</script>
+{% endblock %}
+
+{% block tail %}
+  {{ super() }}
+{% endblock %}

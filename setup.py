@@ -32,7 +32,9 @@ requires = [
     'jsonschema',
     'pyparsing',
     'python-crontab',
-    'croniter'
+    'croniter',
+    'zope.interface',
+    'zope.sqlalchemy'
 ]
 
 version = ''

@@ -50,7 +50,7 @@ class EngineTask(object):
                         'config': None,
                         'cron': None,
                         'is_removed': False,
-                        'is_user_modified': False,
+                        'is_manually_modified': False,
                         'is_auto_created': True,
                     }))
 

@@ -1,0 +1,70 @@
+.group-assignment {
+  width: 100%;
+  margin-bottom: 50px; }
+  .group-assignment * {
+    box-sizing: border-box; }
+  .group-assignment .side-header {
+    font-size: 1.2em;
+    font-weight: bold; }
+  .group-assignment .users {
+    width: calc(50% - 1px);
+    padding-left: 30px;
+    vertical-align: top; }
+  .group-assignment .groups {
+    width: 50%;
+    vertical-align: top;
+    padding-right: 30px;
+    border-right: 1px solid #9b9b9b; }
+  .group-assignment .groups-list-item {
+    border-bottom: 1px solid #cccccc;
+    padding: 5px 0px;
+    color: blue; }
+  .group-assignment .groups-list-item:last-child {
+    border-bottom: 0px; }
+  .group-assignment .groups-list-item:hover {
+    cursor: pointer;
+    color: #9c9c9c;
+    text-decoration: underline; }
+  .group-assignment .groups-list-item-selected {
+    font-weight: bold;
+    border-bottom: 2px solid #cccccc; }
+  .group-assignment .search-field-wrapper {
+    border-bottom: 1px solid #9b9b9b;
+    margin-bottom: 10px; }
+  .group-assignment .search-field {
+    border-top: 0px;
+    border-left: 0px;
+    border-right: 0px;
+    border-bottom: 0px;
+    padding: 5px 5px 5px 5px;
+    font-size: 16px;
+    border-radius: 0px;
+    width: calc(100% - 30px);
+    height: 30px;
+    outline: 0;
+    box-shadow: none !important;
+    display: inline-block; }
+  .group-assignment .contained-user-list-header {
+    font-weight: bold; }
+  .group-assignment .not-contained-user-list-header {
+    font-weight: bold;
+    margin-top: 20px; }
+  .group-assignment .users-list-item {
+    border-bottom: 1px solid #cccccc;
+    padding: 5px 0px;
+    position: relative; }
+  .group-assignment .users-list-item:last-child {
+    border-bottom: 0px; }
+  .group-assignment .users-list-item-toggle:hover {
+    cursor: pointer;
+    color: #9c9c9c;
+    text-decoration: underline; }
+  .group-assignment .users-list-item-toggle {
+    float: right;
+    color: blue; }
+  .group-assignment .inherited-group-link {
+    color: blue; }
+  .group-assignment .inherited-group-link:hover {
+    cursor: pointer;
+    color: #9c9c9c;
+    text-decoration: underline; }

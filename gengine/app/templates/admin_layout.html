@@ -5,13 +5,17 @@
   {{ super() }}
   <link href="{{ url_for('static_gengine', filename='admin_layout.css') }}" rel="stylesheet" />
   <script>
-      API_BASE_URL = "{{ urlprefix }}";
+      API_BASE_URL = "{{ urlprefix }}"; // this is read by react and by the old api example scripts
+      ADMIN_API_BASE_URL = API_BASE_URL+"/api";
   </script>
+  <script src="{{jsmain}}"></script>
+  <link href="{{cssmain}}" rel="stylesheet" />
 {% endblock %}
 
 {% block tail %}
   {{ super() }}
   <div class="container" id="footer">Gamification-Engine {{gamification_engine_version}} - Built with &#9825; at Gamification-Software.com &copy; 2015-2016</div>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.js"></script>
   <script type="text/javascript" src="{{ url_for('static_gengine', filename='api.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('static_gengine', filename='admin.js') }}"></script>
 {% endblock %}
