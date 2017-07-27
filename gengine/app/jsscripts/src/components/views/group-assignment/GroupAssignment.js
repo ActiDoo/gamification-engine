@@ -113,8 +113,8 @@ class GroupAssignment extends Component {
         const not_active_parents = _.filter(parents, (p) => p.id != active_parent_id);
 
         const possibleSubjects = searchData[this.usersInGroupSearchID] ? searchData[this.usersInGroupSearchID].subjects : null;
-	    const subjectsInParent = _.filter(possibleSubjects, (s) => s.in_parent);
-	    const subjectsNotInParent = _.filter(possibleSubjects, (s) => !s.in_parent);
+	      const subjectsInParent = _.filter(possibleSubjects, (s) => s.in_parent);
+	      const subjectsNotInParent = _.filter(possibleSubjects, (s) => !s.in_parent);
 	    /*_.each(subjectsInParent,(user) => {
 			if(!user.directly_in_parent) {
 				const pathItems = _.split(user.path, "->");

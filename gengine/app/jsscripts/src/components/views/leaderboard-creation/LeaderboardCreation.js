@@ -326,6 +326,7 @@ class LeaderboardCreation extends Component {
   }
 
   handleCreateClick = () => {
+    const variable = _.find(this.getVariables(), (v) => v.id==this.getSelectedVariable());
     this.props.actions.createAchievementRequest({
         'name': this.getName(),
         'player_subjecttype_id': this.getSelectedPlayer(),
@@ -335,7 +336,7 @@ class LeaderboardCreation extends Component {
         'condition': {
           "term": {
             "type": "literal",
-            "variable": _.find(this.getVariables(), (v) => v.id==this.getSelectedVariable()).name
+            "variable": variable.name
           }
         },
         'evaluation': this.getSelectedRecurrence(),
@@ -349,194 +350,209 @@ class LeaderboardCreation extends Component {
   render = () => {
     console.log("props", this.props)
 
-
-    return (
-      <div className="leaderboard-creation">
-        <div className="form-row">
-          <div className="form-row-label">
-            Name
-          </div>
-          <div className="form-row-field">
-            <input type="text" name="name" value={this.getName()} onChange={this.handleNameChange} />
-          </div>
-          <div className="form-row-description">
-            Please give me a name
-          </div>
+    if(this.props.createData && this.props.createData.latest && this.props.createData.latest.status == "ok") {
+      // creation okay
+      return (
+        <div className="leaderboard-creation">
+          <div className="alert alert-success">Leaderboard created successfully</div>
         </div>
-        <div className="form-row">
-          <div className="form-row-label">
-            Players
-          </div>
-          <div className="form-row-field">
-            <Select
-              name="player"
-              value={this.getSelectedPlayer()}
-              options={this.getPlayerOptions()}
-              onChange={this.handlePlayerChange}
-              placeholder="Player"
-            />
-          </div>
-          <div className="form-row-description">
-            Who are the players of the leaderboard?
-          </div>
+      );
+    } else if(this.props.createError && this.props.createError[0]) {
+      // creation okay
+      return (
+        <div className="leaderboard-creation">
+          <div className="alert alert-error">Error: {this.props.createError[0].errorData.message}</div>
         </div>
-
-
-        <div className="form-row">
-          <div className="form-row-label">
-            Context
-          </div>
-          <div className="form-row-field">
-            <Select
-              name="context"
-              value={this.getSelectedContext()}
-              options={this.getContextOptions()}
-              onChange={this.handleContextChange}
-              placeholder="Context"
-            />
-          </div>
-          <div className="form-row-description">
-            The players are compared with other players in a specific context (e.g. a country).
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-row-label">
-            Domain
-          </div>
-          <div className="form-row-field">
-            <Select
-              name="domain"
-              value={this.getSelectedDomains()}
-              options={this.getDomainOptions()}
-              onChange={this.handleDomainsChange}
-              multi={true}
-              placeholder="Domain"
-            />
-          </div>
-          <div className="form-row-description">
-            The game can be restricted to specific subjects (e.g. only participants in a specific team).
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-row-label">
-            Variable
-          </div>
-          <div className="form-row-field">
-            <Select
-              name="variable"
-              value={this.getSelectedVariable()}
-              options={this.getVariableOptions()}
-              onChange={this.handleVariableChange}
-              placeholder="Variable"
-            />
-          </div>
-          <div className="form-row-description">
-            Please select the variable which is used for this leaderboard.
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-row-label">
-            Recurrence
-          </div>
-          <div className="form-row-field">
-            <Select
-              name="recurrence"
-              value={this.getSelectedRecurrence()}
-              options={this.getRecurrenceOptions()}
-              onChange={this.handleRecurrenceChange}
-              placeholder="Recurrence"
-            />
-          </div>
-          <div className="form-row-description">
-            Do you want to reset the leaderboard from time to time?
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-row-label">
-            Timezone
-          </div>
-          <div className="form-row-field">
-            <Select
-              name="timezone"
-              value={this.getSelectedTimezone()}
-              options={this.getTimezoneOptions()}
-              onChange={this.handleTimezoneChange}
-              placeholder="Timezone"
-            />
-          </div>
-          <div className="form-row-description">
-            If you make time-related settings, it's important to agree on a timezone.
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-row-label">
-            First day of a week
-          </div>
-          <div className="form-row-field">
-            <Select
-              name="firstdayofweek"
-              value={this.getSelectedFDW()}
-              options={this.getFDWOptions()}
-              onChange={this.handleFDWChange}
-              placeholder="First day of a week"
-            />
-          </div>
-          <div className="form-row-description">
-            Please select the first day of a week.
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-row-label">
-            Valid time span
-          </div>
-          <div className="form-row-field">
-            <div className="timespan-cb">
-              <input id="ts" type="checkbox" onChange={this.handleSpecifyTimespanChange} checked={this.getSelectedSpecifyTimespan()} />
-              <span onClick={this.handleSpecifyTimespanChange}>Specify time span</span>
+      );
+    } else {
+      return (
+        <div className="leaderboard-creation">
+          <div className="form-row">
+            <div className="form-row-label">
+              Name
             </div>
-            {(this.getSelectedSpecifyTimespan() ? (
-              <div>
-                <div className="span-6">
-                  <b>Start</b><br />
-                  <InputMoment
-                    moment={this.getSelectedValidStart()}
-                    onChange={this.handleValidStartChange}
-                    prevMonthIcon="fa fa-chevron-left"
-                    nextMonthIcon="fa fa-chevron-right"
-                  />
-                </div>
-                <div className="span-6">
-                  <b>End</b><br />
-                  <InputMoment
-                    moment={this.getSelectedValidEnd()}
-                    onChange={this.handleValidEndChange}
-                    prevMonthIcon="fa fa-chevron-left"
-                    nextMonthIcon="fa fa-chevron-right"
-                  />
-                </div>
+            <div className="form-row-field">
+              <input type="text" name="name" value={this.getName()} onChange={this.handleNameChange} />
+            </div>
+            <div className="form-row-description">
+              Please give me a unique name
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-row-label">
+              Players
+            </div>
+            <div className="form-row-field">
+              <Select
+                name="player"
+                value={this.getSelectedPlayer()}
+                options={this.getPlayerOptions()}
+                onChange={this.handlePlayerChange}
+                placeholder="Player"
+              />
+            </div>
+            <div className="form-row-description">
+              Who are the players of the leaderboard?
+            </div>
+          </div>
+
+
+          <div className="form-row">
+            <div className="form-row-label">
+              Context
+            </div>
+            <div className="form-row-field">
+              <Select
+                name="context"
+                value={this.getSelectedContext()}
+                options={this.getContextOptions()}
+                onChange={this.handleContextChange}
+                placeholder="Context"
+              />
+            </div>
+            <div className="form-row-description">
+              The players are compared with other players in a specific context (e.g. a country).
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-row-label">
+              Domain
+            </div>
+            <div className="form-row-field">
+              <Select
+                name="domain"
+                value={this.getSelectedDomains()}
+                options={this.getDomainOptions()}
+                onChange={this.handleDomainsChange}
+                multi={true}
+                placeholder="Domain"
+              />
+            </div>
+            <div className="form-row-description">
+              The game can be restricted to specific subjects (e.g. only participants in a specific team).
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-row-label">
+              Variable
+            </div>
+            <div className="form-row-field">
+              <Select
+                name="variable"
+                value={this.getSelectedVariable()}
+                options={this.getVariableOptions()}
+                onChange={this.handleVariableChange}
+                placeholder="Variable"
+              />
+            </div>
+            <div className="form-row-description">
+              Please select the variable which is used for this leaderboard.
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-row-label">
+              Recurrence
+            </div>
+            <div className="form-row-field">
+              <Select
+                name="recurrence"
+                value={this.getSelectedRecurrence()}
+                options={this.getRecurrenceOptions()}
+                onChange={this.handleRecurrenceChange}
+                placeholder="Recurrence"
+              />
+            </div>
+            <div className="form-row-description">
+              Do you want to reset the leaderboard from time to time?
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-row-label">
+              Timezone
+            </div>
+            <div className="form-row-field">
+              <Select
+                name="timezone"
+                value={this.getSelectedTimezone()}
+                options={this.getTimezoneOptions()}
+                onChange={this.handleTimezoneChange}
+                placeholder="Timezone"
+              />
+            </div>
+            <div className="form-row-description">
+              If you make time-related settings, it's important to agree on a timezone.
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-row-label">
+              First day of a week
+            </div>
+            <div className="form-row-field">
+              <Select
+                name="firstdayofweek"
+                value={this.getSelectedFDW()}
+                options={this.getFDWOptions()}
+                onChange={this.handleFDWChange}
+                placeholder="First day of a week"
+              />
+            </div>
+            <div className="form-row-description">
+              Please select the first day of a week.
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-row-label">
+              Valid time span
+            </div>
+            <div className="form-row-field">
+              <div className="timespan-cb">
+                <input id="ts" type="checkbox" onChange={this.handleSpecifyTimespanChange} checked={this.getSelectedSpecifyTimespan()} />
+                <span onClick={this.handleSpecifyTimespanChange}>Specify time span</span>
               </div>
-            ) : '')}
+              {(this.getSelectedSpecifyTimespan() ? (
+                <div>
+                  <div className="span-6">
+                    <b>Start</b><br />
+                    <InputMoment
+                      moment={this.getSelectedValidStart()}
+                      onChange={this.handleValidStartChange}
+                      prevMonthIcon="fa fa-chevron-left"
+                      nextMonthIcon="fa fa-chevron-right"
+                    />
+                  </div>
+                  <div className="span-6">
+                    <b>End</b><br />
+                    <InputMoment
+                      moment={this.getSelectedValidEnd()}
+                      onChange={this.handleValidEndChange}
+                      prevMonthIcon="fa fa-chevron-left"
+                      nextMonthIcon="fa fa-chevron-right"
+                    />
+                  </div>
+                </div>
+              ) : '')}
+            </div>
+            <div className="form-row-description">
+              You can restrict the leaderboard to be only active for a specific time span.
+            </div>
           </div>
-          <div className="form-row-description">
-            You can restrict the leaderboard to be only active for a specific time span.
-          </div>
-        </div>
 
-        <div className="form-row">
-          <div className="control-group">
-            <div className="controls">
-              <button type="button" className="btn btn-primary" onClick={this.handleCreateClick}>Create</button>
+          <div className="form-row">
+            <div className="control-group">
+              <div className="controls">
+                <button type="button" className="btn btn-primary" onClick={this.handleCreateClick}>Create</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    )
+      )
+    }
   }
 }
 
@@ -546,6 +562,8 @@ export default connectDynamic((dynamic, state, props) => {
     subjects: dynamic.api.selectors.getSubjectsSearchListData(state.api),
     variables: dynamic.api.selectors.getVariablesSearchListData(state.api),
     timezones: dynamic.api.selectors.getTimezonesListData(state.api),
+    createData: dynamic.api.selectors.getCreateAchievementData(state.api),
+    createError: dynamic.api.selectors.getCreateAchievementError(state.api),
   }
 },(dynamic, dispatch, props) => {
   return {

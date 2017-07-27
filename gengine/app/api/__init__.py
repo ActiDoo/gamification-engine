@@ -331,36 +331,39 @@ def create_achievement(request, *args, **kw):
     if not request.has_perm(perm_global_manage_achievements):
         raise APIError(403, "forbidden")
 
-    name = request.validated_params.body.get("name", None)
-    player_subjecttype_id = request.validated_params.body.get("player_subjecttype_id")
-    context_subjecttype_id = request.validated_params.body.get("context_subjecttype_id")
-    domain_subject_ids = request.validated_params.body.get("domain_subject_ids")
-    condition = request.validated_params.body.get("condition")
-    evaluation = request.validated_params.body.get("evaluation")
-    evaluation_timezone = request.validated_params.body.get("evaluation_timezone")
-    evaluation_shift = request.validated_params.body.get("evaluation_shift")
-    valid_start = request.validated_params.body.get("valid_start")
-    valid_end = request.validated_params.body.get("valid_end")
-    comparison_type = request.validated_params.body.get("comparison_type")
+    try:
+        name = request.validated_params.body.get("name", None)
+        player_subjecttype_id = request.validated_params.body.get("player_subjecttype_id")
+        context_subjecttype_id = request.validated_params.body.get("context_subjecttype_id")
+        domain_subject_ids = request.validated_params.body.get("domain_subject_ids")
+        condition = request.validated_params.body.get("condition")
+        evaluation = request.validated_params.body.get("evaluation")
+        evaluation_timezone = request.validated_params.body.get("evaluation_timezone")
+        evaluation_shift = request.validated_params.body.get("evaluation_shift")
+        valid_start = request.validated_params.body.get("valid_start")
+        valid_end = request.validated_params.body.get("valid_end")
+        comparison_type = request.validated_params.body.get("comparison_type")
 
-    ach = Achievement(
-        name = name,
-        player_subjecttype_id = player_subjecttype_id,
-        context_subjecttype_id = context_subjecttype_id,
-        domain_subject_ids = domain_subject_ids,
-        condition = json.dumps(condition),
-        comparison_type = comparison_type,
-        evaluation = evaluation,
-        evaluation_timezone = evaluation_timezone,
-        evaluation_shift = evaluation_shift,
-        valid_start = valid_start,
-        valid_end = valid_end,
-    )
+        ach = Achievement(
+            name = name,
+            player_subjecttype_id = player_subjecttype_id,
+            context_subjecttype_id = context_subjecttype_id,
+            domain_subject_ids = domain_subject_ids,
+            condition = json.dumps(condition),
+            comparison_type = comparison_type,
+            evaluation = evaluation,
+            evaluation_timezone = evaluation_timezone,
+            evaluation_shift = evaluation_shift,
+            valid_start = valid_start,
+            valid_end = valid_end,
+        )
 
-    DBSession.add(ach)
-    DBSession.flush()
+        DBSession.add(ach)
+        DBSession.flush()
 
-    return r_status.output({
-        "status": "ok"
-    })
+        return r_status.output({
+            "status": "ok"
+        })
 
+    except:
+        raise APIError(500, message="Error creating achievement")

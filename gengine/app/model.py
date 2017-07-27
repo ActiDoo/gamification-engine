@@ -220,7 +220,7 @@ t_achievements = Table('achievements', Base.metadata,
     Column('id', ty.Integer, primary_key=True),
 
     # Internal Use, external should be added by using a property
-    Column('name', ty.String(255), nullable=False),
+    Column('name', ty.String(255), nullable=False, unique=True),
 
     # For ordering in the UI
     Column('priority', ty.Integer, index=True, default=0),
@@ -873,7 +873,7 @@ class Subject(ABase):
         j = t_subjects.join(t_subjectrelations, t_subjectrelations.c.to_id == t_subjects.c.id)
         friends = DBSession.execute(t_subjects.select(from_obj=j).where(t_subjectrelations.c.from_id == subject_id)).fetchall()
 
-        j = t_subjects.join(t_subjects_subjects)
+        j = t_subjects.join(t_subjects_subjects, t_subjects_subjects.c.part_of_id == t_subjects.c.id)
         part_of_subjects = DBSession.execute(t_subjects.select(from_obj=j).where(t_subjects_subjects.c.subject_id == subject_id)).fetchall()
 
         language = get_settings().get("fallback_language","en")
@@ -1238,6 +1238,10 @@ class Achievement(ABase):
 
     def __unicode__(self, *args, **kwargs):
         return self.name + " (ID: %s)" % (self.id,)
+
+    @classmethod
+    def is_leaderboard(cls, achievement):
+        return achievement["goal"] is None
 
     @classmethod
     @cache_general.cache_on_arguments()

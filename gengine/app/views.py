@@ -379,13 +379,13 @@ def auth_login(request):
     except:
         raise APIError(400, "invalid_json", "no valid json body")
 
-    subject = request.subject
+    user = request.user
     email = doc.get("email")
     password = doc.get("password")
 
-    if subject:
+    if user:
         #already logged in
-        token = subject.get_or_create_token().token
+        token = user.get_or_create_token().token
     else:
         if not email or not password:
             raise APIError(400, "login.email_and_password_required", "You need to send your email and password.")
@@ -403,7 +403,7 @@ def auth_login(request):
 
         token = AuthToken.generate_token()
         tokenObj = AuthToken(
-            user_id = user.id,
+            auth_user_id = user.id,
             token = token
         )
 
