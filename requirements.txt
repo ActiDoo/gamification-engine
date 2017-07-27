@@ -21,13 +21,16 @@ psycopg2==2.7.1
 Pygments==2.2.0
 pymemcache==1.4.2
 pyparsing==2.2.0
-pyramid==1.8.3
+pyramid==1.9.1
 pyramid-chameleon==0.3
 pyramid-debugtoolbar==3.0.5
 pyramid-dogpile-cache==0.0.4
+pyramid-jinja2==2.6.2
 pyramid-mako==1.0.2
+pyramid_swagger_spec==0.0.7
 pyramid-tm==1.1.1
 python-crontab==2.2.2
+python-dateutil==2.5.3
 python-editor==1.0.3
 pytz==2016.10
 raven==6.0.0
@@ -42,5 +45,5 @@ WebOb==1.7.2
 Werkzeug==0.12.1
 WTForms==2.1
 zope.deprecation==4.2.0
-zope.interface==4.3.3
+zope.interface==4.4.2
 zope.sqlalchemy==0.7.7
