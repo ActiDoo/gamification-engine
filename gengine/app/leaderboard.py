@@ -10,11 +10,11 @@ from gengine.metadata import DBSession
 class GlobalLeaderBoardSubjectSet:
 
     @classmethod
-    def forward(cls, from_date, to_date, whole_time_required):
-        q = select([t_subjects.c.id, ])
+    def forward(cls, subjecttype_id, from_date, to_date, whole_time_required):
+        q = select([t_subjects.c.id, ]).where(t_subjects.c.subjecttype_id == subjecttype_id)
         if whole_time_required:
             q = q.where(and_(
-                t_subjects.c.created_at <= from_date,
+                t_subjects.c.created_at <= from_date
                 #or_(
                 #    t_subjects.c.deleted_at == None,
                 #    t_subjects.c.deleted_at >= to_date
@@ -91,13 +91,13 @@ class RelationsLeaderBoardSubjectSet:
 class ContextSubjectLeaderBoardSubjectSet:
 
     @classmethod
-    def forward(cls, subject_type_id, context_subject_id, from_date, to_date, whole_time_required=False):
+    def forward(cls, subjecttype_id, context_subject_id, from_date, to_date, whole_time_required=False):
         # We are comparing all subjects of type subject_type which have been part of context_subject_id between from_date and to_date
         # By default, they don't have to be member all the time (whole_time_required).
 
         ancestor_subjects = Subject.get_descendent_subjects(
             subject_id=context_subject_id,
-            of_type_id=subject_type_id,
+            of_type_id=subjecttype_id,
             from_date=from_date,
             to_date=to_date,
             whole_time_required=whole_time_required

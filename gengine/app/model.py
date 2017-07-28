@@ -1323,13 +1323,14 @@ class Achievement(ABase):
             subjects = set(subjects) | {subject.id}
         elif achievement["comparison_type"] == "global":
             subjects = GlobalLeaderBoardSubjectSet.forward(
+                subjecttype_id=subject["subjecttype_id"],
                 from_date=from_date,
                 to_date=to_date,
                 whole_time_required=achievement["lb_subject_part_whole_time"]
             )
         elif achievement["comparison_type"] == "context_subject":
             subjects = ContextSubjectLeaderBoardSubjectSet.forward(
-                subject_type_id=subject["subjecttype_id"],
+                subjecttype_id=subject["subjecttype_id"],
                 context_subject_id=context_subject_id,
                 from_date=from_date,
                 to_date=to_date,
