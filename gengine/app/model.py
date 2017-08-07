@@ -1169,6 +1169,9 @@ class AchievementDate:
     def __json__(self, *args, **kw):
         return self.from_date.isoformat()
 
+    def __lt__(self, other):
+        return AchievementDate.db_format(self) < AchievementDate.db_format(other)
+
     @classmethod
     def db_format(cls, instance):
         return instance.from_date if instance else None
@@ -1412,6 +1415,8 @@ class Achievement(ABase):
         """
         def generate():
             achievement = Achievement.get_achievement(achievement_id)
+            print("Generating for %s, generate_output=%s, comparison_type=%s" %(achievement["name"], generate_output, achievement["comparison_type"]))
+
             goal = None
 
             subject_id = compared_subject["id"]
