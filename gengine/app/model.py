@@ -906,8 +906,8 @@ class Subject(ABase):
     @classmethod
     def get_ancestor_subjects(cls, subject_id, of_type_id, from_date, to_date, whole_time_required):
 
-        print("Getting ancestors of %s of type %s" % (subject_id, of_type_id))
-        print("From date %s, To date %s, whole_time_required: %s" % (from_date, to_date, whole_time_required))
+        #print("Getting ancestors of %s of type %s" % (subject_id, of_type_id))
+        #print("From date %s, To date %s, whole_time_required: %s" % (from_date, to_date, whole_time_required))
 
         if whole_time_required:
             datestr = "(%(ss)s.joined_at<=:from_date AND (%(ss)s.left_at IS NULL OR %(ss)s.left_at >= :to_date))"
@@ -1431,8 +1431,8 @@ class Achievement(ABase):
         """
         def generate():
             achievement = Achievement.get_achievement(achievement_id)
-            print("Generating for %s, generate_output=%s, comparison_type=%s" %(achievement["name"], generate_output, achievement["comparison_type"]))
-            print("Context Subject ID: %s" % (context_subject_id, ))
+            #print("Generating for %s, generate_output=%s, comparison_type=%s" %(achievement["name"], generate_output, achievement["comparison_type"]))
+            #print("Context Subject ID: %s" % (context_subject_id, ))
 
             goal = None
 
@@ -1531,7 +1531,7 @@ class Achievement(ABase):
                     to_date=achievement_date.to_date if achievement_date else None
                 )
 
-                print("relevant subjects:"+",".join(str(s) for s in subject_ids))
+                #print("relevant subjects:"+",".join(str(s) for s in subject_ids))
 
                 leaderboard = Achievement.get_leaderboard(
                     achievement=achievement,
@@ -2220,7 +2220,7 @@ def insert_trigger_step_executions_after_step_upsert(mapper,connection,target):
                 context_subject_ids.append(None)
 
             for context_subject_id in context_subject_ids:
-                print("eval "+str(achievement["id"])+" - "+str(achievement_date.from_date if achievement_date else "None")+" - "+str(context_subject_id))
+                #print("eval "+str(achievement["id"])+" - "+str(achievement_date.from_date if achievement_date else "None")+" - "+str(context_subject_id))
                 goal_eval = Achievement.evaluate(
                     compared_subject=subject,
                     achievement_id=achievement["id"],

@@ -96,8 +96,8 @@ class ContextSubjectLeaderBoardSubjectSet:
         # We are comparing all subjects of type subject_type which have been part of context_subject_id between from_date and to_date
         # By default, they don't have to be member all the time (whole_time_required).
 
-        print("Looking for descendents of %s of type %s" % (context_subject_id, subjecttype_id))
-        print("From Date: %s, To Date: %s, whole_time_required: %s" % (from_date, to_date, whole_time_required))
+        #print("Looking for descendents of %s of type %s" % (context_subject_id, subjecttype_id))
+        #print("From Date: %s, To Date: %s, whole_time_required: %s" % (from_date, to_date, whole_time_required))
 
         ancestor_subjects = Subject.get_descendent_subjects(
             subject_id=context_subject_id,
