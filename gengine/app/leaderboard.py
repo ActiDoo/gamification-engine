@@ -1,3 +1,4 @@
+from gengine.base.util import dt_now
 from sqlalchemy.sql.expression import select, and_, or_
 
 from gengine.app.model import t_subjects, t_subjectrelations, t_subjects_subjects, Subject
@@ -95,11 +96,14 @@ class ContextSubjectLeaderBoardSubjectSet:
         # We are comparing all subjects of type subject_type which have been part of context_subject_id between from_date and to_date
         # By default, they don't have to be member all the time (whole_time_required).
 
+        print("Looking for descendents of %s of type %s" % (context_subject_id, subjecttype_id))
+        print("From Date: %s, To Date: %s, whole_time_required: %s" % (from_date, to_date, whole_time_required))
+
         ancestor_subjects = Subject.get_descendent_subjects(
             subject_id=context_subject_id,
             of_type_id=subjecttype_id,
-            from_date=from_date,
-            to_date=to_date,
+            from_date=from_date if from_date else dt_now(),
+            to_date=to_date if to_date else dt_now(),
             whole_time_required=whole_time_required
         )
 

@@ -123,9 +123,9 @@ def _get_progress(achievements_for_subject, requesting_subject, achievement_id=N
     if achievement_id:
         achievements = [x for x in achievements if int(x["id"]) == int(achievement_id)]
 
-    def ea(achievement, achievement_date, execute_triggers):
+    def ea(achievement, achievement_date, context_subject_id, execute_triggers):
         try:
-            return Achievement.evaluate(achievements_for_subject, achievement["id"], achievement_date, execute_triggers=execute_triggers, context_subject_id=None)
+            return Achievement.evaluate(achievements_for_subject, achievement["id"], achievement_date, execute_triggers=execute_triggers, context_subject_id=context_subject_id)
         except FormularEvaluationException as e:
             return { "error": "Cannot evaluate formular: " + e.message, "id" : achievement["id"] }
         #except Exception as e:
@@ -185,8 +185,18 @@ def _get_progress(achievements_for_subject, requesting_subject, achievement_id=N
             for achievement_date in reversed(sorted(achievement_dates)):
                 # We execute the goal triggers only for the newest and previous period, not for any periods longer ago
                 # (To not send messages for very old things....)
-                evaluatelist.append(ea(achievement, achievement_date, execute_triggers=(i == 0 or i == 1 or achievement_date == None)))
-                i += 1
+
+                relevant_context_ids = Achievement.get_relevant_contexts(
+                    subject_id=achievements_for_subject["id"],
+                    achievement=achievement,
+                    from_date=achievement_date.from_date if achievement_date else None,
+                    to_date=achievement_date.to_date if achievement_date else None,
+                    whole_time_required=False
+                )
+
+                for context_subject_id in relevant_context_ids:
+                    evaluatelist.append(ea(achievement, achievement_date, context_subject_id, execute_triggers=(i == 0 or i == 1 or achievement_date == None)))
+                    i += 1
 
                 if achievement_history is not None and i >= achievement_history:
                     # achievement_history restricts the number of lookback items

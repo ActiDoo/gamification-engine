@@ -905,6 +905,10 @@ class Subject(ABase):
 
     @classmethod
     def get_ancestor_subjects(cls, subject_id, of_type_id, from_date, to_date, whole_time_required):
+
+        print("Getting ancestors of %s of type %s" % (subject_id, of_type_id))
+        print("From date %s, To date %s, whole_time_required: %s" % (from_date, to_date, whole_time_required))
+
         if whole_time_required:
             datestr = "(%(ss)s.joined_at<=:from_date AND (%(ss)s.left_at IS NULL OR %(ss)s.left_at >= :to_date))"
         else:
@@ -1303,6 +1307,18 @@ class Achievement(ABase):
         return [rowproxy2dict(x) for x in DBSession.execute(q).fetchall()]
 
     @classmethod
+    def get_relevant_contexts(cls, subject_id, achievement, from_date, to_date, whole_time_required):
+        if achievement["comparison_type"]=="context_subject":
+            return Subject.get_ancestor_subjects(
+                subject_id=subject_id,
+                of_type_id=achievement["context_subjecttype_id"],
+                from_date=from_date if from_date else dt_now(),
+                to_date=to_date if to_date else dt_now(),
+                whole_time_required=whole_time_required
+            )
+        return [None,]
+
+    @classmethod
     def get_relevant_subjects_by_achievement_and_subject(cls, achievement, subject, context_subject_id, from_date, to_date):
         """
         return all relevant other subjects for the leaderboard. This method is used for collecting all subjects for the output. the reverse method is used to clear the caches properly
@@ -1416,6 +1432,7 @@ class Achievement(ABase):
         def generate():
             achievement = Achievement.get_achievement(achievement_id)
             print("Generating for %s, generate_output=%s, comparison_type=%s" %(achievement["name"], generate_output, achievement["comparison_type"]))
+            print("Context Subject ID: %s" % (context_subject_id, ))
 
             goal = None
 
@@ -1505,6 +1522,7 @@ class Achievement(ABase):
 
                 # Find all other subjects that we want to compare to
 
+
                 subject_ids = Achievement.get_relevant_subjects_by_achievement_and_subject(
                     achievement=achievement,
                     subject=compared_subject,
@@ -1512,6 +1530,8 @@ class Achievement(ABase):
                     from_date=achievement_date.from_date if achievement_date else None,
                     to_date=achievement_date.to_date if achievement_date else None
                 )
+
+                print("relevant subjects:"+",".join(str(s) for s in subject_ids))
 
                 leaderboard = Achievement.get_leaderboard(
                     achievement=achievement,
@@ -1597,6 +1617,11 @@ class Achievement(ABase):
 
             if generate_output and last_recursion_step: #is executed, if this is the last recursion step
                 output = Achievement.basic_output(achievement, True, max_level_included=subject_has_level+1)
+
+                context_subject_output = None
+                if context_subject_id:
+                    context_subject_output = Subject.basic_output(Subject.get_subject(context_subject_id))
+
                 output.update({
                    "level": subject_has_level,
                    "levels_achieved": {
@@ -1609,6 +1634,9 @@ class Achievement(ABase):
                    "leaderboard": leaderboard,
                    "leaderboard_position": leaderboard_position,
                    "achievement_date": achievement_date,
+                   "context_subject": context_subject_output,
+                   "evaluation": achievement["evaluation"],
+                   "evaluation_timezone": achievement["evaluation_timezone"]
                 })
 
             if generate_output and new_level_output is not None: #if we reached a new level in this recursion step, add the previous levels rewards and properties
