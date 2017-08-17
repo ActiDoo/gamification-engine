@@ -459,7 +459,7 @@ def change_password(request):
 
     token = AuthToken.generate_token()
     tokenObj = AuthToken(
-        user_id=user.id,
+        auth_user_id=user.id,
         token=token
     )
     DBSession.add(tokenObj)
