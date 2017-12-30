@@ -8,6 +8,7 @@ from sqlalchemy.sql.functions import func
 from gengine.app.model import t_subject_device, t_subject_messages
 from gengine.base.model import update_connection
 from gengine.base.settings import get_settings
+from gengine.base.util import lstrip_word
 from gengine.metadata import DBSession
 
 threadlocal = threading.local()
@@ -203,7 +204,8 @@ def send_push_message(
         if "android" in device.device_os.lower():
 
             log.debug("Sending Push message to User (ID: %s)", subject_id)
-            push_id = device.push_id.lstrip("dev_").lstrip("prod_")
+            push_id = lstrip_word(device.push_id, "dev_")
+            push_id = lstrip_word(push_id, "prod_")
 
             response = get_gcm().json_request(registration_ids=[push_id, ],
                                               data={"message": android_text, "data": data, "title": title},
