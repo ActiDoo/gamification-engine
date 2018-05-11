@@ -1,3 +1,8 @@
+0.3.0
+  * task scheduler
+  * extended group features
+  * several further minor improvements and fixes
+
 0.2.2
   * Fix several test cases
 
