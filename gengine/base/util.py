@@ -1,3 +1,6 @@
+import datetime
+import pytz
+
 class DictObjectProxy:
 
     def __init__(self, obj={}):
@@ -27,4 +30,29 @@ class Proxy(object):
 
     def __call__(self, *args, **kwargs):
         return self.target(*args, **kwargs)
-    
+
+
+def dt_now():
+    return datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
+
+def dt_ago(**kw):
+    return datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(**kw)
+
+def dt_in(**kw):
+    return datetime.datetime.utcnow().replace(tzinfo=pytz.utc) + datetime.timedelta(**kw)
+
+def seconds_until_end_of_day(timezone):
+    tzobj = pytz.timezone(timezone)
+    now = datetime.datetime.now(tzobj)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow = today + datetime.timedelta(days=1)
+    return int((tomorrow - today).total_seconds())
+
+def normalize_key(key):
+    return '' if key is None else str(key)
+
+def rowproxy2dict(rp):
+    return {k: v for k, v in dict(rp).items() if not str(k).startswith("_")}
+
+def lstrip_word(text, word):
+    return text[len(word):] if text[:len(word)] == word else text

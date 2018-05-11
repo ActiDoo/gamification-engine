@@ -23,6 +23,7 @@ def json_exception_view(exc, request):
         "message": exc.message,
     })
     response = Response(s)
+    response.content_type = "application/json"
     response.status_int = exc.code
     return response
 

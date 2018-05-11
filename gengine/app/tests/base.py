@@ -21,7 +21,7 @@ class BaseDBTest(unittest.TestCase):
         dsn = self.db.dsn()
         self.engine =  create_engine(
             "postgresql://%(user)s@%(host)s:%(port)s/%(database)s" % {
-                "user" : dsn["user"],
+                "user": dsn["user"],
                 "host": dsn["host"],
                 "port": dsn["port"],
                 "database": dsn["database"],

@@ -5,9 +5,10 @@ import os
 from sqlalchemy.sql.expression import and_, select
 from sqlalchemy.sql.functions import func
 
-from gengine.app.model import t_user_device, t_user_messages
+from gengine.app.model import t_subject_device, t_subject_messages
 from gengine.base.model import update_connection
 from gengine.base.settings import get_settings
+from gengine.base.util import lstrip_word
 from gengine.metadata import DBSession
 
 threadlocal = threading.local()
@@ -108,16 +109,16 @@ def apns_feedback(apns, prefix):
             log.debug("APNS Feedback Entry: %s", token_hex + "_" + str(fail_time))
 
             # do stuff with token_hex and fail_time
-            q = t_user_device.select().where(t_user_device.c.push_id==token_hex)
+            q = t_subject_device.select().where(t_subject_device.c.push_id==token_hex)
             rows = uS.execute(q).fetchall()
 
             for device in rows:
                 log.debug("APNSPushID found in Database: %s", token_hex)
                 if fail_time > device["registered"]:
                     log.debug("Fail-Time is before Registered-At")
-                    uS.execute(t_user_device.delete().where(
-                        t_user_device.c.device_id == device["device_id"],
-                        t_user_device.c.user_id == device["user_id"],
+                    uS.execute(t_subject_device.delete().where(
+                        t_subject_device.c.device_id == device["device_id"],
+                        t_subject_device.c.subject_id == device["subject_id_id"],
                     ))
         except:
             log.exception("Processing APNS Feedback failed for an entry.")
@@ -138,7 +139,7 @@ def gcm_feedback(response):
             if error in ['NotRegistered', 'InvalidRegistration']:
                 # Remove reg_ids from database
                 for reg_id in reg_ids:
-                    q = t_user_device.delete().where(t_user_device.c.push_id == reg_id)
+                    q = t_subject_device.delete().where(t_subject_device.c.push_id == reg_id)
                     DBSession.execute(q)
 
     # Repace reg_id with canonical_id in your database
@@ -149,25 +150,25 @@ def gcm_feedback(response):
 
             log.debug("Replacing reg_id: {0} with canonical_id: {1} in db".format(reg_id, canonical_id))
 
-            q = t_user_device.update().values({
+            q = t_subject_device.update().values({
                 "push_id" : canonical_id
-            }).where(t_user_device.c.push_id == reg_id)
+            }).where(t_subject_device.c.push_id == reg_id)
 
             DBSession.execute(q)
 
     DBSession.flush()
 
 def send_push_message(
-        user_id,
+        subject_id,
         text="",
         custom_payload={},
         title="Gamification-Engine",
         android_text=None,
         ios_text=None):
 
-    message_count = DBSession.execute(select([func.count("*").label("c")],from_obj=t_user_messages).where(and_(
-        t_user_messages.c.user_id == user_id,
-        t_user_messages.c.is_read == False
+    message_count = DBSession.execute(select([func.count("*").label("c")],from_obj=t_subject_messages).where(and_(
+        t_subject_messages.c.subject_id == subject_id,
+        t_subject_messages.c.is_read == False
     ))).scalar()
 
     data = dict({"title": title,
@@ -181,7 +182,7 @@ def send_push_message(
     if not android_text:
         android_text = text
 
-    rows = DBSession.execute(select([t_user_device.c.push_id, t_user_device.c.device_os], from_obj=t_user_device).distinct().where(t_user_device.c.user_id==user_id)).fetchall()
+    rows = DBSession.execute(select([t_subject_device.c.push_id, t_subject_device.c.device_os], from_obj=t_subject_device).distinct().where(t_subject_device.c.subject_id==subject_id)).fetchall()
 
     for device in rows:
 
@@ -193,7 +194,7 @@ def send_push_message(
             else:
                 payload = Payload(alert=ios_text, custom=data, badge=message_count, sound="default")
 
-            log.debug("Sending Push message to User (ID: %s)", user_id)
+            log.debug("Sending Push message to User (ID: %s)", subject_id)
 
             if device.push_id.startswith("prod_"):
                 get_prod_apns().gateway_server.send_notification(device.push_id[5:], payload, identifier=identifier)
@@ -202,8 +203,9 @@ def send_push_message(
 
         if "android" in device.device_os.lower():
 
-            log.debug("Sending Push message to User (ID: %s)", user_id)
-            push_id = device.push_id.lstrip("dev_").lstrip("prod_")
+            log.debug("Sending Push message to User (ID: %s)", subject_id)
+            push_id = lstrip_word(device.push_id, "dev_")
+            push_id = lstrip_word(push_id, "prod_")
 
             response = get_gcm().json_request(registration_ids=[push_id, ],
                                               data={"message": android_text, "data": data, "title": title},

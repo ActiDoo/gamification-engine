@@ -7,7 +7,7 @@
 [![Release](https://img.shields.io/github/release/ActiDoo/gamification-engine.svg?style=flat)](https://github.com/ActiDoo/gamification-engine/releases/latest)
 [![Latest Version](https://badge.fury.io/py/gamification-engine.svg)](https://pypi.python.org/pypi/gamification-engine/)
 [![PyPI](https://img.shields.io/pypi/pyversions/gamification-engine.svg)]()
-[![License](http://img.shields.io/:license-mit-green.svg)](https://pypi.python.org/pypi/gamification-engine/)
+[![License](http://img.shields.io/:license-mit-green.svg)](https://github.com/ActiDoo/gamification-engine/blob/master/LICENSE)
 <!--[![Downloads](https://img.shields.io/pypi/dm/gamification-engine.svg)](https://pypi.python.org/pypi/gamification-engine/)-->
 
 The Gamification-Engine (gengine) is an open source software (MIT) for integrating any kinds of gamification features into your product.

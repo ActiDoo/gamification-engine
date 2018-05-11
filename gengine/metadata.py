@@ -13,7 +13,7 @@ class MySession(Session):
     def commit(self,*args,**kw):
         transaction.commit(*args,**kw)
 
-    def rollback(self,*args,**kw):
+    def rollback(self, *args, **kw):
         transaction.abort(*args,**kw)
 
 DBSession=Proxy()
