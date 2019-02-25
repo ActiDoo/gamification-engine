@@ -40,7 +40,6 @@ python-editor==1.0.3
 pytz==2016.10
 raven==6.0.0
 repoze.lru==0.6
-requests==2.13.0
 six==1.10.0
 SQLAlchemy==1.2.18
 transaction==2.1.2
