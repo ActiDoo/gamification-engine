@@ -15,7 +15,7 @@ The Gamification-Engine (gengine) is an open source software (MIT) for integrati
 The engine is **not meant to be a platform** including any kinds of predefined graphics, layouts or statistics.
 It is framework for developing your own solution, implemented as a **service** to which your application server can talk over a REST api. 
 
-(commercial support available at https://www.gamification-software.com or together with app development at https://www.appnadoo.de)
+(commercial support available at https://www.gamification-software.com or together with app development at https://www.actidoo.com)
 
 Latest recommended version: https://github.com/ActiDoo/gamification-engine/releases/latest
 
