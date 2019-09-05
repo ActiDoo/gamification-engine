@@ -67,7 +67,7 @@ class TestAchievement(BaseDBTest):
 
         Value.increase_value(
             variable_name="invite_users",
-            subject=klaus,
+            subject_id=klaus.id,
             value=1,
             key=None,
             at_datetime=default_dt()
@@ -93,7 +93,7 @@ class TestAchievement(BaseDBTest):
 
         Value.increase_value(
             variable_name="invite_users",
-            subject=klaus,
+            subject_id=klaus.id,
             value=3,
             key=None,
             at_datetime=default_dt()
@@ -119,7 +119,7 @@ class TestAchievement(BaseDBTest):
 
         Value.increase_value(
             variable_name="invite_users",
-            subject=klaus,
+            subject_id=klaus.id,
             value=300,
             key=None,
             at_datetime=default_dt()
@@ -162,7 +162,7 @@ class TestAchievement(BaseDBTest):
         def cycle(user, km, dt):
             Value.increase_value(
                 variable_name="cycling",
-                subject=user,
+                subject_id=user.id,
                 value=km,
                 key=None,
                 at_datetime=dt
