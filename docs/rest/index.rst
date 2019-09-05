@@ -7,9 +7,9 @@ REST API
 Add or update user data
 =======================
 
-   - POST to "/add_or_update_user/{userId}" 
+   - POST to "/add_or_update_subject/{subjectId}"
       - URL parameters:
-         - userId (the Id of a user in your system)
+         - subjectId (the Id of a subject in your system)
       - POST parameters:
          - lat (float latitude)
          - lon (float longitude)
@@ -21,11 +21,11 @@ Add or update user data
          - language (name)
          - additional_public_data (JSON)
          
-   - add or updates a user with Id {userId} and Post parameters into the engines database
+   - add or updates a subject with Id {subjectId} and Post parameters into the engines database
    - if friends Ids are not registered a empty record with only the user Id will be created
 
    
-Delete a user
+Delete a subject
 =============
 
    - DELETE to "/delete_user/{userId}"

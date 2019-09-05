@@ -97,10 +97,12 @@ def add_or_update_subject(request):
                    lat=lat,
                    lng=lon,
                    timezone=timezone,
-                   language=language,
-                   friends=friends,
-                   groups=groups,
+                   language_id=language,
                    additional_public_data = additional_public_data)
+
+    Subject.set_relations(subject_id=subject_id, relation_ids=friends)
+    Subject.set_parent_subjects(subject_id=subject_id, parent_subject_ids=groups)
+
     return {"status": "OK", "subject" : Subject.full_output(subject_id)}
 
 @view_config(route_name='delete_subject', renderer='string', request_method="DELETE")

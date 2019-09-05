@@ -39,7 +39,7 @@
 		    		<select name="apicall">
 			    		<option>progress</option>
 			    		<option>increase_value</option>
-			    		<option>add_or_update_user</option>
+			    		<option>add_or_update_subject</option>
 			    		<option>delete_user</option>
 			    		<option>achievement_level</option>
 						{%if settings_enable_authentication %}
@@ -50,8 +50,8 @@
 						<option>set_messages_read</option>
 		    		</select>
 		    		
-		    		<div id="api_field_userid">
-		    			<label>User ID</label>
+		    		<div id="api_field_subjectid">
+		    			<label>Subject ID</label>
 		    			<input type="number" value="1">
 		    		</div>
 		    		
@@ -192,7 +192,7 @@
 					
 					<b>Add or Update User</b>
 					<p>
-						POST to "/add_or_update_user/{user_id}"
+						POST to "/add_or_update_subject/{user_id}"
 					</p>
 					
 					<b>Delete User</b>

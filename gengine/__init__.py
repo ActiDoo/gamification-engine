@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from pyramid.events import NewRequest
 
+from gengine.app.permissions import yield_all_perms
 from gengine.base.context import reset_context
 from gengine.base.errors import APIError
 from gengine.base.settings import set_settings
@@ -92,7 +93,8 @@ def main(global_config, **settings):
 
     def get_permissions(request):
         if not asbool(settings.get("enable_user_authentication", False)):
-            return []
+            return [x[0] for x in yield_all_perms()]
+
         if not request.user:
             return []
 
