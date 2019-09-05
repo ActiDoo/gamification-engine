@@ -102,8 +102,8 @@ t_subjects = Table("subjects", Base.metadata,
    Column('subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
    Column("name", ty.String, index=True, nullable=True),
 
-   Column("lat", ty.Float(Precision=64), nullable=True),
-   Column("lng", ty.Float(Precision=64), nullable=True),
+   Column("lat", ty.Float(), nullable=True),
+   Column("lng", ty.Float(), nullable=True),
 
    Column("language_id", ty.Integer, ForeignKey("languages.id"), nullable=True),
    Column("timezone", ty.String(), nullable=False, default="UTC"),
@@ -239,8 +239,8 @@ t_achievements = Table('achievements', Base.metadata,
     Column('valid_end', ty.Date, nullable=True),
 
     # The achievement can be constrained to geo-position (radius)
-    Column("lat", ty.Float(Precision=64), nullable=True),
-    Column("lng", ty.Float(Precision=64), nullable=True),
+    Column("lat", ty.Float(), nullable=True),
+    Column("lng", ty.Float(), nullable=True),
     Column("max_distance", ty.Integer, nullable=True),
 
     # Some achievements occur periodically. This fields defines when and how often they are evaluated.
