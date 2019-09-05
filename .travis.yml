@@ -2,7 +2,6 @@ language: python
 dist: bionic
 python:
   - "3.6"
-  - "3.7"
 sudo: required
 env:
   - TEST_POSTGRES=/usr/lib/postgresql/10/bin/postgres TEST_INITDB=/usr/lib/postgresql/10/bin/initdb
