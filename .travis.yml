@@ -5,7 +5,7 @@ python:
   - "3.7"
 sudo: required
 env:
-  - TEST_POSTGRES=/usr/lib/postgresql/9.6/bin/postgres TEST_INITDB=/usr/lib/postgresql/9.6/bin/initdb
+  - TEST_POSTGRES=/usr/lib/postgresql/10/bin/postgres TEST_INITDB=/usr/lib/postgresql/10/bin/initdb
 apt:
   packages:
     - postgresql-10
