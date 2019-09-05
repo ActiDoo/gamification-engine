@@ -1,15 +1,15 @@
 language: python
-dist: trusty
+dist: bionic
 python:
-  - "3.4"
-  - "3.5"
+  - "3.6"
+  - "3.7"
 sudo: required
 env:
   - TEST_POSTGRES=/usr/lib/postgresql/9.6/bin/postgres TEST_INITDB=/usr/lib/postgresql/9.6/bin/initdb
 apt:
   packages:
-    - postgresql-9.6
-    - postgresql-contrib-9.6
+    - postgresql-10
+    - postgresql-contrib-10
     - postgis
 # command to install dependencies
 install:
@@ -19,7 +19,8 @@ install:
   - pip install -e .
 
 # command to run tests
-script: coverage run --source=gengine gengine/app/tests/runner.py
+script:
+  - coverage run --source=gengine gengine/app/tests/runner.py
 
 after_success:
   coveralls
