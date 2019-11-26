@@ -53,3 +53,4 @@ WTForms==2.2.1
 zope.deprecation==4.2.0
 zope.interface==4.4.2
 zope.sqlalchemy==0.7.7
+uWSGI==2.0.18

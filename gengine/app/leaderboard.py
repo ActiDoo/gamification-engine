@@ -4,6 +4,7 @@ from sqlalchemy.sql.expression import select, and_, or_
 from gengine.app.model import t_subjects, t_subjectrelations, t_subjects_subjects, Subject
 from gengine.metadata import DBSession
 
+import logging
 # TODO: ADD date filter (compare created_at)
 # TODO: filter deleted
 
@@ -13,28 +14,29 @@ class GlobalLeaderBoardSubjectSet:
     @classmethod
     def forward(cls, subjecttype_id, from_date, to_date, whole_time_required):
         q = select([t_subjects.c.id, ]).where(t_subjects.c.subjecttype_id == subjecttype_id)
-        if whole_time_required:
-            q = q.where(and_(
-                t_subjects.c.created_at <= from_date
-                #or_(
-                #    t_subjects.c.deleted_at == None,
-                #    t_subjects.c.deleted_at >= to_date
-                #)
-            ))
-        else:
-            q = q.where(or_(
-                and_(
-                    t_subjects.c.created_at <= from_date,
+        if from_date != None and to_date != None:
+            if whole_time_required:
+                q = q.where(and_(
+                    t_subjects.c.created_at <= from_date
                     #or_(
-                    #    t_subjects.c.deleted_at >= from_date,
                     #    t_subjects.c.deleted_at == None,
+                    #    t_subjects.c.deleted_at >= to_date
                     #)
-                ),
-                and_(
-                    t_subjects.c.created_at >= from_date,
-                    t_subjects.c.created_at <= to_date,
-                )
-            ))
+                ))
+            else:
+                q = q.where(or_(
+                    and_(
+                        t_subjects.c.created_at <= from_date,
+                        #or_(
+                        #    t_subjects.c.deleted_at >= from_date,
+                        #    t_subjects.c.deleted_at == None,
+                        #)
+                    ),
+                    and_(
+                        t_subjects.c.created_at >= from_date,
+                        t_subjects.c.created_at <= to_date,
+                    )
+                ))
         return [x.id for x in DBSession.execute(q).fetchall()]
 
     #@classmethod

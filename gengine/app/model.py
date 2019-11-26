@@ -1887,7 +1887,10 @@ class Achievement(ABase):
 
             for step in trigger_steps:
                 if step["condition_type"] == "percentage" and step["condition_percentage"]:
-                    current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
+                    if current_goal == 0:
+                        current_percentage = 0
+                    else:
+                        current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
                     required_percentage = step["condition_percentage"]
                     if current_percentage >= 1.0 and required_percentage != 1.0 and not step["execute_when_complete"]:
                         # When the user reaches the full goal, and there is a trigger at e.g. 90%, we don't want it to be executed anymore.

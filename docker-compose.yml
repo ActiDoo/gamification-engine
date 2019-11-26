@@ -1,0 +1,38 @@
+version: '3.7'
+services:
+  python: 
+    image: gamification-engine:dev
+    build:
+      context: .
+      args:
+        - SETUP_MODE=develop
+    ports:
+      - 6543:6543
+    depends_on:
+      - postgres
+      - memcached
+    networks:
+      - backend
+    environment:
+      - INI_FILE=development.ini
+      - RESET_DB="reset_db=True"
+      - ADMIN_PASSWORD=$MY_PASSWORD
+      - ADMIN_USER=$MY_EMAIL
+  postgres:
+    image: postgres:alpine
+    networks:
+      - backend
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=gengine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  memcached:
+    image: memcached:alpine
+    networks:
+      - backend
+networks: 
+  backend:
+volumes:
+  pgdata:
+  uwsgi_socket:
