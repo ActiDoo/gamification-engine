@@ -60,6 +60,7 @@ def main(global_config, **settings):
     config.include('pyramid_chameleon')
     config.include('gengine.app.tasks')
     config.include('gengine.app.jsscripts')
+    config.include('gengine.custom_tasks')
 
     urlprefix = settings.get("urlprefix","")
     urlcacheid = settings.get("urlcacheid","gengine")
