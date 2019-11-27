@@ -8,6 +8,8 @@ services:
         - SETUP_MODE=develop
     ports:
       - 6543:6543
+    volumes:
+      - ./gengine:/usr/src/app/gengine
     depends_on:
       - postgres
       - memcached
@@ -29,6 +31,12 @@ services:
       - pgdata:/var/lib/postgresql/data
   memcached:
     image: memcached:alpine
+    networks:
+      - backend
+  adminer:
+    image: adminer
+    ports:
+      - 6060:8080
     networks:
       - backend
 networks: 
