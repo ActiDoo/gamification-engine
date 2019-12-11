@@ -34,7 +34,8 @@ requires = [
     'python-crontab',
     'croniter',
     'zope.interface',
-    'zope.sqlalchemy'
+    'zope.sqlalchemy',
+    'argon2'
 ]
 
 version = ''

@@ -53,6 +53,23 @@ A demo installation is available at https://gamification-engine.herokuapp.com/
 2. The current stable version is available as python package at https://pypi.python.org/pypi/gamification-engine
 3. Checkout the source code and configure the PostgreSQL database in `development.ini`. Then run `python setup.py develop` to configure the application, `initialize_gengine_db development.ini reset_db=True populate_demo=True` to configure the database and `pserve development.ini` to start it. The front end is available at http://localhost:6543/admin/
 
+## Docker support (2019-12)
+
+For development run:
+ `docker-compose up`
+ Go to `localhost:6543` to access admin interface or `localhost:6060` to access adminer.
+ Code will be mounted into the container and server will be started with `--reload`.
+ 
+For production deployment run:
+ ```
+ export MY_EMAIL=me@email.com
+ export MY_PASSWORD=password
+ docker-compose -f docker-compose.yml -f docker-compose.production.yml
+ ```
+ A production ready server will run on `localhost:8080`, login using credentials MY_EMAIL and MY_PASSWORD.
+ 
+ *DISCLAIMER: Docker support was added by someone who lacks experience in python development and deployment. Use at your own risk and add pull requests if you encounter any flaws.*
+
 ## Roadmap
 
 Do you want to contribute? We badly need tests!
