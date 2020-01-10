@@ -12,6 +12,7 @@ apt:
     - postgis
 # command to install dependencies
 install:
+  - rm -rf data
   - pip install coveralls
   - "pip install --upgrade -r requirements.txt"
   - "pip install --upgrade -r optional-requirements.txt"
