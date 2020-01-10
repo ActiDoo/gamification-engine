@@ -1,0 +1,66 @@
+version: '2.1'
+services:
+  python:
+    image: gamification-engine:dev
+    build:
+      context: .
+    expose:
+      - 6543
+    volumes:
+      - ./gengine:/usr/src/app/gengine
+      - uwsgi_socket:/run/uwsgi/
+    depends_on:
+      - postgres
+      - memcached
+    networks:
+      - backend
+    environment:
+      - ADMIN_PASSWORD=admin@gamification-software.com
+      - ADMIN_USER=admin@gamification-software.com
+      - APP_DB_HOST=postgres
+      - APP_DB_PORT=5432
+      - APP_DB_USER=postgres
+      - APP_DB_PASSWORD=password
+      - APP_DB_NAME=gengine
+      - MODE=prod
+
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      - python
+    volumes:
+      - ./docker-files/nginx-prod.conf:/etc/nginx/nginx.conf
+      - uwsgi_socket:/run/uwsgi/
+    ports:
+      - 9000:80
+    networks:
+      - backend
+
+  postgres:
+    image: postgres:11-alpine
+    networks:
+      - backend
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=gengine
+      - PGDATA=/pgdata
+    volumes:
+      - ./pgdata:/pgdata
+
+  memcached:
+    image: memcached:alpine
+    networks:
+      - backend
+
+  adminer:
+    image: adminer
+    ports:
+      - 6060:8080
+    networks:
+      - backend
+
+networks:
+  backend:
+
+volumes:
+  uwsgi_socket:
