@@ -64,7 +64,7 @@ setup(name='gamification-engine',
       license='MIT',
       url='https://www.gamification-software.com',
       keywords='web wsgi bfg pylons pyramid gamification',
-      packages=find_packages()+["gengine_quickstart_template",],
+      packages=find_packages(),
       include_package_data=True,
       zip_safe=False,
       test_suite='gengine',
@@ -88,7 +88,6 @@ setup(name='gamification-engine',
       main = gengine:main
       [console_scripts]
       initialize_gengine_db = gengine.maintenance.scripts.initializedb:main
-      gengine_quickstart = gengine.maintenance.scripts.quickstart:main
       generate_gengine_erd = gengine.maintenance.scripts.generate_erd:main
       generate_gengine_revision = gengine.maintenance.scripts.generate_revision:main
       gengine_push_messages = gengine.maintenance.scripts.push_messages:main

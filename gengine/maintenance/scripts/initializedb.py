@@ -75,6 +75,7 @@ def initialize(settings,options):
 
     from alembic.config import Config
     from alembic import command
+    from alembic.runtime.migration import MigrationContext
 
     alembic_cfg = Config(attributes={
         'engine' : engine,
@@ -86,8 +87,10 @@ def initialize(settings,options):
     )
     alembic_cfg.set_main_option("script_location", script_location)
 
-    do_upgrade = options.get("upgrade",False)
-    if not do_upgrade:
+    context = MigrationContext.configure(engine.connect())
+    current_rev = context.get_current_revision()
+
+    if not current_rev:
         #init
         from gengine.app import model
 
@@ -98,15 +101,15 @@ def initialize(settings,options):
 
         if options.get("populate_demo", False):
             populate_demo(DBSession)
+
+        admin_user = options.get("admin_user", False)
+        admin_password = options.get("admin_password", False)
+
+        if admin_user and admin_password:
+            create_user(DBSession=DBSession, user=admin_user, password=admin_password)
     else:
         #upgrade
         command.upgrade(alembic_cfg,'head')
-
-    admin_user = options.get("admin_user", False)
-    admin_password = options.get("admin_password", False)
-
-    if admin_user and admin_password:
-        create_user(DBSession=DBSession, user=admin_user, password=admin_password)
 
     engine.dispose()
 
