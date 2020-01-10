@@ -15,7 +15,7 @@ The Gamification-Engine (gengine) is an open source software (MIT) for integrati
 The engine is **not meant to be a platform** including any kinds of predefined graphics, layouts or statistics.
 It is framework for developing your own solution, implemented as a **service** to which your application server can talk over a REST api. 
 
-(commercial support available at https://www.gamification-software.com or together with app development at https://www.actidoo.com)
+(commercial support available at https://www.actidoo.com)
 
 Latest recommended version: https://github.com/ActiDoo/gamification-engine/releases/latest
 
@@ -57,18 +57,14 @@ A demo installation is available at https://gamification-engine.herokuapp.com/
 
 For development run:
  `docker-compose up`
- Go to `localhost:6543` to access admin interface or `localhost:6060` to access adminer.
+ Go to `localhost:9000` to access admin interface or `localhost:6060` to access adminer.
  Code will be mounted into the container and server will be started with `--reload`.
  
-For production deployment run:
+For production deployment adapt passwords and settings in `production.ini` and `docker-compose.production.yml` and run:
  ```
- export MY_EMAIL=me@email.com
- export MY_PASSWORD=password
- docker-compose -f docker-compose.yml -f docker-compose.production.yml
+ docker-compose -f docker-compose.production.yml up -d
  ```
- A production ready server will run on `localhost:8080`, login using credentials MY_EMAIL and MY_PASSWORD.
- 
- *DISCLAIMER: Docker support was added by someone who lacks experience in python development and deployment. Use at your own risk and add pull requests if you encounter any flaws.*
+ A production ready server will run on `localhost:9000`, login using credentials set in `docker-compose.production.yml` 
 
 ## Roadmap
 
