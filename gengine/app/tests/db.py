@@ -16,7 +16,8 @@ def setupDB():
     db = testing.postgresql.PostgresqlFactory(
         postgres=os.environ.get("TEST_POSTGRES",None),
         initdb=os.environ.get("TEST_INITDB",None),
-        cache_initialized_db=True
+        cache_initialized_db=True,
+        base_dir="/tmp/test_pgdata"
     )
 
 def unsetupDB():
