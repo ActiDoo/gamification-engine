@@ -2,6 +2,7 @@
 import sys
 
 import os
+
 import pyramid_dogpile_cache
 import transaction
 from pyramid.config import Configurator
@@ -11,6 +12,7 @@ from pyramid.paster import (
     )
 from pyramid.scripts.common import parse_vars
 from sqlalchemy import engine_from_config
+from sqlalchemy.sql.expression import and_, select
 from sqlalchemy.sql.schema import Table
 
 from gengine.app.cache import init_caches
@@ -73,6 +75,7 @@ def initialize(settings,options):
 
     from alembic.config import Config
     from alembic import command
+    from alembic.runtime.migration import MigrationContext
 
     alembic_cfg = Config(attributes={
         'engine' : engine,
@@ -84,8 +87,10 @@ def initialize(settings,options):
     )
     alembic_cfg.set_main_option("script_location", script_location)
 
-    do_upgrade = options.get("upgrade",False)
-    if not do_upgrade:
+    context = MigrationContext.configure(engine.connect())
+    current_rev = context.get_current_revision()
+
+    if not current_rev:
         #init
         from gengine.app import model
 
@@ -96,15 +101,15 @@ def initialize(settings,options):
 
         if options.get("populate_demo", False):
             populate_demo(DBSession)
+
+        admin_user = options.get("admin_user", False)
+        admin_password = options.get("admin_password", False)
+
+        if admin_user and admin_password:
+            create_user(DBSession=DBSession, user=admin_user, password=admin_password)
     else:
         #upgrade
         command.upgrade(alembic_cfg,'head')
-
-    admin_user = options.get("admin_user", False)
-    admin_password = options.get("admin_password", False)
-
-    if admin_user and admin_password:
-        create_user(DBSession=DBSession, user=admin_user, password=admin_password)
 
     engine.dispose()
 
@@ -125,11 +130,12 @@ def create_user(DBSession, user, password):
         Subject,
         AuthRole,
         AuthRolePermission,
-        SubjectType
+        SubjectType,
+        t_auth_roles_permissions
     )
     with transaction.manager:
-        subjecttype = DBSession.query(SubjectType).filter_by(name="User").first()
-        if not subjecttype:
+        subjecttype_user = DBSession.query(SubjectType).filter_by(name="User").first()
+        if not subjecttype_user:
             subjecttype_user = SubjectType(name="User")
             DBSession.add(subjecttype_user)
 
@@ -146,7 +152,11 @@ def create_user(DBSession, user, password):
             auth_role = get_or_create_role(DBSession=DBSession, name="Global Admin")
 
             for perm in yield_all_perms():
-                DBSession.add(AuthRolePermission(role=auth_role, name=perm[0]))
+                if not exists_by_expr(t_auth_roles_permissions, and_(
+                    t_auth_roles_permissions.c.auth_role_id == auth_role.id,
+                    t_auth_roles_permissions.c.name == perm[0]
+                )):
+                    DBSession.add(AuthRolePermission(role=auth_role, name=perm[0]))
 
             auth_user.roles.append(auth_role)
 
@@ -172,6 +182,7 @@ def populate_demo(DBSession):
         AuthRole,
         AuthRolePermission,
         SubjectType,
+        t_auth_roles_permissions
     )
 
     def add_translation_variable(name):
@@ -366,16 +377,26 @@ def populate_demo(DBSession):
         DBSession.flush()
 
         try:
-            auth_user = AuthUser(subject=user1, email="admin@gamification-software.com", password="test123", active=True)
-            DBSession.add(auth_user)
+            auth_user = DBSession.query(AuthUser).filter_by(email="admin@gamification-software.com").first()
 
-            auth_role = AuthRole(name="Global Admin")
-            DBSession.add(auth_role)
+            if not auth_user:
+                auth_user = AuthUser(subject=user1, email="admin@gamification-software.com", password="test123", active=True)
+                DBSession.add(auth_user)
 
-            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_access_admin_ui))
-            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_delete_subject))
-            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_increase_value))
-            DBSession.add(AuthRolePermission(role=auth_role, name=perm_global_manage_subjects))
+            auth_role = DBSession.query(AuthRole).filter_by(name="Global Admin").first()
+
+            if not auth_role:
+                auth_role = AuthRole(name="Global Admin")
+                DBSession.add(auth_role)
+
+            DBSession.flush()
+
+            for perm in yield_all_perms():
+                if not exists_by_expr(t_auth_roles_permissions, and_(
+                    t_auth_roles_permissions.c.auth_role_id == auth_role.id,
+                    t_auth_roles_permissions.c.name == perm[0]
+                )):
+                    DBSession.add(AuthRolePermission(role=auth_role, name=perm[0]))
 
             auth_user.roles.append(auth_role)
             DBSession.add(auth_user)

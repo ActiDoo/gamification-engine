@@ -4,13 +4,13 @@ import json
 
 from gengine.base.settings import get_settings
 from gengine.base.util import lstrip_word
-
+from pyramid.settings import asbool
 
 def includeme(config):
     config.add_static_view(name='admin/jsstatic', path='gengine:app/jsscripts/build/static')
 
 def get_jsmain():
-    debug = get_settings().get("load_from_webpack_dev_server", False)
+    debug = asbool(get_settings().get("load_from_webpack_dev_server", False))
     if debug:
         return "http://localhost:3000/static/js/bundle.js"
     else:
@@ -24,7 +24,7 @@ def get_jsmain():
         return None
 
 def get_cssmain():
-    debug = get_settings().get("load_from_webpack_dev_server", False)
+    debug = asbool(get_settings().get("load_from_webpack_dev_server", False))
     if debug:
         return "http://localhost:3000/static/css/bundle.css"
     else:

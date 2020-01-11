@@ -15,7 +15,7 @@ The Gamification-Engine (gengine) is an open source software (MIT) for integrati
 The engine is **not meant to be a platform** including any kinds of predefined graphics, layouts or statistics.
 It is framework for developing your own solution, implemented as a **service** to which your application server can talk over a REST api. 
 
-(commercial support available at https://www.gamification-software.com or together with app development at https://www.actidoo.com)
+(commercial support available at https://www.actidoo.com)
 
 Latest recommended version: https://github.com/ActiDoo/gamification-engine/releases/latest
 
@@ -52,6 +52,19 @@ A demo installation is available at https://gamification-engine.herokuapp.com/
 1. A ready-to-use buildpack for Heroku and dokku is available at https://github.com/ActiDoo/gamification-engine-dokku Follow the instructions there.
 2. The current stable version is available as python package at https://pypi.python.org/pypi/gamification-engine
 3. Checkout the source code and configure the PostgreSQL database in `development.ini`. Then run `python setup.py develop` to configure the application, `initialize_gengine_db development.ini reset_db=True populate_demo=True` to configure the database and `pserve development.ini` to start it. The front end is available at http://localhost:6543/admin/
+
+## Docker support (2019-12)
+
+For development run:
+ `docker-compose up`
+ Go to `localhost:9000` to access admin interface or `localhost:6060` to access adminer.
+ Code will be mounted into the container and server will be started with `--reload`.
+ 
+For production deployment adapt passwords and settings in `production.ini` and `docker-compose.production.yml` and run:
+ ```
+ docker-compose -f docker-compose.production.yml up -d
+ ```
+ A production ready server will run on `localhost:9000`, login using credentials set in `docker-compose.production.yml` 
 
 ## Roadmap
 

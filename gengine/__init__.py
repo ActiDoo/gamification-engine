@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from pyramid.events import NewRequest
 
+from gengine.app.permissions import yield_all_perms
 from gengine.base.context import reset_context
 from gengine.base.errors import APIError
 from gengine.base.settings import set_settings
 from gengine.base.util import dt_now
 
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 
 import datetime
 
@@ -14,7 +15,7 @@ import os
 from pyramid.config import Configurator
 from pyramid.renderers import JSON
 from pyramid.settings import asbool
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, create_engine
 
 from gengine.wsgiutil import HTTPSProxied, init_reverse_proxy
 
@@ -32,7 +33,10 @@ def main(global_config, **settings):
 
     set_settings(settings)
 
-    engine = engine_from_config(settings, 'sqlalchemy.', connect_args={"options": "-c timezone=utc"}, )
+    if os.environ.get("DATABASE_URL",None):
+        engine = create_engine(os.environ["DATABASE_URL"], connect_args={"options": "-c timezone=utc"})
+    else:
+        engine = engine_from_config(settings, 'sqlalchemy.', connect_args={"options": "-c timezone=utc"}, )
 
     from gengine.app.cache import init_caches
     init_caches()
@@ -92,7 +96,8 @@ def main(global_config, **settings):
 
     def get_permissions(request):
         if not asbool(settings.get("enable_user_authentication", False)):
-            return []
+            return [x[0] for x in yield_all_perms()]
+
         if not request.user:
             return []
 

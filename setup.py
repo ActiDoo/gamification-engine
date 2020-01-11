@@ -34,7 +34,8 @@ requires = [
     'python-crontab',
     'croniter',
     'zope.interface',
-    'zope.sqlalchemy'
+    'zope.sqlalchemy',
+    'argon2'
 ]
 
 version = ''
@@ -55,8 +56,7 @@ setup(name='gamification-engine',
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: WSGI :: Application",
         "Topic :: Software Development :: Libraries",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: MIT License"
         ],
       author='Marcel Sander, Jens Janiuk, Matthias Feldotto',
@@ -64,7 +64,7 @@ setup(name='gamification-engine',
       license='MIT',
       url='https://www.gamification-software.com',
       keywords='web wsgi bfg pylons pyramid gamification',
-      packages=find_packages()+["gengine_quickstart_template",],
+      packages=find_packages(),
       include_package_data=True,
       zip_safe=False,
       test_suite='gengine',
@@ -88,7 +88,6 @@ setup(name='gamification-engine',
       main = gengine:main
       [console_scripts]
       initialize_gengine_db = gengine.maintenance.scripts.initializedb:main
-      gengine_quickstart = gengine.maintenance.scripts.quickstart:main
       generate_gengine_erd = gengine.maintenance.scripts.generate_erd:main
       generate_gengine_revision = gengine.maintenance.scripts.generate_revision:main
       gengine_push_messages = gengine.maintenance.scripts.push_messages:main

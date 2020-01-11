@@ -1,25 +1,23 @@
 language: python
-dist: trusty
+dist: bionic
 python:
-  - "3.4"
-  - "3.5"
+  - "3.6"
 sudo: required
-env:
-  - TEST_POSTGRES=/usr/lib/postgresql/9.6/bin/postgres TEST_INITDB=/usr/lib/postgresql/9.6/bin/initdb
-apt:
-  packages:
-    - postgresql-9.6
-    - postgresql-contrib-9.6
-    - postgis
+global:
+  - TEST_POSTGRES=/usr/lib/postgresql/10/bin/postgres
+  - TEST_INITDB=/usr/lib/postgresql/10/bin/initdb
 # command to install dependencies
 install:
+  - sudo rm -rf /var/lib/postgresql
+  - sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq postgresql-10 postgresql-contrib-10 postgis
   - pip install coveralls
   - "pip install --upgrade -r requirements.txt"
   - "pip install --upgrade -r optional-requirements.txt"
   - pip install -e .
 
 # command to run tests
-script: coverage run --source=gengine gengine/app/tests/runner.py
+script:
+  - coverage run --source=gengine gengine/app/tests/runner.py
 
 after_success:
   coveralls

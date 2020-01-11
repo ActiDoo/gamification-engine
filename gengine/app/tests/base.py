@@ -1,10 +1,11 @@
+import shutil
 import unittest
 import os
 from sqlalchemy.engine import create_engine
 from sqlalchemy.sql.schema import Table
 from sqlalchemy.orm.scoping import scoped_session
 from gengine.metadata import init_session, get_sessionmaker
-from gengine.app.tests import db
+from gengine.app.tests import db as testDB
 
 class BaseDBTest(unittest.TestCase):
 
@@ -17,7 +18,11 @@ class BaseDBTest(unittest.TestCase):
     def setUp(self):
         from gengine.app.cache import clear_all_caches
         clear_all_caches()
-        self.db = db.db()
+
+        if os.path.exists("/tmp/test_pgdata"):
+            shutil.rmtree("/tmp/test_pgdata")
+
+        self.db = testDB.db()
         dsn = self.db.dsn()
         self.engine =  create_engine(
             "postgresql://%(user)s@%(host)s:%(port)s/%(database)s" % {
@@ -57,3 +62,5 @@ class BaseDBTest(unittest.TestCase):
 
     def tearDown(self):
         self.db.stop()
+        shutil.rmtree("/tmp/test_pgdata")
+

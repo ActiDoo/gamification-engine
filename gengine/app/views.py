@@ -97,10 +97,12 @@ def add_or_update_subject(request):
                    lat=lat,
                    lng=lon,
                    timezone=timezone,
-                   language=language,
-                   friends=friends,
-                   groups=groups,
+                   language_id=language,
                    additional_public_data = additional_public_data)
+
+    Subject.set_relations(subject_id=subject_id, relation_ids=friends)
+    Subject.set_parent_subjects(subject_id=subject_id, parent_subject_ids=groups)
+
     return {"status": "OK", "subject" : Subject.full_output(subject_id)}
 
 @view_config(route_name='delete_subject', renderer='string', request_method="DELETE")
@@ -373,7 +375,7 @@ def get_achievement_level(request):
     if not achievement:
         raise APIError(404, "achievement_not_found", "achievement not found")
 
-    level_output = Achievement.basic_output(achievement, [], True, level).get("levels").get(str(level), {"properties": {}, "rewards": {}})
+    level_output = Achievement.basic_output(achievement, True, level).get("levels").get(str(level), {"properties": {}, "rewards": {}})
     if "goals" in level_output:
         del level_output["goals"]
     if "level" in level_output:

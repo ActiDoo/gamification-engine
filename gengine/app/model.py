@@ -102,8 +102,8 @@ t_subjects = Table("subjects", Base.metadata,
    Column('subjecttype_id', ty.Integer, ForeignKey("subjecttypes.id", ondelete="CASCADE"), nullable=False, index=True),
    Column("name", ty.String, index=True, nullable=True),
 
-   Column("lat", ty.Float(Precision=64), nullable=True),
-   Column("lng", ty.Float(Precision=64), nullable=True),
+   Column("lat", ty.Float(), nullable=True),
+   Column("lng", ty.Float(), nullable=True),
 
    Column("language_id", ty.Integer, ForeignKey("languages.id"), nullable=True),
    Column("timezone", ty.String(), nullable=False, default="UTC"),
@@ -239,8 +239,8 @@ t_achievements = Table('achievements', Base.metadata,
     Column('valid_end', ty.Date, nullable=True),
 
     # The achievement can be constrained to geo-position (radius)
-    Column("lat", ty.Float(Precision=64), nullable=True),
-    Column("lng", ty.Float(Precision=64), nullable=True),
+    Column("lat", ty.Float(), nullable=True),
+    Column("lng", ty.Float(), nullable=True),
     Column("max_distance", ty.Integer, nullable=True),
 
     # Some achievements occur periodically. This fields defines when and how often they are evaluated.
@@ -1887,7 +1887,10 @@ class Achievement(ABase):
 
             for step in trigger_steps:
                 if step["condition_type"] == "percentage" and step["condition_percentage"]:
-                    current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
+                    if current_goal == 0:
+                        current_percentage = 0
+                    else:
+                        current_percentage = float(value - previous_goal) / float(current_goal - previous_goal)
                     required_percentage = step["condition_percentage"]
                     if current_percentage >= 1.0 and required_percentage != 1.0 and not step["execute_when_complete"]:
                         # When the user reaches the full goal, and there is a trigger at e.g. 90%, we don't want it to be executed anymore.

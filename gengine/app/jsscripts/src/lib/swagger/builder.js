@@ -44,7 +44,7 @@ export function buildSwaggerApi(config) {
 
     config = Object.assign({},{
         id: "appapi", // unique global identifier (used for store)
-        url: "http://127.0.0.1:6543/api/_swagger",
+        url: window.ADMIN_API_BASE_URL + "/api/_swagger",
         dummyError: {
             status: "unknown",
             message: "An unknown error has occurred.",
