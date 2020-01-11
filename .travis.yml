@@ -3,11 +3,12 @@ dist: bionic
 python:
   - "3.6"
 sudo: required
-env:
+global:
   - TEST_POSTGRES=/usr/lib/postgresql/10/bin/postgres
   - TEST_INITDB=/usr/lib/postgresql/10/bin/initdb
 # command to install dependencies
 install:
+  - sudo rm -rf /var/lib/postgresql
   - sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq postgresql-10 postgresql-contrib-10 postgis
   - pip install coveralls
   - "pip install --upgrade -r requirements.txt"
