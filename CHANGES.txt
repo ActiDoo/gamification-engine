@@ -1,3 +1,9 @@
+0.4.0
+  * introduce docker support
+  * fix tests
+  * fixed some bugs
+  * updated dependencies
+    
 0.3.0
   * task scheduler
   * extended group features
