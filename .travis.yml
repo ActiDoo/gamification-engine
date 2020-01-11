@@ -5,14 +5,10 @@ python:
 sudo: required
 env:
   - TEST_POSTGRES=/usr/lib/postgresql/10/bin/postgres TEST_INITDB=/usr/lib/postgresql/10/bin/initdb
-apt:
-  packages:
-    - postgresql-10
-    - postgresql-contrib-10
-    - postgis
 # command to install dependencies
 install:
-  - rm -rf data
+  - rm -rf /var/lib/postgresql
+  - DEBIAN_FRONTEND=noninteractive apt-get install -qq postgresql-10 postgresql-contrib-10 postgis
   - pip install coveralls
   - "pip install --upgrade -r requirements.txt"
   - "pip install --upgrade -r optional-requirements.txt"
