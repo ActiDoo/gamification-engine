@@ -7,7 +7,7 @@ from gengine.base.errors import APIError
 from gengine.base.settings import set_settings
 from gengine.base.util import dt_now
 
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 
 import datetime
 
