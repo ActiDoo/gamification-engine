@@ -22,7 +22,28 @@ from gengine.wsgiutil import HTTPSProxied, init_reverse_proxy
 def main(global_config, **settings):
     """ This function returns a Pyramid WSGI application.
     """
-    
+    sentry_dsn = settings.get("sentry_dsn", None)
+
+    if os.environ.get("APP_SENTRY_DSN", None):
+        sentry_dsn = os.environ["APP_SENTRY_DSN"]
+
+    if sentry_dsn is not None:
+        import sentry_sdk
+
+        from sentry_sdk.integrations.pyramid import PyramidIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[
+                PyramidIntegration(),
+                LoggingIntegration(
+                    level=logging.WARN,
+                    #event_level=None
+                )
+            ]
+        )
+
     durl = os.environ.get("DATABASE_URL") #heroku
     if durl:
         settings['sqlalchemy.url']=durl

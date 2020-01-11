@@ -35,7 +35,8 @@ requires = [
     'croniter',
     'zope.interface',
     'zope.sqlalchemy',
-    'argon2'
+    'argon2',
+    'sentry_sdk'
 ]
 
 version = ''
