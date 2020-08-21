@@ -1,15 +1,22 @@
-FROM python:3.6-alpine3.10
+FROM python:3.6-stretch
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+     postgresql-client git-core libgeos-dev libldap2-dev libsasl2-dev build-essential \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /usr/local/nvm
+
 WORKDIR /usr/src/app
-RUN apk add --no-cache postgresql-dev build-base musl-dev libffi libffi-dev bash
-RUN addgroup -S gengine
-RUN adduser -S -D -h /usr/src/app gengine gengine
-RUN mkdir /run/uwsgi
-RUN chown -R gengine:gengine /run/uwsgi
-COPY requirements.txt ./
-COPY optional-requirements.txt ./
-COPY docker-files/* ./
-RUN cat optional-requirements.txt >> requirements.txt && pip install -r requirements.txt
+
+RUN addgroup --system gengine \
+    && adduser --system --disabled-password --home /usr/src/app --ingroup gengine gengine \
+    && mkdir /run/uwsgi \
+    && chown -R gengine:gengine /run/uwsgi
+
 COPY . .
-RUN pip install -e . && touch /tmp/nginx.socket
-RUN chown -R gengine:gengine /usr/src/app
-CMD [ "/bin/sh", "/usr/src/app/init.sh" ]
+
+RUN pip install -r requirements.txt && pip install -r optional-requirements.txt \
+&& pip install -e . \
+&& chown -R gengine:gengine /usr/src/app
+
+CMD [ "/bin/bash", "/usr/src/app/init.sh" ]

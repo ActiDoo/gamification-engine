@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd /usr/src/app/
+cd /usr/src/app/ || exit
 
 if [[ ! $APP_DB_HOST ]]; then
     echo "\$APP_DB_HOST is unset";
@@ -34,15 +34,15 @@ fi
 
 export DATABASE_URL="${APP_DB_DRIVER}://${APP_DB_USER}:${APP_DB_PASSWORD}@${APP_DB_HOST}:${APP_DB_PORT}/${APP_DB_NAME}"
 
-./wait-for-it.sh -t 30 -s ${APP_DB_HOST}:${APP_DB_PORT}
+./wait-for-it.sh -t 30 -s "${APP_DB_HOST}:${APP_DB_PORT}"
 
 sleep 10
 
 if [ "$MODE" == "dev" ]
 then
-  initialize_gengine_db development.ini admin_password=$ADMIN_PASSWORD admin_user=$ADMIN_USER
-  uwsgi --lazy-apps --ini-paste development.uwsgi --py-autoreload=1
+  initialize_gengine_db development.ini "admin_password=${ADMIN_PASSWORD}" "admin_user=${ADMIN_USER}" "populate_demo=true"
+  uwsgi --lazy-apps --ini-paste docker-files/development.uwsgi --py-autoreload=1
 else
-  initialize_gengine_db production.ini admin_password=$ADMIN_PASSWORD admin_user=$ADMIN_USER
-  uwsgi --lazy-apps --ini-paste production.uwsgi
+  initialize_gengine_db docker-files/production.ini "admin_password=${ADMIN_PASSWORD}" "admin_user=${ADMIN_USER}"
+  uwsgi --lazy-apps --ini-paste docker-files/production.uwsgi
 fi

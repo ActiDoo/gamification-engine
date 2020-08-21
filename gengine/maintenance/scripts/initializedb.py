@@ -380,7 +380,7 @@ def populate_demo(DBSession):
             auth_user = DBSession.query(AuthUser).filter_by(email="admin@gamification-software.com").first()
 
             if not auth_user:
-                auth_user = AuthUser(subject=user1, email="admin@gamification-software.com", password="test123", active=True)
+                auth_user = AuthUser(subject=user1, email="admin@gamification-software.com", password="admin@gamification-software.com", active=True)
                 DBSession.add(auth_user)
 
             auth_role = DBSession.query(AuthRole).filter_by(name="Global Admin").first()

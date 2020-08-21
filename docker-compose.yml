@@ -7,7 +7,7 @@ services:
     expose:
       - 6543
     volumes:
-      - ./gengine:/usr/src/app/gengine
+      - ./:/usr/src/app/
       - uwsgi_socket:/run/uwsgi/
     depends_on:
       - postgres

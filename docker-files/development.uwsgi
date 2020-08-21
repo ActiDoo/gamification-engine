@@ -7,6 +7,6 @@ chmod-socket = 666
 master = true
 processes = 4
 die-on-term = true
-paste = config:/usr/src/app/production.ini
+paste = config:/usr/src/app/development.ini
 memory-report = true
 hook-accepting1 = exec:touch /tmp/app-initialized
