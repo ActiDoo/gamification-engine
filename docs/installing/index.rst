@@ -21,10 +21,8 @@ You can install it by invoking
 ::
 
     $ pip install gamification-engine
-    $ gengine_quickstart mygengine
-    $ cd mygengine
 
-In the latest version, there are some optional dependencies for auth pushes and testing. To use these features install it in the following way:
+In the latest version, there are some optional dependencies for auth, pushes and testing. To use these features install it in the following way:
 
 .. highlight:: bash
 
