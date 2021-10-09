@@ -97,7 +97,7 @@ var setupAPIForm = function($, defaultcall, fields, api_funcs) {
 
 		for(var i=0; i<fields.length; i++) {
 			var f	= fields[i];
-			var val = container_fields[f].find("input").val();
+			var val = container_fields[f].find("input, select").val();
 			//replace {field} with field-value
 			url = url.replace("{"+f+"}",""+val);
 			

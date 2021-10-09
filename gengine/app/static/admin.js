@@ -1,7 +1,7 @@
 jQuery().ready(function($) {
     var defaultcall = "progress";
     
-    var fields=["subjectid","variable","value","key","achievementid","level",
+    var fields=["subjectid","subjecttype_id","name","variable","value","key","achievementid","level",
                 "lat","lon","friends","groups","timezone","country","region","city",
                 "email","password","device_id","push_id","device_os","app_version",
                 "offset","message_id","additional_public_data","language"];
@@ -19,10 +19,10 @@ jQuery().ready(function($) {
             "postparams":["value"]
         },
         "add_or_update_subject" : {
-            "fields":["subjectid","lat","lon","friends","groups","timezone","country","region","city","additional_public_data","language"],
+            "fields":["subjectid","subjecttype_id","name","lat","lon","friends","groups","timezone","country","region","city","additional_public_data","language"],
             "url":"/add_or_update_subject/{subjectid}",
             "method":"POST",
-            "postparams":["lat","lon","friends","groups","timezone","country","region","city","additional_public_data","language"]
+            "postparams":["subjecttype_id","name","lat","lon","friends","groups","timezone","country","region","city","additional_public_data","language"]
         },
         "delete_subject" : {
             "fields":["subjectid"],

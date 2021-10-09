@@ -92,13 +92,22 @@ def add_or_update_subject(request):
         except:
             additional_public_data = {}
 
+    name = request.POST["name"]
+    subjecttype_id = request.POST["subjecttype_id"]
 
-    Subject.set_infos(subject_id=subject_id,
-                   lat=lat,
-                   lng=lon,
-                   timezone=timezone,
-                   language_id=language,
-                   additional_public_data = additional_public_data)
+    try:
+        Subject.set_infos(
+            subject_id=subject_id,
+            subjecttype_id=subjecttype_id,
+            name=name,
+            lat=lat,
+            lng=lon,
+            timezone=timezone,
+            language_id=language,
+            additional_public_data = additional_public_data
+        )
+    except Subject.WrongSubjectTypeException:
+        raise APIError(400, "wrong_subjecttype_id", "Wrong subjecttype_id provided for existing subject")
 
     Subject.set_relations(subject_id=subject_id, relation_ids=friends)
     Subject.set_parent_subjects(subject_id=subject_id, parent_subject_ids=groups)

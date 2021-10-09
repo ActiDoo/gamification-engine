@@ -7,7 +7,7 @@ from flask_admin import Admin
 from flask.globals import request
 from flask.helpers import send_from_directory, flash
 from flask_admin.actions import action
-from flask_admin.base import BaseView, expose
+from flask_admin.base import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla.filters import IntEqualFilter, BaseSQLAFilter
 from flask_admin.contrib.sqla.view import ModelView
 from flask_admin.model.form import InlineFormAdmin
@@ -284,6 +284,17 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
             super(ModelViewSubjectType, self).__init__(SubjectType, session, **kwargs)
 
 
+    class IndexView(AdminIndexView):
+        @expose('/')
+        def index(self):
+            from gengine.metadata import DBSession
+            from gengine.app.model import SubjectType
+
+            self._template_args['subjecttypes'] = DBSession.query(SubjectType).all()
+
+            return self.render(template="admin_index.html")
+
+
     if not override_flaskadminapp:
         adminapp = Flask(__name__)
         adminapp.debug=True
@@ -317,14 +328,14 @@ def init_admin(urlprefix="",secret="fKY7kJ2xSrbPC5yieEjV",override_admin=None,ov
     
     if not override_admin:
         admin = Admin(adminapp,
-                      name="Gamification Engine - Admin Control Panel",
-                      base_template='admin_layout.html',
-                      url=urlprefix+""
-                      )
+          name="Gamification Engine - Admin Control Panel",
+          base_template='admin_layout.html',
+          url=urlprefix+"",
+          index_view=IndexView(url=urlprefix+"")
+        )
     else:
         admin = override_admin
 
-            
     admin.add_view(ModelViewAchievement(DBSession, category="Rules"))
     admin.add_view(ModelViewAchievementTrigger(DBSession, category="Rules"))
 

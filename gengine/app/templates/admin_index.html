@@ -54,8 +54,23 @@
 		    			<label>Subject ID</label>
 		    			<input type="number" value="1">
 		    		</div>
-		    		
-		    		<div id="api_field_variable">
+
+                    <div id="api_field_subjecttype_id">
+                        <label>Subject Type</label>
+                        <select>
+                            <option></option>
+                            {% for subjecttype in subjecttypes %}
+                                <option value="{{ subjecttype.id }}">{{ subjecttype.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div id="api_field_name">
+                        <label>Name</label>
+                        <input type="text" value="" placeholder="Enter Name">
+                    </div>
+
+                    <div id="api_field_variable">
 		    			<label>Variable</label>
 		    			<input type="text" value="invite_users">
 		    		</div>
