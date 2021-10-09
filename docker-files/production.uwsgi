@@ -2,7 +2,7 @@
 uid=gengine
 gid=gengine
 listen = 30
-uwsgi-socket = /run/uwsgi/uwsgi.socket
+uwsgi-socket = 0.0.0.0:3031
 chmod-socket = 666
 master = true
 processes = 4

@@ -1,6 +1,7 @@
 Dockerfile
 docker-compose*.yml
 gengine/app/jsscripts/node_modules
-pgdata/
-dist/
-.idea/
+docker-data
+dist
+.idea
+.git

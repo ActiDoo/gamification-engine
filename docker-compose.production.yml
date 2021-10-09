@@ -5,10 +5,9 @@ services:
     build:
       context: .
     expose:
-      - 6543
+      - 3031
     volumes:
       - ./gengine:/usr/src/app/gengine
-      - uwsgi_socket:/run/uwsgi/
     depends_on:
       - postgres
       - memcached
@@ -30,7 +29,6 @@ services:
       - python
     volumes:
       - ./docker-files/nginx-prod.conf:/etc/nginx/nginx.conf
-      - uwsgi_socket:/run/uwsgi/
     ports:
       - 9000:80
     networks:
@@ -45,7 +43,7 @@ services:
       - POSTGRES_DB=gengine
       - PGDATA=/pgdata
     volumes:
-      - ./pgdata:/pgdata
+      - ./docker-data/pgdata:/pgdata
 
   memcached:
     image: memcached:alpine
@@ -61,6 +59,3 @@ services:
 
 networks:
   backend:
-
-volumes:
-  uwsgi_socket:
