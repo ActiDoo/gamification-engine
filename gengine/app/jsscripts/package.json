@@ -20,7 +20,7 @@
     "redux-saga": "^0.15.3",
     "reselect": "^3.0.1",
     "swagger-client": "^3.0.12",
-    "urijs": "^1.18.10",
+    "urijs": "^1.19.10",
     "uuid": "^3.0.1"
   },
   "devDependencies": {
