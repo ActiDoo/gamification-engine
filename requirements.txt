@@ -46,7 +46,7 @@ transaction==2.1.2
 translationstring==1.3
 urllib3==1.25.3
 venusian==1.0
-waitress==1.4.2
+waitress==2.1.1
 WebOb==1.7.2
 Werkzeug==0.16.0
 WTForms==2.2.1
