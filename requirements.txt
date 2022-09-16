@@ -15,7 +15,7 @@ itsdangerous==1.1.0
 Jinja2==2.10.1
 jsl==0.2.4
 jsonschema==2.6.0
-Mako==1.0.6
+Mako==1.2.2
 MarkupSafe==1.1.1
 mock==2.0.0
 packaging==16.8
