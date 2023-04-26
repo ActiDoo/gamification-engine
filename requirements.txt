@@ -23,7 +23,7 @@ PasteDeploy==1.5.2
 plaster==1.0
 plaster-pastedeploy==0.6
 psycopg2==2.8.3
-Pygments==2.2.0
+Pygments==2.7.4
 pymemcache==1.4.2
 pyparsing==2.2.0
 pyramid==1.9.1
